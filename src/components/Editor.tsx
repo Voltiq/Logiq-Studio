@@ -6,6 +6,7 @@ import { setShownPath, setView, shownPath, type Group } from "../editor/docs";
 import { get, useStore } from "../lib/store";
 import { activate, applyEditorSettings, goTo, revealInTree } from "../lib/actions";
 import { scopeAt } from "../editor/javaNav";
+import { relint } from "../editor/setup";
 import { useJavaIndexVersion } from "../uml/javaIndex";
 import { languageFor } from "../editor/languages";
 import { relative } from "../lib/paths";
@@ -48,7 +49,9 @@ export function Editor({ group, visible }: { group: Group; visible: boolean }) {
 
   useEffect(() => {
     const view = viewRef.current;
-    if (view) forceLinting(view);
+    if (!view) return;
+    view.dispatch({ effects: relint.of(null) });
+    forceLinting(view);
   }, [problemsVersion]);
 
   useEffect(() => {

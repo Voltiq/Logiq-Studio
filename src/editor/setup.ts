@@ -3,7 +3,7 @@
  * settings live in compartments, so they change without rebuilding a state
  * (and its undo history).
  */
-import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, Prec, StateEffect, type Extension } from "@codemirror/state";
 import { abbreviationTracker, expandAbbreviation } from "@emmetio/codemirror6-plugin";
 import { findUsages, goToDefinition, renameSymbol } from "./javaNav";
 import { colorSwatches } from "./colors";
@@ -28,10 +28,16 @@ import { lintGutter, linter, lintKeymap, type Diagnostic as CmDiagnostic } from 
 import { graphiqHighlight, graphiqTheme } from "./theme";
 import { languageFor } from "./languages";
 import { javaCompletions } from "./javaComplete";
+import { eslintDiagnostics } from "./eslint";
+import { jumpToDefinition } from "@codemirror/lsp-client";
+import { hasServer, lspExtension, organizeImports, quickFix, serverDiagnosticsFor } from "../lsp/clients";
 import type { Settings } from "../lib/settings";
 import { get } from "../lib/store";
 import { samePath } from "../lib/paths";
 import { t } from "../lib/i18n";
+
+/** Dispatched when problems change outside the editor (compiler, language server). */
+export const relint = StateEffect.define<null>();
 
 export const compartments = {
   language: new Compartment(),
@@ -43,16 +49,23 @@ export const compartments = {
 
 function languageExtension(path: string): Extension {
   const lang = languageFor(path);
-  const ext: Extension[] = [lang.support()];
+  const ext: Extension[] = [lang.support(), lspExtension(path)];
+  const server = hasServer(path);
+  const here = () => currentPath(path);
+  ext.push(Prec.high(keymap.of([{ key: "Mod-.", run: (v) => (void quickFix(v, here()), true) }])));
   if (lang.id === "java") {
-    const here = () => currentPath(path);
     ext.push(
-      EditorState.languageData.of(() => [{ autocomplete: javaCompletions(here) }]),
+      // With the Java language server its completion, F12, F2 and Shift+F12 take over.
+      server ? [] : EditorState.languageData.of(() => [{ autocomplete: javaCompletions(here) }]),
       Prec.high(
         keymap.of([
-          { key: "F12", run: (v) => goToDefinition(v, here()) },
-          { key: "Shift-F12", run: (v) => (findUsages(v), true) },
-          { key: "F2", run: (v) => (renameSymbol(v, here()), true) },
+          ...(server
+            ? [{ key: "Shift-Alt-o", run: (v: EditorView) => (void organizeImports(v, here()), true) }]
+            : [
+                { key: "F12", run: (v: EditorView) => goToDefinition(v, here()) },
+                { key: "Shift-F12", run: (v: EditorView) => (findUsages(v), true) },
+                { key: "F2", run: (v: EditorView) => (renameSymbol(v, here()), true) },
+              ]),
           { key: "F9", run: (v) => (toggleBreakpointAt(v, v.state.selection.main.head), true) },
         ]),
       ),
@@ -65,7 +78,10 @@ function languageExtension(path: string): Extension {
           const pos = v.posAtCoords({ x: e.clientX, y: e.clientY });
           if (pos === null) return false;
           e.preventDefault();
-          goToDefinition(v, here(), pos);
+          if (server) {
+            v.dispatch({ selection: { anchor: pos } });
+            jumpToDefinition(v);
+          } else goToDefinition(v, here(), pos);
           return true;
         },
       }),
@@ -106,7 +122,16 @@ function lintSource(path: () => string) {
     const out: CmDiagnostic[] = [];
     const doc = view.state.doc;
     const lang = languageFor(path());
-    if (lang.id !== "text" && lang.id !== "markdown" && lang.id !== "html" && lang.id !== "xml") {
+    for (const d of serverDiagnosticsFor(path())) {
+      const at = (p: { line: number; character: number }) => {
+        const l = doc.line(Math.max(1, Math.min(doc.lines, p.line + 1)));
+        return Math.min(l.to, l.from + p.character);
+      };
+      const from = at(d.range.start);
+      const to = Math.max(from, at(d.range.end));
+      out.push({ from, to: to === from ? Math.min(doc.length, from + 1) : to, severity: d.severity === 1 ? "error" : d.severity === 2 ? "warning" : "info", source: d.source ?? "server", message: d.message });
+    }
+    if (!hasServer(path()) && lang.id !== "text" && lang.id !== "markdown" && lang.id !== "html" && lang.id !== "xml") {
       const tree = ensureSyntaxTree(view.state, doc.length, 300);
       let count = 0;
       tree?.iterate({
@@ -168,7 +193,15 @@ export function createState(path: string, text: string, s: Settings, onUpdate: E
       search({ top: true }),
       lintGutter(),
       debugLineField,
-      linter(lintSource(() => currentPath(path)), { delay: 450 }),
+      linter(lintSource(() => currentPath(path)), {
+        delay: 450,
+        // New problems from the compiler or a language server re-run the check.
+        needsRefresh: (u) => u.transactions.some((tr) => tr.effects.some((e) => e.is(relint))),
+      }),
+      // ESLint for JavaScript, next to the language server's own checks.
+      /\.(m|c)?jsx?$/i.test(path)
+        ? linter((view) => eslintDiagnostics(view.state.doc.toString(), view.state.doc, /\.mjs$/i.test(currentPath(path)) || /^\s*(import|export)\s/m.test(view.state.doc.toString())).catch(() => []), { delay: 700 })
+        : [],
       compartments.indent.of(indentFor(s)),
       compartments.wrap.of(s.wordWrap ? EditorView.lineWrapping : []),
       compartments.language.of(languageExtension(path)),

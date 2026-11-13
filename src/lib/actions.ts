@@ -132,6 +132,19 @@ export function changeDoc(path: string, changes: { from: number; to: number; ins
   }
 }
 
+/** Rebuilds the language support of open editors, when a language server starts or stops. */
+export function refreshLanguages(ids: string[]) {
+  for (const doc of allDocs()) {
+    if (!ids.includes(languageFor(doc.path).id)) continue;
+    const effect = languageEffect(doc.path);
+    const g = groupShowing(doc.path);
+    if (g !== null && viewOf(g)) {
+      viewOf(g)!.dispatch({ effects: effect });
+      doc.state = viewOf(g)!.state;
+    } else doc.state = doc.state.update({ effects: effect }).state;
+  }
+}
+
 // ----- Folders ------------------------------------------------------------------------
 
 function addRecent(path: string) {
@@ -166,6 +179,7 @@ export async function openFolder(path: string) {
   addRecent(path);
   loadRunConfig(path);
   debugHooks?.folder(path);
+  void import("../lsp/clients").then((m) => m.startJavaServer());
   void api.watch(path).catch(() => {});
   void api.setPreviewRoot(path).catch(() => {});
   await loadDir(path);
@@ -293,6 +307,10 @@ function sortPinned(tabs: Tab[]): Tab[] {
 }
 
 export async function openFile(path: string, at?: { line: number; col?: number; length?: number }, group?: Group) {
+  if (extname(path) === "uml") {
+    openDiagram(path, group);
+    return;
+  }
   const existing = get().tabs.find((t) => t.path && samePath(t.path, path));
   if (existing) {
     activate(existing.id);
@@ -793,6 +811,18 @@ export function openUml(group?: Group) {
   activate("uml");
 }
 
+/**
+ * Shows a class diagram: a .uml file with its own choice of classes, or the
+ * project's diagram of every class (null).
+ */
+export function openDiagram(path: string | null, group?: Group) {
+  openUml(group);
+  const title = path ? stem(path) : t("UML class diagram");
+  set((s) => ({ tabs: s.tabs.map((x) => (x.id === "uml" ? { ...x, path, title } : x)) }));
+  activate("uml");
+  scheduleSession();
+}
+
 /** Shows the sequence diagram of the last traced run. */
 export function openSequence() {
   if (!get().tabs.some((x) => x.id === "sequence")) {
@@ -1027,7 +1057,7 @@ async function restoreSession(): Promise<boolean> {
   try {
     await openFolder(session.root);
     for (const tab of session.tabs) {
-      if (tab.kind === "uml") openUml(tab.group);
+      if (tab.kind === "uml") openDiagram(tab.path && (await api.exists(tab.path).catch(() => false)) ? tab.path : null, tab.group);
       else if (tab.path && (await api.exists(tab.path).catch(() => false))) await openFile(tab.path, undefined, tab.group);
       else continue;
       if (tab.pinned) togglePin(tab.id);
@@ -1121,6 +1151,10 @@ export async function init() {
   started = true;
   api.detectJdks().then((jdks) => set({ jdks })).catch(() => {});
   api.detectNode().then((node) => set({ node })).catch(() => {});
+  void import("../lsp/clients").then((m) => {
+    m.setLanguageRefresher(refreshLanguages as never);
+    m.startWebServers();
+  });
   await events.onRunOutput((e) => {
     const run = get().run;
     if (run.status === "running" && run.runId === e.runId) appendOutput(e.stream, e.text);

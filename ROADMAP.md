@@ -182,9 +182,9 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - [x] A renamed class keeps its box's place (also for renames done in code)
 
 ### Still open, moved on
-- [ ] Orthogonal line routing around boxes, manual bend points, label dragging (v0.5)
-- [ ] Several diagrams per project (`.uml` files) (v0.5)
-- [ ] Sequence diagrams generated from a run: needs the debugger's tracing (v0.4)
+- [x] Orthogonal line routing around boxes, manual bend points, label dragging (done in v0.5)
+- [x] Several diagrams per project (`.uml` files) (done in v0.5)
+- [x] Sequence diagrams generated from a run: needs the debugger's tracing (done in v0.4)
 
 ### Known limits of v0.3
 - The bench creates objects through constructors and calls methods with simple arguments; expressions like
@@ -240,14 +240,49 @@ UML class diagram draws itself from your Java code while you type, like in the R
 
 ---
 
-## v0.5 — Language intelligence
-- [ ] Orthogonal line routing around boxes in the UML diagram; manual bend points; label dragging
-- [ ] Several diagrams per project (`.uml` files)
-- [ ] Java language server (Eclipse JDT LS): type-aware completion, errors as you type, quick fixes, imports,
-      refactorings
-- [ ] TypeScript language service for JavaScript and TypeScript (types, errors, go to definition)
-- [ ] HTML and CSS language services (validation, attribute and property completion everywhere)
-- [ ] ESLint and Stylelint integration
+## v0.5 — Language intelligence (2026-11-13)
+
+### Language servers
+- [x] **LSP client** in the editor (CodeMirror's LSP client): completion, hover documentation, signature help,
+      go to definition (`F12`, `Ctrl`+click), find references (`Shift+F12`), rename (`F2`), problems as you type
+      in the editor and the Problems panel; servers' edits to files that aren't open are written to disk
+- [x] **Java language server** (Eclipse JDT LS): downloaded once on request (Settings → Java, about 50 MB from
+      eclipse.org) into the app's data folder, started per project with `lib/*.jar` on the class path; errors as
+      you type, completion that knows types, **quick fixes** (`Ctrl+.`, e.g. *Import 'List' (java.util)*),
+      **organize imports** (`Shift+Alt+O`); the JDK's internal packages are left out of completion and fixes; a
+      status item shows when it starts; it can be switched off, and Java then uses Logiq Studio's own completion
+- [x] **TypeScript language service** in a web worker for JavaScript and TypeScript: types and documentation
+      of the DOM and the standard library on hover, completion, syntax errors (and type errors in TypeScript),
+      definition, references, rename, signature help
+- [x] **HTML and CSS language services** (the ones VS Code uses) in a web worker: completion of tags,
+      attributes, properties and values; hover documentation; CSS validation (unknown properties, empty rules,
+      duplicate properties); definition, references and rename of CSS variables and selectors; renaming an HTML
+      tag renames its closing tag
+- [x] **ESLint** for JavaScript files, with rules that find real mistakes (unused variables, `==`, unreachable
+      code, duplicate keys and cases, assignments in conditions, `NaN` comparisons…)
+- [x] Native test against the real JDT LS: install, start, errors, completion and quick fixes
+
+### UML class diagram
+- [x] **Right-angled lines that go around boxes** (A* over the lines just outside the boxes, as few bends as
+      possible); straight lines are still an option (View → *Right-angled lines*)
+- [x] **Bend points**: click a line, drag a handle on it to add a bend, drag a bend to move it (it snaps into
+      line with its neighbours; `Alt` turns that off), double-click a bend to remove it; *Reset the line*
+- [x] **Labels can be dragged**: role names and multiplicities; *Reset the labels*
+- [x] **Several diagrams per project**: `.uml` files that show a choice of classes (*New class diagram…* starts
+      from the selected class and the classes it is related to); *Classes…* picks them, *Add related classes*
+      and *Remove from diagram* in a class's menu; the project diagram still shows every class; a `.uml` file
+      opens from the explorer
+
+### Still open, moved on
+- [ ] Stylelint: the CSS language service's validation covers the common mistakes; a full Stylelint needs Node → v0.6
+- [ ] Java refactorings beyond rename (extract method / variable) through the language server → v0.6
+
+### Known limits of v0.5
+- JDT LS needs Java 21 or newer to run itself (projects can target older versions); its first start in a project
+  indexes the JDK and takes a little while
+- Bend points stay where they are when a box moves; *Arrange automatically* resets them
+- The language servers were tested in the browser stand-in (TypeScript, HTML, CSS, ESLint) and natively (JDT LS
+  framing, install and a whole session); the Java server inside the installed app isn't checked yet
 
 ## v0.6 — Terminal, Git and build tools
 - [ ] Maven and Gradle projects: open, build, run, dependencies on the class path

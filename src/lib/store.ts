@@ -10,7 +10,7 @@ export type PanelTab = "output" | "problems" | "tests" | "jshell";
 export type Group = 0 | 1;
 
 export interface Tab {
-  /** The file's path, or "uml" for the class diagram. */
+  /** The file's path; for the class diagram, its .uml file (null for the project's diagram). */
   id: string;
   kind: "file" | "uml" | "image" | "sequence";
   path: string | null;
@@ -83,6 +83,14 @@ export type Dialog =
     }
   | { kind: "palette"; mode: "commands" | "files" | "line" }
   | { kind: "classWizard"; dir: string }
+  | {
+      kind: "pickClasses";
+      title: string;
+      options: { value: string; label: string; detail?: string }[];
+      selected: string[];
+      confirmLabel: string;
+      onSubmit: (values: string[]) => void;
+    }
   | { kind: "editClass"; owner: string }
   /** Add (no `line`) or edit (the member's line) an attribute, method or constructor. */
   | { kind: "member"; owner: string; member: "field" | "method" | "ctor"; line?: number }

@@ -22,6 +22,8 @@ export interface UmlOptions {
   showNesting: boolean;
   /** Grey boxes for library classes the project uses (Scanner, Random…). */
   showLibrary: boolean;
+  /** Lines with right angles that go around boxes, instead of straight lines. */
+  orthogonal: boolean;
 }
 
 export const DEFAULT_UML_OPTIONS: UmlOptions = {
@@ -36,6 +38,7 @@ export const DEFAULT_UML_OPTIONS: UmlOptions = {
   showDependencies: false,
   showNesting: true,
   showLibrary: false,
+  orthogonal: true,
 };
 
 export interface Member {
@@ -582,13 +585,37 @@ export function borderPoint(r: Rect, toward: Point): Point {
   return { x: cx + dx * s, y: cy + dy * s };
 }
 
+export interface RouteOptions {
+  /** Right-angled lines that go around `obstacles`. */
+  orthogonal?: boolean;
+  /** Every box of the diagram (the two ends included). */
+  obstacles?: Rect[];
+  /** Bend points the user placed; the line passes through them. */
+  bends?: Point[];
+}
+
+/** Where a line from `toward` meets `r`: at a right angle when `toward` is straight above, below or beside it. */
+export function attach(r: Rect, toward: Point): Point {
+  if (toward.x >= r.x && toward.x <= r.x + r.w) {
+    if (toward.y < r.y) return { x: toward.x, y: r.y };
+    if (toward.y > r.y + r.h) return { x: toward.x, y: r.y + r.h };
+  }
+  if (toward.y >= r.y && toward.y <= r.y + r.h) {
+    if (toward.x < r.x) return { x: r.x, y: toward.y };
+    if (toward.x > r.x + r.w) return { x: r.x + r.w, y: toward.y };
+  }
+  return borderPoint(r, toward);
+}
+
 /**
  * The points a relation's line passes through, from the source box to the
- * target box. Generalisations run as orthogonal trees when the subtype is
- * below its supertype, so siblings share one arrowhead; everything else is a
- * straight line, offset when two boxes point at each other.
+ * target box. Lines with bend points the user placed pass through them.
+ * Generalisations run as orthogonal trees when the subtype is below its
+ * supertype, so siblings share one arrowhead. Other lines are right-angled
+ * and go around boxes, or straight; both are offset when two boxes point at
+ * each other.
  */
-export function route(e: UmlEdge, a: Rect, b: Rect, offset = 0): Point[] {
+export function route(e: UmlEdge, a: Rect, b: Rect, offset = 0, o: RouteOptions = {}): Point[] {
   if (e.from === e.to) {
     const x = a.x + a.w;
     return [
@@ -598,6 +625,11 @@ export function route(e: UmlEdge, a: Rect, b: Rect, offset = 0): Point[] {
       { x: x + 26, y: a.y + 24 },
       { x, y: a.y + 24 },
     ];
+  }
+  if (o.bends?.length) {
+    const first = o.bends[0];
+    const last = o.bends[o.bends.length - 1];
+    return [attach(a, first), ...o.bends, attach(b, last)];
   }
   if ((e.kind === "extends" || e.kind === "implements") && a.y > b.y + b.h + 24) {
     const cx = a.x + a.w / 2;
@@ -613,6 +645,12 @@ export function route(e: UmlEdge, a: Rect, b: Rect, offset = 0): Point[] {
       { x: px, y: bottom },
     ];
   }
+  if (o.orthogonal) {
+    // The two lines between boxes that point at each other leave on different sides of the middle.
+    const shift = offset ? (e.from < e.to ? offset : -offset) : 0;
+    const path = routeOrthogonal(a, b, o.obstacles ?? [a, b], shift);
+    if (path) return path;
+  }
   const ca = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
   const cb = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
   const start = borderPoint(a, cb);
@@ -626,4 +664,197 @@ export function route(e: UmlEdge, a: Rect, b: Rect, offset = 0): Point[] {
     { x: start.x + nx, y: start.y + ny },
     { x: end.x + nx, y: end.y + ny },
   ];
+}
+
+// ----- Right-angled lines ---------------------------------------------------------------
+
+/** How far lines keep from boxes, and what a bend costs in pixels of length. */
+const CLEAR = 16;
+const BEND = 28;
+const DX = [1, 0, -1, 0];
+const DY = [0, 1, 0, -1];
+
+interface Port {
+  /** Where the line meets the box. */
+  p: Point;
+  /** One step out of the box, where routing starts. */
+  out: Point;
+  /** 0 right, 1 down, 2 left, 3 up: the way out of the box. */
+  dir: number;
+}
+
+function portsOf(r: Rect, shift: number): Port[] {
+  const sx = Math.max(-r.w / 2 + 8, Math.min(r.w / 2 - 8, shift));
+  const sy = Math.max(-r.h / 2 + 8, Math.min(r.h / 2 - 8, shift));
+  const cx = r.x + r.w / 2 + sx;
+  const cy = r.y + r.h / 2 + sy;
+  return [
+    { p: { x: r.x + r.w, y: cy }, dir: 0 },
+    { p: { x: cx, y: r.y + r.h }, dir: 1 },
+    { p: { x: r.x, y: cy }, dir: 2 },
+    { p: { x: cx, y: r.y }, dir: 3 },
+  ].map((q) => ({ ...q, out: { x: q.p.x + DX[q.dir] * CLEAR, y: q.p.y + DY[q.dir] * CLEAR } }));
+}
+
+/** A tiny binary heap of [priority, value]. */
+class Heap {
+  private a: [number, number][] = [];
+  get size() {
+    return this.a.length;
+  }
+  push(p: number, v: number) {
+    const a = this.a;
+    a.push([p, v]);
+    let i = a.length - 1;
+    while (i > 0) {
+      const j = (i - 1) >> 1;
+      if (a[j][0] <= a[i][0]) break;
+      [a[i], a[j]] = [a[j], a[i]];
+      i = j;
+    }
+  }
+  pop(): [number, number] {
+    const a = this.a;
+    const top = a[0];
+    const last = a.pop()!;
+    if (a.length) {
+      a[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = i * 2 + 1;
+        const r = l + 1;
+        let m = i;
+        if (l < a.length && a[l][0] < a[m][0]) m = l;
+        if (r < a.length && a[r][0] < a[m][0]) m = r;
+        if (m === i) break;
+        [a[i], a[m]] = [a[m], a[i]];
+        i = m;
+      }
+    }
+    return top;
+  }
+}
+
+/**
+ * A right-angled line from box `a` to box `b` that keeps clear of every box
+ * in `obstacles`, with as few bends as it can: A* over a sparse grid made of
+ * the lines just outside each box. Null when there is no way through.
+ */
+export function routeOrthogonal(a: Rect, b: Rect, obstacles: Rect[], shift = 0): Point[] | null {
+  const starts = portsOf(a, shift);
+  const goals = portsOf(b, shift);
+  const pad = CLEAR - 1;
+  const blocked = obstacles.map((r) => ({ x0: r.x - pad, y0: r.y - pad, x1: r.x + r.w + pad, y1: r.y + r.h + pad }));
+  const inside = (x: number, y: number) => blocked.some((r) => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1);
+  const xsSet = new Set<number>();
+  const ysSet = new Set<number>();
+  for (const r of obstacles) {
+    xsSet.add(r.x - CLEAR).add(r.x + r.w + CLEAR);
+    ysSet.add(r.y - CLEAR).add(r.y + r.h + CLEAR);
+  }
+  for (const q of [...starts, ...goals]) {
+    xsSet.add(q.out.x);
+    ysSet.add(q.out.y);
+  }
+  // The middle of the gap between the two boxes, where a line looks tidiest.
+  if (a.x + a.w < b.x || b.x + b.w < a.x) xsSet.add(Math.round((Math.max(a.x, b.x) + Math.min(a.x + a.w, b.x + b.w)) / 2));
+  if (a.y + a.h < b.y || b.y + b.h < a.y) ysSet.add(Math.round((Math.max(a.y, b.y) + Math.min(a.y + a.h, b.y + b.h)) / 2));
+  const xs = [...xsSet].sort((p, q) => p - q);
+  const ys = [...ysSet].sort((p, q) => p - q);
+  const nx = xs.length;
+  if (nx * ys.length > 60000) return null;
+  const xi = new Map(xs.map((v, i) => [v, i]));
+  const yi = new Map(ys.map((v, i) => [v, i]));
+  const node = (x: number, y: number) => yi.get(y)! * nx + xi.get(x)!;
+  const goalAt = new Map<number, Port[]>();
+  for (const g of goals) {
+    if (inside(g.out.x, g.out.y)) continue;
+    const k = node(g.out.x, g.out.y);
+    goalAt.set(k, [...(goalAt.get(k) ?? []), g]);
+  }
+  if (!goalAt.size) return null;
+  const h = (x: number, y: number) => Math.min(...goals.map((g) => Math.abs(g.out.x - x) + Math.abs(g.out.y - y))) + CLEAR;
+
+  // A state is a grid point and the direction the line arrived in.
+  const cost = new Map<number, number>();
+  const from = new Map<number, number>();
+  const startOf = new Map<number, Port>();
+  const heap = new Heap();
+  const GOAL = -1;
+  let best: { cost: number; state: number; port: Port } | null = null;
+  for (const s of starts) {
+    if (inside(s.out.x, s.out.y)) continue;
+    const st = node(s.out.x, s.out.y) * 4 + s.dir;
+    if ((cost.get(st) ?? Infinity) <= CLEAR) continue;
+    cost.set(st, CLEAR);
+    startOf.set(st, s);
+    heap.push(CLEAR + h(s.out.x, s.out.y), st);
+  }
+  const segFree = new Map<number, boolean>();
+  while (heap.size) {
+    const [f, st] = heap.pop();
+    if (st === GOAL) break;
+    if (best && f >= best.cost) break;
+    const g = cost.get(st)!;
+    const id = st >> 2;
+    const dir = st & 3;
+    const ix = id % nx;
+    const iy = (id - ix) / nx;
+    const x = xs[ix];
+    const y = ys[iy];
+    for (const port of goalAt.get(id) ?? []) {
+      // The last step goes into the box, against the port's way out.
+      const total = g + CLEAR + (dir === ((port.dir + 2) & 3) ? 0 : BEND);
+      if (!best || total < best.cost) {
+        best = { cost: total, state: st, port };
+        heap.push(total, GOAL);
+      }
+    }
+    for (let d = 0; d < 4; d++) {
+      if (d === ((dir + 2) & 3)) continue;
+      const jx = ix + DX[d];
+      const jy = iy + DY[d];
+      if (jx < 0 || jx >= nx || jy < 0 || jy >= ys.length) continue;
+      const x2 = xs[jx];
+      const y2 = ys[jy];
+      const seg = id * 4 + d;
+      let free = segFree.get(seg);
+      if (free === undefined) {
+        // Box edges lie on grid lines, so a segment is clear when its middle and its end are.
+        free = !inside((x + x2) / 2, (y + y2) / 2) && !inside(x2, y2);
+        segFree.set(seg, free);
+      }
+      if (!free) continue;
+      const nextCost = g + Math.abs(x2 - x) + Math.abs(y2 - y) + (d === dir ? 0 : BEND);
+      const next = (jy * nx + jx) * 4 + d;
+      if (nextCost < (cost.get(next) ?? Infinity)) {
+        cost.set(next, nextCost);
+        from.set(next, st);
+        heap.push(nextCost + h(x2, y2), next);
+      }
+    }
+  }
+  if (!best) return null;
+  const grid: Point[] = [];
+  let st: number | undefined = best.state;
+  let first = st;
+  while (st !== undefined) {
+    const id = st >> 2;
+    grid.unshift({ x: xs[id % nx], y: ys[Math.floor(id / nx)] });
+    first = st;
+    st = from.get(st);
+  }
+  const start = startOf.get(first)!;
+  const pts = [start.p, ...grid, best.port.p];
+  // Drop the points in the middle of straight runs.
+  const out: Point[] = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p = out[out.length - 1];
+    const q = pts[i];
+    const r = pts[i + 1];
+    if ((p.x === q.x && q.x === r.x) || (p.y === q.y && q.y === r.y)) continue;
+    out.push(q);
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
 }

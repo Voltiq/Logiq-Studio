@@ -2816,3 +2816,69 @@ button.status-item:hover {
 .welcome-foot .link-button {
   margin-left: 6px;
 }
+
+/* ----- Language servers ----- */
+
+.lsp-setting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+  padding: var(--space-150);
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: var(--inset-hi);
+}
+
+.lsp-setting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cm-tooltip.cm-lsp-documentation,
+.cm-lsp-documentation {
+  font-family: var(--font-body);
+  font-size: 12px;
+  max-width: 34rem;
+}
+
+.cm-lsp-documentation pre,
+.cm-lsp-documentation code {
+  font-family: var(--font-code);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.cm-lsp-documentation a {
+  color: var(--link);
+}
+
+.cm-lsp-signature-tooltip {
+  background: var(--surface-2) !important;
+  color: var(--text);
+  font-family: var(--font-code);
+  font-size: 12px;
+}
+
+.cm-lsp-active-parameter {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* ----- UML: bending lines, moving labels ----- */
+.uml-relation.is-selected .uml-edge { stroke: var(--accent-text); stroke-width: 1.6; }
+.uml-handle { fill: var(--bg-2); stroke: var(--accent-text); stroke-width: 1.4; cursor: move; }
+.uml-handle.is-mid { fill: var(--accent-text); stroke: var(--bg-2); opacity: 0.75; cursor: copy; }
+.uml-handle.is-mid:hover { opacity: 1; }
+.uml-handle.is-bend:hover { fill: var(--accent-text); }
+.uml-label.is-draggable { cursor: move; }
+.uml-hit { cursor: pointer; pointer-events: stroke; }
+.uml-label.is-draggable:hover { fill: var(--accent-text); }
+
+/* ----- Picking the classes of a diagram ----- */
+.pick-classes { display: flex; flex-direction: column; gap: 10px; }
+.pick-classes-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow: auto; padding: 4px 2px; border-top: 1px solid var(--line); }
+.pick-classes-item { display: inline-flex; gap: 8px; align-items: baseline; }
+.pick-classes-detail { color: var(--text-subtle); font: 400 11px var(--font-code); }

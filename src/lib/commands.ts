@@ -37,6 +37,7 @@ import {
   BookOpen,
   FileArchive,
   Coffee,
+  Lightbulb,
 } from "lucide-react";
 import { expandAbbreviation } from "@emmetio/codemirror6-plugin";
 import { findUsages, goToDefinition, renameSymbol } from "../editor/javaNav";
@@ -46,6 +47,7 @@ import { activeView, shownPath } from "../editor/docs";
 import { toggleBreakpointAt } from "../editor/breakpoints";
 import * as D from "./debug";
 import * as T from "./tools";
+import { hasServer, organizeImports, quickFix, useLsp } from "../lsp/clients";
 import * as A from "./actions";
 import { activeIdOf, activeTab, get, openDialog, set } from "./store";
 
@@ -107,6 +109,9 @@ export const COMMANDS: Command[] = [
   { id: "edit.definition", label: "Go to definition", category: "Edit", shortcut: "F12", editorKey: true, enabled: hasJava, run: editor((v) => void goToDefinition(v, shownPath()!)) },
   { id: "edit.usages", label: "Find usages", category: "Edit", shortcut: "Shift+F12", editorKey: true, enabled: hasJava, run: editor((v) => findUsages(v)) },
   { id: "edit.rename", label: "Rename symbol…", category: "Edit", shortcut: "F2", editorKey: true, enabled: hasJava, run: editor((v) => renameSymbol(v, shownPath()!)) },
+  { id: "edit.quickfix", label: "Quick fix…", category: "Edit", icon: Lightbulb, shortcut: "Ctrl+.", editorKey: true, enabled: hasEditor, run: editor((v) => void quickFix(v, shownPath()!)) },
+  { id: "edit.organizeImports", label: "Organize imports", category: "Edit", shortcut: "Shift+Alt+O", editorKey: true, enabled: () => hasJava() && hasServer(shownPath()!), run: editor((v) => void organizeImports(v, shownPath()!)) },
+  { id: "help.javaServer", label: "Install the Java language server…", category: "Help", enabled: () => useLsp.getState().java === "missing", run: () => openDialog({ kind: "settings" }) },
   { id: "edit.emmet", label: "Expand Emmet abbreviation", category: "Edit", shortcut: "Ctrl+E", editorKey: true, enabled: hasWeb, run: editor((v) => void expandAbbreviation(v)) },
 
   { id: "view.explorer", label: "Show explorer", category: "View", icon: PanelLeft, shortcut: "Ctrl+Shift+E", run: () => set({ sidebar: "explorer" }) },

@@ -10,6 +10,7 @@ import { TEMPLATES, type TemplateId } from "../lib/templates";
 import { COMMANDS } from "../lib/commands";
 import { UmlDialogs } from "../uml/ClassDialogs";
 import { ToolDialogs } from "./ToolDialogs";
+import { installJavaServer, startJavaServer, useLsp } from "../lsp/clients";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { Checkbox, RadioList, Segmented, Select, TextField, Toggle } from "./ui/Field";
@@ -334,6 +335,7 @@ function SettingsDialog() {
       <Toggle label={t("Save all files before running")} checked={s.saveBeforeRun} onChange={(v) => setSettings({ saveBeforeRun: v })} />
       <Toggle label={t("Reload the web preview on save")} checked={s.livePreview} onChange={(v) => setSettings({ livePreview: v })} />
       <h3 className="settings-heading">{t("Java")}</h3>
+      <JavaServerSetting />
       <div className="settings-row is-end">
         <Select label={t("JDK")} value={jdkOptions.some((o) => o.value === s.jdkHome) ? s.jdkHome : ""} options={jdkOptions} onChange={(v) => setSettings({ jdkHome: v })} />
         <Button iconBefore={FolderOpen} onClick={() => void chooseJdk()}>
@@ -351,13 +353,54 @@ function SettingsDialog() {
   );
 }
 
+/** Install or switch the Java language server (Eclipse JDT LS). */
+function JavaServerSetting() {
+  const state = useLsp((s) => s.java);
+  const on = useStore((st) => st.settings.javaServer);
+  const missing = state === "missing";
+  return (
+    <div className="lsp-setting">
+      <div className="lsp-setting-text">
+        <span className="field-label">{t("Java language server")}</span>
+        <span className="dialog-text">
+          {state === "ready"
+            ? t("Running: errors as you type, completion that knows types, quick fixes (Ctrl+.), organize imports.")
+            : state === "starting"
+              ? t("Starting… The first start indexes the JDK and takes a minute.")
+              : state === "installing"
+                ? t("Downloading and unpacking (about 50 MB)…")
+                : state === "failed"
+                  ? t("It stopped. It needs Java 21 or newer to run.")
+                  : missing
+                    ? t("Eclipse JDT LS gives errors as you type, completion that knows types and quick fixes. It is downloaded once (about 50 MB) from eclipse.org.")
+                    : t("Switched off. Java uses Logiq Studio's own completion and the compiler's errors.")}
+        </span>
+      </div>
+      {missing || state === "installing" ? (
+        <Button appearance="primary" loading={state === "installing"} onClick={() => void installJavaServer()}>
+          {t("Install")}
+        </Button>
+      ) : (
+        <Toggle
+          label={t("Use it")}
+          checked={on}
+          onChange={(v) => {
+            setSettings({ javaServer: v });
+            void startJavaServer();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 function AboutDialog() {
   return (
     <Modal title={t("About Logiq Studio")} width="small" onClose={closeDialog}>
       <div className="about">
         <img src="/app-icon.svg" alt="" width={64} height={64} />
         <div>
-          <p className="about-name">Logiq Studio 0.4.0</p>
+          <p className="about-name">Logiq Studio 0.5.0</p>
           <p className="dialog-text">{t("An IDE for Java, HTML, CSS and JavaScript that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.")}</p>
         </div>
       </div>

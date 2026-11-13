@@ -463,8 +463,75 @@ function EditClassDialog({ d }: { d: Extract<Dialog, { kind: "editClass" }> }) {
   );
 }
 
+/** Ticks classes in a list, with a filter. */
+function PickClassesDialog({ d }: { d: Extract<Dialog, { kind: "pickClasses" }> }) {
+  const [chosen, setChosen] = useState(() => new Set(d.selected));
+  const [filter, setFilter] = useState("");
+  const shown = d.options.filter((o) => !filter || o.label.toLowerCase().includes(filter.toLowerCase()) || o.detail?.toLowerCase().includes(filter.toLowerCase()));
+  const all = shown.length > 0 && shown.every((o) => chosen.has(o.value));
+  return (
+    <Modal
+      title={d.title}
+      width="small"
+      onClose={closeDialog}
+      footer={
+        <>
+          <Button appearance="subtle" onClick={closeDialog}>
+            {t("Cancel")}
+          </Button>
+          <Button
+            appearance="primary"
+            onClick={() => {
+              d.onSubmit(d.options.map((o) => o.value).filter((v) => chosen.has(v)));
+              closeDialog();
+            }}
+          >
+            {d.confirmLabel}
+          </Button>
+        </>
+      }
+    >
+      <div className="pick-classes">
+        <TextField label={t("Filter")} value={filter} onChange={(e) => setFilter(e.target.value)} autoFocus />
+        <Checkbox
+          label={t("All shown ({0})", shown.length)}
+          checked={all}
+          indeterminate={!all && shown.some((o) => chosen.has(o.value))}
+          onChange={(v) => {
+            const next = new Set(chosen);
+            for (const o of shown) v ? next.add(o.value) : next.delete(o.value);
+            setChosen(next);
+          }}
+        />
+        <div className="pick-classes-list">
+          {shown.map((o) => (
+            <Checkbox
+              key={o.value}
+              label={
+                <span className="pick-classes-item">
+                  {o.label}
+                  {o.detail && <span className="pick-classes-detail">{o.detail}</span>}
+                </span>
+              }
+              checked={chosen.has(o.value)}
+              onChange={(v) => {
+                const next = new Set(chosen);
+                v ? next.add(o.value) : next.delete(o.value);
+                setChosen(next);
+              }}
+            />
+          ))}
+          {!shown.length && <p className="dialog-text">{t("No class matches.")}</p>}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function UmlDialogs({ d }: { d: Dialog }) {
   switch (d.kind) {
+    case "pickClasses":
+      return <PickClassesDialog d={d} />;
     case "classWizard":
       return <ClassWizard d={d} />;
     case "member":

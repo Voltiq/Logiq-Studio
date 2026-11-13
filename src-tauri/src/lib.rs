@@ -9,6 +9,7 @@
 mod bench;
 mod debug;
 mod fs;
+mod lsp;
 mod preview;
 mod runner;
 mod search;
@@ -59,6 +60,7 @@ pub fn run() {
         .manage(bench::Bench::default())
         .manage(debug::Debugger::default())
         .manage(tools::JShell::default())
+        .manage(lsp::Servers::default())
         .manage(watch::Watcher::default())
         .manage(preview::PreviewRoot::default())
         .register_uri_scheme_protocol("logiq-preview", |ctx, request| preview::serve(ctx.app_handle(), &request))
@@ -114,6 +116,11 @@ pub fn run() {
             tools::junit_find,
             tools::junit_download,
             tools::junit_run,
+            lsp::lsp_send,
+            lsp::lsp_stop,
+            lsp::jdtls_status,
+            lsp::jdtls_install,
+            lsp::jdtls_start,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Logiq Studio");

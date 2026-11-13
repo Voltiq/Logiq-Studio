@@ -1,6 +1,6 @@
 [package]
 name = "logiq-studio"
-version = "0.4.0"
+version = "0.5.0"
 description = "Logiq Studio: an IDE for Java, HTML, CSS and JavaScript with live UML class diagrams"
 license = "MIT"
 authors = ["Voltiq"]
@@ -29,6 +29,9 @@ notify = "8"
 regex = "1"
 # Downloading the JUnit console launcher from Maven Central
 ureq = "2"
+# Unpacking the Java language server download
+flate2 = "1"
+tar = "0.4"
 
 [profile.release]
 lto = true

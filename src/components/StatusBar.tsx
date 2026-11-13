@@ -3,6 +3,7 @@ import { activeTab, openDialog, set, useStore } from "../lib/store";
 import { languageFor } from "../editor/languages";
 import { getDoc } from "../editor/docs";
 import { t } from "../lib/i18n";
+import { useLsp } from "../lsp/clients";
 
 export function StatusBar() {
   const tab = useStore((s) => activeTab(s));
@@ -10,6 +11,7 @@ export function StatusBar() {
   const settings = useStore((s) => s.settings);
   const jdks = useStore((s) => s.jdks);
   const node = useStore((s) => s.node);
+  const javaServer = useLsp((s) => s.java);
   const problems = useStore((s) => s.problems);
   const errors = problems.filter((p) => p.severity === "error").length;
   const warnings = problems.length - errors;
@@ -45,6 +47,12 @@ export function StatusBar() {
         <Coffee size={13} aria-hidden="true" />
         {jdk ? `Java ${jdk.version}` : t("No JDK")}
       </button>
+      {javaServer !== "off" && javaServer !== "missing" && (
+        <button type="button" className="status-item" onClick={() => openDialog({ kind: "settings" })} data-tooltip={t("Java language server")}>
+          <span className={`status-dot ${javaServer === "ready" ? "status-dot-online" : javaServer === "failed" ? "status-dot-warning" : "status-dot-busy"}`} aria-hidden="true" />
+          {javaServer === "ready" ? "JDT LS" : javaServer === "failed" ? t("JDT LS stopped") : t("JDT LS starting…")}
+        </button>
+      )}
       {node && (
         <span className="status-item" data-tooltip={node.path}>
           <Hexagon size={13} aria-hidden="true" />

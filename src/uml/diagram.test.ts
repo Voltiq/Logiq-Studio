@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseJava } from "./javaParser";
-import { autoLayout, buildDiagram, DEFAULT_UML_OPTIONS, multiplicity, placeNew, roughMeasure, route } from "./diagram";
+import { autoLayout, buildDiagram, DEFAULT_UML_OPTIONS, multiplicity, placeNew, roughMeasure, route, routeOrthogonal, type Point, type Rect } from "./diagram";
 
 const SHAPES = `
 interface Drawable { void draw(); }
@@ -105,5 +105,77 @@ describe("buildDiagram", () => {
     expect(multiplicity("Shape[]", "Shape")).toBe("0..*");
     expect(multiplicity("ArrayList<Shape>", "Shape")).toBe("0..*");
     expect(multiplicity("Optional<Shape>", "Shape")).toBe("0..1");
+  });
+});
+
+describe("routeOrthogonal", () => {
+  const crosses = (pts: Point[], r: Rect) =>
+    pts.slice(1).some((q, i) => {
+      const p = pts[i];
+      // Sample each segment; a point strictly inside the box is a crossing.
+      for (let t = 0; t <= 1; t += 0.05) {
+        const x = p.x + (q.x - p.x) * t;
+        const y = p.y + (q.y - p.y) * t;
+        if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return true;
+      }
+      return false;
+    });
+  const rightAngled = (pts: Point[]) => pts.slice(1).every((q, i) => q.x === pts[i].x || q.y === pts[i].y);
+
+  it("goes around a box in the way", () => {
+    const a = { x: 0, y: 0, w: 100, h: 60 };
+    const wall = { x: 200, y: -60, w: 80, h: 180 };
+    const b = { x: 400, y: 0, w: 100, h: 60 };
+    const pts = routeOrthogonal(a, b, [a, wall, b])!;
+    expect(pts).not.toBeNull();
+    expect(rightAngled(pts)).toBe(true);
+    expect(crosses(pts, wall)).toBe(false);
+    const onBorder = (p: Point, r: Rect) => (p.x === r.x || p.x === r.x + r.w || p.y === r.y || p.y === r.y + r.h) && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    expect(onBorder(pts[0], a)).toBe(true);
+    expect(onBorder(pts[pts.length - 1], b)).toBe(true);
+  });
+
+  it("is a straight line between two boxes side by side", () => {
+    const a = { x: 0, y: 0, w: 100, h: 60 };
+    const b = { x: 300, y: 0, w: 100, h: 60 };
+    expect(routeOrthogonal(a, b, [a, b])).toEqual([
+      { x: 100, y: 30 },
+      { x: 300, y: 30 },
+    ]);
+  });
+
+  it("uses one bend for boxes diagonal to each other", () => {
+    const a = { x: 0, y: 0, w: 100, h: 60 };
+    const b = { x: 300, y: 300, w: 100, h: 60 };
+    const pts = routeOrthogonal(a, b, [a, b])!;
+    expect(rightAngled(pts)).toBe(true);
+    expect(pts.length).toBe(3);
+  });
+
+  it("passes through bend points the user placed", () => {
+    const a = { x: 0, y: 0, w: 100, h: 60 };
+    const b = { x: 300, y: 0, w: 100, h: 60 };
+    const e = { id: "x", kind: "association" as const, from: "A", to: "B", labels: [] };
+    const pts = route(e, a, b, 0, { orthogonal: true, bends: [{ x: 200, y: -80 }] });
+    expect(pts.length).toBe(3);
+    expect(pts[1]).toEqual({ x: 200, y: -80 });
+    expect(pts[0].y).toBeCloseTo(0);
+    expect(pts[2].y).toBeCloseTo(0);
+  });
+
+  it("meets a box at a right angle when a bend is straight above it", () => {
+    const a = { x: 0, y: 0, w: 100, h: 60 };
+    const b = { x: 300, y: 0, w: 100, h: 60 };
+    const e = { id: "x", kind: "association" as const, from: "A", to: "B", labels: [] };
+    const pts = route(e, a, b, 0, { bends: [{ x: 40, y: -50 }, { x: 330, y: -50 }] });
+    expect(pts).toEqual([{ x: 40, y: 0 }, { x: 40, y: -50 }, { x: 330, y: -50 }, { x: 330, y: 0 }]);
+  });
+
+  it("routes a busy diagram quickly", () => {
+    const boxes: Rect[] = [];
+    for (let i = 0; i < 40; i++) boxes.push({ x: (i % 8) * 220, y: Math.floor(i / 8) * 200, w: 160, h: 120 });
+    const t0 = performance.now();
+    for (let i = 0; i < 39; i++) expect(routeOrthogonal(boxes[i], boxes[39 - i], boxes)).not.toBeNull();
+    expect(performance.now() - t0).toBeLessThan(1500);
   });
 });

@@ -12,6 +12,9 @@ import {
   Printer,
   StickyNote,
   Trash2,
+  Undo2,
+  FilePlus2,
+  ListChecks,
   Triangle,
   Eye,
   EyeOff,
@@ -27,8 +30,8 @@ import {
 import { save as pickSavePath } from "@tauri-apps/plugin-dialog";
 import { api, errorText } from "../lib/api";
 import { get, openDialog, openMenu, setSettings, toast, useStore } from "../lib/store";
-import { openFile } from "../lib/actions";
-import { dirname, join, relative } from "../lib/paths";
+import { loadDir as refreshTree, openDiagram, openFile } from "../lib/actions";
+import { dirname, invalidName, join, relative } from "../lib/paths";
 import { Button, IconButton } from "../components/ui/Button";
 import { EmptyState } from "../components/ui/Feedback";
 import { Select } from "../components/ui/Select";
@@ -57,7 +60,15 @@ interface Layout {
   positions: Positions;
   hidden: string[];
   notes: Note[];
+  /** Bend points the user placed, by relation. */
+  bends: Record<string, Point[]>;
+  /** How far the user moved a relation's role and multiplicity labels. */
+  labels: Record<string, { role?: Point; mult?: Point }>;
+  /** The classes of a diagram that shows a choice of them; every class when absent. */
+  classes?: string[];
 }
+
+const EMPTY_LAYOUT: Layout = { version: 1, positions: {}, hidden: [], notes: [], bends: {}, labels: {} };
 
 type Tool = "select" | "inherit" | "associate" | "note";
 
@@ -89,9 +100,10 @@ interface View {
 }
 
 const ALL = "*";
+const PROJECT = "";
 
-function layoutPath(root: string) {
-  return join(root, ".logiq", "uml.json");
+function layoutPath(root: string, diagram: string | null) {
+  return diagram ?? join(root, ".logiq", "uml.json");
 }
 
 /* ----- Drawing ------------------------------------------------------------------- */
@@ -215,7 +227,22 @@ function arrowHead(kind: UmlEdge["kind"], tip: Point, from: Point): { line: Poin
   };
 }
 
-function EdgeLine({ edge, points, hot, dim, onMenu }: { edge: UmlEdge; points: Point[]; hot: boolean; dim: boolean; onMenu: (e: React.MouseEvent) => void }) {
+interface EdgeProps {
+  edge: UmlEdge;
+  points: Point[];
+  hot: boolean;
+  dim: boolean;
+  selected: boolean;
+  labelOffset?: { role?: Point; mult?: Point };
+  onMenu: (e: React.MouseEvent) => void;
+  onSelect: (e: React.PointerEvent) => void;
+  /** Dragging bend point `index` (1-based in `points`), or a new one before it when `insert`. */
+  onHandleDown: (index: number, insert: boolean) => (e: React.PointerEvent) => void;
+  onBendRemove: (index: number) => void;
+  onLabelDown: (which: "role" | "mult") => (e: React.PointerEvent) => void;
+}
+
+function EdgeLine({ edge, points, hot, dim, selected, labelOffset, onMenu, onSelect, onHandleDown, onBendRemove, onLabelDown }: EdgeProps) {
   const tip = points[points.length - 1];
   const prev = points[points.length - 2];
   const head = arrowHead(edge.kind, tip, prev);
@@ -243,23 +270,50 @@ function EdgeLine({ edge, points, hot, dim, onMenu }: { edge: UmlEdge; points: P
     const mults = [...new Set(edge.labels.map((l) => l.multiplicity))].join(", ");
     const r = side(10);
     const m = side(-10);
+    const ro = labelOffset?.role ?? { x: 0, y: 0 };
+    const mo = labelOffset?.mult ?? { x: 0, y: 0 };
     labels = (
       <>
-        <text className="uml-label" x={r.x} y={r.y} textAnchor={r.anchor}>
+        <text className="uml-label is-draggable" x={r.x + ro.x} y={r.y + ro.y} textAnchor={r.anchor} onPointerDown={onLabelDown("role")} onContextMenu={onMenu}>
           {roles}
         </text>
-        <text className="uml-label is-mult" x={m.x} y={m.y} textAnchor={m.anchor}>
+        <text className="uml-label is-mult is-draggable" x={m.x + mo.x} y={m.y + mo.y} textAnchor={m.anchor} onPointerDown={onLabelDown("mult")} onContextMenu={onMenu}>
           {mults}
         </text>
       </>
     );
   }
+  const bendable = edge.from !== edge.to;
   return (
-    <g className={cx("uml-relation", `is-${edge.kind}`, hot && "is-hot", dim && "is-dim")}>
-      <path className="uml-hit" d={d} onContextMenu={onMenu} />
+    <g className={cx("uml-relation", `is-${edge.kind}`, (hot || selected) && "is-hot", dim && !selected && "is-dim", selected && "is-selected")}>
+      <path className="uml-hit" d={d} onContextMenu={onMenu} onPointerDown={onSelect} />
       <path className={cx("uml-edge", dashed && "is-dashed")} d={d} />
       {head.shape}
       {labels}
+      {selected && bendable && (
+        <g className="uml-handles">
+          {points.slice(1).map((p, i) => {
+            const q = points[i];
+            return <circle key={`m${i}`} className="uml-handle is-mid" cx={(p.x + q.x) / 2} cy={(p.y + q.y) / 2} r={4} onPointerDown={onHandleDown(i + 1, true)} />;
+          })}
+          {points.slice(1, -1).map((p, i) => (
+            <rect
+              key={`b${i}`}
+              className="uml-handle is-bend"
+              x={p.x - 4.5}
+              y={p.y - 4.5}
+              width={9}
+              height={9}
+              rx={2}
+              onPointerDown={onHandleDown(i + 1, false)}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                onBendRemove(i + 1);
+              }}
+            />
+          ))}
+        </g>
+      )}
     </g>
   );
 }
@@ -271,10 +325,16 @@ export function UmlView({ visible }: { visible: boolean }) {
   const root = useStore((s) => s.root);
   const opts = useStore((s) => s.settings.uml);
   const layoutNonce = useStore((s) => s.umlLayoutNonce);
+  /** The .uml file shown, or null for the project's diagram of every class. */
+  const diagramPath = useStore((s) => s.tabs.find((x) => x.id === "uml")?.path ?? null);
+  const [diagramFiles, setDiagramFiles] = useState<string[]>([]);
   const [scope, setScope] = useState<string>(ALL);
   const [layout, setLayout] = useState<Layout | null>(null);
+  const layoutRef = useRef<Layout | null>(null);
+  layoutRef.current = layout;
   const [view, setView] = useState<View>({ x: 40, y: 40, k: 1 });
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [tool, setTool] = useState<Tool>("select");
   const [link, setLink] = useState<{ from: string; to: Point } | null>(null);
@@ -284,30 +344,51 @@ export function UmlView({ visible }: { visible: boolean }) {
   const fitted = useRef(false);
   const saveTimer = useRef(0);
 
-  // Load the saved layout of this folder.
+  // Load the saved layout of this diagram.
   useEffect(() => {
     fitted.current = false;
     setLayout(null);
+    setSelected(null);
+    setSelectedEdge(null);
     if (!root) return;
     api
-      .readText(layoutPath(root))
+      .readText(layoutPath(root, diagramPath))
       .then((f) => {
         const data = JSON.parse(f.text) as Layout;
-        setLayout({ version: 1, positions: data.positions ?? {}, hidden: data.hidden ?? [], notes: data.notes ?? [] });
+        setLayout({
+          ...EMPTY_LAYOUT,
+          positions: data.positions ?? {},
+          hidden: data.hidden ?? [],
+          notes: data.notes ?? [],
+          bends: data.bends ?? {},
+          labels: data.labels ?? {},
+          ...(Array.isArray(data.classes) ? { classes: data.classes } : {}),
+        });
       })
-      .catch(() => setLayout({ version: 1, positions: {}, hidden: [], notes: [] }));
+      .catch(() => setLayout(diagramPath ? { ...EMPTY_LAYOUT, classes: [] } : EMPTY_LAYOUT));
+  }, [root, diagramPath]);
+
+  // The project's .uml files, for the diagram picker.
+  const loadDiagramFiles = useCallback(() => {
+    if (!root) return;
+    api
+      .listFiles(root)
+      .then((files) => setDiagramFiles(files.filter((f) => f.toLowerCase().endsWith(".uml")).map((f) => join(root, f)).sort()))
+      .catch(() => setDiagramFiles([]));
   }, [root]);
+  useEffect(() => loadDiagramFiles(), [loadDiagramFiles, diagramPath, visible]);
 
   const persist = useCallback(
     (next: Layout) => {
       setLayout(next);
       if (!root) return;
       window.clearTimeout(saveTimer.current);
+      const target = layoutPath(root, diagramPath);
       saveTimer.current = window.setTimeout(() => {
-        api.writeText(layoutPath(root), JSON.stringify(next, null, 2) + "\n").catch(() => {});
+        api.writeText(target, JSON.stringify(next, null, 2) + "\n").catch(() => {});
       }, 500);
     },
-    [root],
+    [root, diagramPath],
   );
 
   const allTypes = useMemo(() => javaIndex.types(), [version]);
@@ -320,10 +401,15 @@ export function UmlView({ visible }: { visible: boolean }) {
     if (scope !== ALL && !folders.includes(scope)) setScope(ALL);
   }, [folders, scope]);
 
+  const chosen = layout?.classes;
   const types = useMemo(() => {
+    if (chosen) {
+      const set = new Set(chosen);
+      return allTypes.filter((x) => set.has(x.qualifiedName));
+    }
     const hidden = new Set(layout?.hidden ?? []);
     return allTypes.filter((x) => !hidden.has(x.qualifiedName) && (scope === ALL || dirname(x.path) === scope));
-  }, [allTypes, layout?.hidden, scope]);
+  }, [allTypes, layout?.hidden, scope, chosen]);
 
   const diagram: Diagram = useMemo(() => buildDiagram(types, opts), [types, opts]);
 
@@ -345,7 +431,7 @@ export function UmlView({ visible }: { visible: boolean }) {
   const relayout = useCallback(() => {
     if (!layout) return;
     const auto = autoLayout(diagram);
-    persist({ ...layout, positions: { ...layout.positions, ...auto } });
+    persist({ ...layout, positions: { ...layout.positions, ...auto }, bends: {}, labels: {} });
     requestAnimationFrame(() => fit(auto));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagram, layout, persist]);
@@ -404,6 +490,8 @@ export function UmlView({ visible }: { visible: boolean }) {
     | { kind: "note"; id: string; start: Point; origin: Point; moved: boolean }
     | { kind: "pan"; start: Point; origin: View }
     | { kind: "link"; from: string }
+    | { kind: "bend"; edge: string; index: number; insert: boolean; start: Point; points: Point[]; moved: boolean }
+    | { kind: "label"; edge: string; which: "role" | "mult"; start: Point; origin: Point; moved: boolean }
     | null
   >(null);
 
@@ -482,6 +570,29 @@ export function UmlView({ visible }: { visible: boolean }) {
       setView({ ...d.origin, x: d.origin.x + dx, y: d.origin.y + dy });
     } else if (d.kind === "link") {
       setLink({ from: d.from, to: toDiagram(e) });
+    } else if (d.kind === "bend") {
+      if (!d.moved && Math.hypot(dx, dy) < 3) return;
+      d.moved = true;
+      // `points` is the whole line when the drag started; its ends stay on the boxes.
+      const pts = d.insert ? [...d.points.slice(0, d.index), { ...d.points[d.index - 1] }, ...d.points.slice(d.index)] : d.points.map((p) => ({ ...p }));
+      const origin = d.insert ? { x: (d.points[d.index - 1].x + d.points[d.index].x) / 2, y: (d.points[d.index - 1].y + d.points[d.index].y) / 2 } : d.points[d.index];
+      let p = { x: origin.x + dx / view.k, y: origin.y + dy / view.k };
+      if (!e.altKey) {
+        // Snap into line with the neighbouring points, so right angles are easy.
+        const near = 7 / view.k;
+        for (const q of [pts[d.index - 1], pts[d.index + 1]]) {
+          if (!q) continue;
+          if (Math.abs(p.x - q.x) < near) p = { ...p, x: q.x };
+          if (Math.abs(p.y - q.y) < near) p = { ...p, y: q.y };
+        }
+      }
+      pts[d.index] = { x: Math.round(p.x), y: Math.round(p.y) };
+      setLayout({ ...layout, bends: { ...layout.bends, [d.edge]: pts.slice(1, -1) } });
+    } else if (d.kind === "label") {
+      if (!d.moved && Math.hypot(dx, dy) < 3) return;
+      d.moved = true;
+      const was = layout.labels[d.edge] ?? {};
+      setLayout({ ...layout, labels: { ...layout.labels, [d.edge]: { ...was, [d.which]: { x: Math.round(d.origin.x + dx / view.k), y: Math.round(d.origin.y + dy / view.k) } } } });
     } else if (d.kind === "note") {
       if (!d.moved && Math.hypot(dx, dy) < 3) return;
       d.moved = true;
@@ -500,7 +611,7 @@ export function UmlView({ visible }: { visible: boolean }) {
   const onPointerUp = (e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
-    if ((d?.kind === "node" || d?.kind === "note") && d.moved && layout) persist(layout);
+    if ((d?.kind === "node" || d?.kind === "note" || d?.kind === "bend" || d?.kind === "label") && d.moved && layout) persist(layout);
     if (d?.kind === "link") {
       setLink(null);
       const target = nodeAt(toDiagram(e));
@@ -535,7 +646,61 @@ export function UmlView({ visible }: { visible: boolean }) {
 
   const openAt = (node: UmlNode, line: number) => void openFile(node.type.path, { line });
 
-  const hide = (id: string) => layout && persist({ ...layout, hidden: [...layout.hidden, id] });
+  const hide = (id: string) => {
+    if (!layout) return;
+    if (layout.classes) persist({ ...layout, classes: layout.classes.filter((c) => c !== id) });
+    else persist({ ...layout, hidden: [...layout.hidden, id] });
+  };
+
+  /** The classes a class is related to, in the whole project. */
+  const relatedTo = (id: string) => {
+    const full = buildDiagram(allTypes, { ...opts, showLibrary: false });
+    return full.edges.flatMap((e) => (e.from === id ? [e.to] : e.to === id ? [e.from] : []));
+  };
+
+  const addClasses = (ids: string[]) => {
+    if (!layout?.classes) return;
+    persist({ ...layout, classes: [...new Set([...layout.classes, ...ids])] });
+  };
+
+  const pickClasses = () => {
+    if (!layout?.classes) return;
+    openDialog({
+      kind: "pickClasses",
+      title: t("Classes in this diagram"),
+      options: [...allTypes].sort((a, b) => a.name.localeCompare(b.name)).map((x) => ({ value: x.qualifiedName, label: x.name, detail: x.package || undefined })),
+      selected: layout.classes,
+      confirmLabel: t("Show these"),
+      onSubmit: (values) => {
+        const current = layoutRef.current;
+        if (current) persist({ ...current, classes: values });
+      },
+    });
+  };
+
+  const newDiagram = () => {
+    if (!root) return;
+    const start = selected && !nodesById.get(selected)?.library ? [selected, ...relatedTo(selected)] : [];
+    openDialog({
+      kind: "prompt",
+      title: t("New class diagram"),
+      label: t("Name"),
+      value: start.length ? `${nodesById.get(selected!)!.type.name}` : t("Diagram"),
+      confirmLabel: t("Create"),
+      validate: (v) => {
+        const problem = invalidName(v);
+        return problem ? t(problem) : null;
+      },
+      onSubmit: async (name) => {
+        const path = join(root, `${name}.uml`);
+        if (await api.exists(path).catch(() => false)) throw new Error(t("{0} already exists.", `${name}.uml`));
+        const data: Layout = { ...EMPTY_LAYOUT, classes: [...new Set(start)], positions: {} };
+        await api.writeText(path, JSON.stringify(data, null, 2) + "\n");
+        void refreshTree(root);
+        openDiagram(path);
+      },
+    });
+  };
 
   const nodeMenu = (node: UmlNode) => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -582,7 +747,12 @@ export function UmlView({ visible }: { visible: boolean }) {
       { label: t("Edit class…"), icon: Pencil, onSelect: () => openDialog({ kind: "editClass", owner: q }) },
       { type: "separator" },
       { label: t("Go to source"), icon: FileCode, onSelect: () => openAt(node, type.line) },
-      { label: t("Hide from diagram"), icon: EyeOff, onSelect: () => hide(node.id) },
+      ...(layout?.classes
+        ? [
+            { label: t("Add related classes"), icon: Network, onSelect: () => addClasses(relatedTo(node.id)) },
+            { label: t("Remove from diagram"), icon: EyeOff, onSelect: () => hide(node.id) },
+          ]
+        : [{ label: t("Hide from diagram"), icon: EyeOff, onSelect: () => hide(node.id) }]),
       { label: t("Copy name"), icon: ClipboardCopy, onSelect: () => void navigator.clipboard.writeText(q) },
       { type: "separator" },
       { label: t("Delete class…"), icon: Trash2, danger: true, onSelect: () => void deleteClass(type) },
@@ -614,6 +784,13 @@ export function UmlView({ visible }: { visible: boolean }) {
     });
   };
 
+  const resetEdge = (id: string, what: "bends" | "labels") => {
+    if (!layout) return;
+    const rest = { ...layout[what] };
+    delete rest[id];
+    persist({ ...layout, [what]: rest });
+  };
+
   const edgeMenu = (edge: UmlEdge) => (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -628,6 +805,13 @@ export function UmlView({ visible }: { visible: boolean }) {
       items: [
         { type: "heading", label: `${a.type.name} → ${b.type.name} (${what})` },
         { label: t("Go to code"), icon: FileCode, onSelect: () => openAt(a, a.type.line) },
+        ...(layout?.bends[edge.id] || layout?.labels[edge.id]
+          ? [
+              { type: "separator" as const },
+              ...(layout.bends[edge.id] ? [{ label: t("Reset the line"), icon: Undo2, onSelect: () => resetEdge(edge.id, "bends") }] : []),
+              ...(layout.labels[edge.id] ? [{ label: t("Reset the labels"), icon: Undo2, onSelect: () => resetEdge(edge.id, "labels") }] : []),
+            ]
+          : []),
         ...(removable
           ? [
               { type: "separator" as const },
@@ -666,6 +850,8 @@ export function UmlView({ visible }: { visible: boolean }) {
         toggle("showDependencies", t("Dependencies")),
         toggle("showNesting", t("Nested classes")),
         toggle("showLibrary", t("Library classes")),
+        { type: "heading", label: t("Lines") },
+        toggle("orthogonal", t("Right-angled lines")),
       ],
     });
   };
@@ -756,11 +942,31 @@ export function UmlView({ visible }: { visible: boolean }) {
     }
   }
 
+  // Where each line runs; right-angled lines go around every box.
+  const routes = useMemo(() => {
+    const out = new Map<string, Point[]>();
+    const byId = new Map(diagram.nodes.map((n) => [n.id, n]));
+    const rect = (id: string) => {
+      const n = byId.get(id);
+      const p = positions[id];
+      return n && p ? { x: p.x, y: p.y, w: n.w, h: n.h } : null;
+    };
+    const obstacles = diagram.nodes.map((n) => rect(n.id)).filter((r): r is NonNullable<typeof r> => !!r);
+    const assoc = new Set(diagram.edges.filter((e) => e.kind === "association").map((e) => `${e.from}->${e.to}`));
+    for (const edge of diagram.edges) {
+      const a = rect(edge.from);
+      const b = rect(edge.to);
+      if (!a || !b) continue;
+      const offset = edge.kind === "association" && edge.from !== edge.to && assoc.has(`${edge.to}->${edge.from}`) ? 7 : 0;
+      out.set(edge.id, route(edge, a, b, offset, { orthogonal: opts.orthogonal, obstacles, bends: layout?.bends[edge.id] }));
+    }
+    return out;
+  }, [diagram, positions, opts.orthogonal, layout?.bends]);
+
   if (!root) return null;
 
   const hiddenCount = layout?.hidden.length ?? 0;
   const nodesById = new Map(diagram.nodes.map((n) => [n.id, n]));
-  const pairs = new Set(diagram.edges.filter((e) => e.kind === "association").map((e) => `${e.from}->${e.to}`));
   const focus = hover ?? selected;
   // A frame around each package when the diagram shows more than one.
   const packages = new Map<string, UmlNode[]>();
@@ -787,6 +993,20 @@ export function UmlView({ visible }: { visible: boolean }) {
     <div className="uml" hidden={!visible}>
       <div className="uml-toolbar">
         <Select
+          value={diagramPath ?? PROJECT}
+          onChange={(v) => openDiagram(v === PROJECT ? null : v)}
+          options={[{ value: PROJECT, label: t("Project diagram") }, ...diagramFiles.map((f) => ({ value: f, label: relative(root, f).replace(/\.uml$/i, "") }))]}
+          label={t("Diagram")}
+          compact
+        />
+        <IconButton icon={FilePlus2} label={t("New class diagram…")} spacing="compact" onClick={newDiagram} />
+        <span className="toolbar-divider" />
+        {layout?.classes ? (
+          <Button spacing="compact" iconBefore={ListChecks} onClick={pickClasses}>
+            {t("Classes…")}
+          </Button>
+        ) : (
+        <Select
           value={scope}
           onChange={(v) => {
             setScope(v);
@@ -797,10 +1017,11 @@ export function UmlView({ visible }: { visible: boolean }) {
           label={t("Show classes from")}
           compact
         />
+        )}
         <Button spacing="compact" iconBefore={SlidersHorizontal} onClick={optionMenu}>
           {t("View")}
         </Button>
-        {hiddenCount > 0 && (
+        {hiddenCount > 0 && !layout?.classes && (
           <Button spacing="compact" iconBefore={Eye} onClick={() => layout && persist({ ...layout, hidden: [] })} tooltip={t("Show the classes you hid")}>
             {t("Show {0} hidden", hiddenCount)}
           </Button>
@@ -845,7 +1066,10 @@ export function UmlView({ visible }: { visible: boolean }) {
           if (e.key === "f" || e.key === "F") fit();
           else if (e.key === "+" || e.key === "=") zoomBy(1.2);
           else if (e.key === "-") zoomBy(1 / 1.2);
-          else if (e.key === "Escape") setSelected(null);
+          else if (e.key === "Escape") {
+            setSelected(null);
+            setSelectedEdge(null);
+          }
           else if (selected && layout && e.key.startsWith("Arrow")) {
             const step = e.shiftKey ? 32 : 8;
             const p = positions[selected];
@@ -858,7 +1082,21 @@ export function UmlView({ visible }: { visible: boolean }) {
           e.preventDefault();
         }}
       >
-        {diagram.nodes.length === 0 ? (
+        {diagram.nodes.length === 0 && layout?.classes ? (
+          <div className="uml-empty">
+            <EmptyState
+              icon={Network}
+              title={t("No classes in this diagram yet")}
+              actions={
+                <Button appearance="primary" iconBefore={ListChecks} onClick={pickClasses}>
+                  {t("Choose classes…")}
+                </Button>
+              }
+            >
+              {t("A diagram of its own shows the classes you choose, for one part of the project.")}
+            </EmptyState>
+          </div>
+        ) : diagram.nodes.length === 0 ? (
           <div className="uml-empty">
             <EmptyState
               icon={Network}
@@ -888,6 +1126,7 @@ export function UmlView({ visible }: { visible: boolean }) {
                 return;
               }
               setSelected(null);
+              setSelectedEdge(null);
               stageRef.current?.focus();
               (e.currentTarget as SVGSVGElement).setPointerCapture(e.pointerId);
               drag.current = { kind: "pan", start: { x: e.clientX, y: e.clientY }, origin: view };
@@ -916,15 +1155,50 @@ export function UmlView({ visible }: { visible: boolean }) {
               </g>
               <g className="uml-edges">
                 {diagram.edges.map((edge) => {
-                  const a = nodesById.get(edge.from)!;
-                  const b = nodesById.get(edge.to)!;
-                  const pa = positions[edge.from];
-                  const pb = positions[edge.to];
-                  if (!a || !b || !pa || !pb) return null;
-                  const offset = edge.kind === "association" && edge.from !== edge.to && pairs.has(`${edge.to}->${edge.from}`) ? 7 : 0;
-                  const pts = route(edge, { ...pa, w: a.w, h: a.h }, { ...pb, w: b.w, h: b.h }, offset);
+                  const pts = routes.get(edge.id);
+                  if (!pts) return null;
                   const hot = !!focus && (edge.from === focus || edge.to === focus);
-                  return <EdgeLine key={edge.id} edge={edge} points={pts} hot={hot} dim={!!focus && !hot} onMenu={edgeMenu(edge)} />;
+                  return (
+                    <EdgeLine
+                      key={edge.id}
+                      edge={edge}
+                      points={pts}
+                      hot={hot}
+                      dim={!!focus && !hot}
+                      selected={selectedEdge === edge.id}
+                      labelOffset={layout?.labels[edge.id]}
+                      onMenu={(e) => {
+                        setSelectedEdge(edge.id);
+                        edgeMenu(edge)(e);
+                      }}
+                      onSelect={(e) => {
+                        if (e.button !== 0 || tool !== "select") return;
+                        e.stopPropagation();
+                        setSelected(null);
+                        setSelectedEdge(edge.id);
+                        stageRef.current?.focus();
+                      }}
+                      onHandleDown={(index, insert) => (e) => {
+                        if (e.button !== 0) return;
+                        e.stopPropagation();
+                        svgRef.current?.setPointerCapture(e.pointerId);
+                        drag.current = { kind: "bend", edge: edge.id, index, insert, start: { x: e.clientX, y: e.clientY }, points: pts, moved: false };
+                      }}
+                      onBendRemove={(index) => {
+                        if (!layout) return;
+                        const bends = pts.slice(1, -1).filter((_, i) => i !== index - 1);
+                        if (bends.length) persist({ ...layout, bends: { ...layout.bends, [edge.id]: bends } });
+                        else resetEdge(edge.id, "bends");
+                      }}
+                      onLabelDown={(which) => (e) => {
+                        if (e.button !== 0 || tool !== "select") return;
+                        e.stopPropagation();
+                        setSelectedEdge(edge.id);
+                        svgRef.current?.setPointerCapture(e.pointerId);
+                        drag.current = { kind: "label", edge: edge.id, which, start: { x: e.clientX, y: e.clientY }, origin: layout?.labels[edge.id]?.[which] ?? { x: 0, y: 0 }, moved: false };
+                      }}
+                    />
+                  );
                 })}
               </g>
               <g className="uml-nodes">
@@ -961,6 +1235,7 @@ export function UmlView({ visible }: { visible: boolean }) {
           {tool === "select" ? (
             <>
               <span>{t("Drag boxes to arrange")}</span>
+              <span>{t("Click a line to bend it")}</span>
               <span>{t("Right-click a class to edit it or create objects")}</span>
               <span>{t("Ctrl + wheel to zoom")}</span>
             </>

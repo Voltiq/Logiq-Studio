@@ -13,9 +13,14 @@ its structure as a UML class diagram that redraws itself while you type, as the 
   live syntax errors, Java completion (keywords, snippets such as `sout`/`main`/`fori`, your own classes and
   their members, common library classes), go to definition (`F12`), find usages, rename symbol (`F2`),
   formatting with Prettier (Java too), Emmet, colour swatches, breadcrumbs, sticky scroll and a split view.
+- **Language servers**: Eclipse JDT LS for Java (installed once from Settings: errors as you type, completion
+  that knows types, quick fixes with `Ctrl+.`, organize imports), the TypeScript language service for JavaScript
+  and TypeScript, VS Code's HTML and CSS language services, and ESLint for JavaScript.
 - **UML class diagram** from the Java code in the folder: classes, abstract classes, interfaces, enums and
   records with attributes and methods in UML notation (visibility `+ - # ~`, static underlined, abstract in
   italics); generalisation, realisation, association with role names and multiplicities, dependency and nesting.
+  Lines are right-angled and go around boxes; they can be bent by hand, and their labels moved. Several
+  diagrams per project: `.uml` files that show a choice of classes.
   Boxes can be dragged (the layout is saved in `.logiq/uml.json`), the diagram can be arranged automatically,
   filtered by folder, zoomed, printed, and exported as SVG, PNG, PlantUML or Mermaid. Double-click a class or member
   to jump to its code. **Edit the code from the diagram**: create classes with a wizard, add, change and delete

@@ -16,6 +16,8 @@ export interface Settings {
   formatOnSave: boolean;
   /** Keep unsaved changes and open files across restarts instead of asking on close. */
   hotExit: boolean;
+  /** Use Eclipse JDT LS for Java when it is installed. */
+  javaServer: boolean;
   language: "system" | "en" | "de";
   /** Save all files before compiling. */
   saveBeforeRun: boolean;
@@ -42,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   livePreview: true,
   formatOnSave: false,
   hotExit: true,
+  javaServer: true,
   language: "system",
   saveBeforeRun: true,
   jdkHome: "",

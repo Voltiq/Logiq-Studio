@@ -7,7 +7,7 @@ import geistUrl from "@fontsource-variable/geist/files/geist-latin-wght-normal.w
 import geistMonoUrl from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
 
 const PRINT_CSS = `
-.uml-shadow,.uml-hit,.uml-outline{display:none}
+.uml-shadow,.uml-hit,.uml-outline,.uml-handles{display:none}
 .uml-box{fill:#ffffff;stroke:#2b3038;stroke-width:1.1}
 .uml-head{fill:#efedff}
 .uml-sep{stroke:#2b3038;stroke-width:1}
