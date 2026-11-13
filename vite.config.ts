@@ -9,7 +9,9 @@ export default defineConfig(async () => ({
 
   // WebView2 is evergreen Chromium.
   build: { target: "es2022", chunkSizeWarningLimit: 2400 },
-  optimizeDeps: { esbuildOptions: { target: "es2022" } },
+  // The Java formatter loads two WebAssembly files next to its own modules;
+  // pre-bundling would move the modules away from them.
+  optimizeDeps: { esbuildOptions: { target: "es2022" }, exclude: ["prettier-plugin-java", "web-tree-sitter"] },
 
   test: { environment: "node" },
 

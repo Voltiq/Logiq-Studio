@@ -22,6 +22,22 @@ export const graphiqTheme = EditorView.theme({
   },
   ".cm-content": { padding: "10px 0 40vh", caretColor: "var(--accent-text)" },
   ".cm-line": { padding: "0 16px 0 6px" },
+  ".cm-swatch": {
+    display: "inline-block",
+    width: "0.85em",
+    height: "0.85em",
+    marginRight: "4px",
+    verticalAlign: "-0.1em",
+    borderRadius: "3px",
+    background: "linear-gradient(var(--swatch), var(--swatch)), repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 50% / 6px 6px",
+    boxShadow: "0 0 0 1px var(--line-2)",
+    cursor: "pointer",
+  },
+  ".cm-emmet-preview, .emmet-preview": {
+    padding: "6px 10px",
+    fontFamily: "var(--font-code)",
+    fontSize: "12px",
+  },
   ".cm-cursor, .cm-dropCursor": { borderLeft: "2px solid var(--accent-text)", marginLeft: "-1px" },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground": {
     background: "color-mix(in oklab, var(--accent) 30%, transparent) !important",
@@ -29,7 +45,8 @@ export const graphiqTheme = EditorView.theme({
   ".cm-selectionMatch": { backgroundColor: "color-mix(in oklab, var(--accent) 16%, transparent)", borderRadius: "3px" },
   ".cm-activeLine": { backgroundColor: "var(--wash)" },
   ".cm-gutters": {
-    backgroundColor: "transparent",
+    // Opaque, so code scrolled sideways doesn't show through the line numbers.
+    backgroundColor: "var(--surface-1)",
     color: "var(--text-subtlest)",
     border: "none",
     fontFamily: "var(--font-code)",

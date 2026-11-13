@@ -1,6 +1,6 @@
 [package]
 name = "logiq-studio"
-version = "0.1.0"
+version = "0.2.0"
 description = "Logiq Studio: an IDE for Java, HTML, CSS and JavaScript with live UML class diagrams"
 license = "MIT"
 authors = ["Voltiq"]

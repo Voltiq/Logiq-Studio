@@ -5,6 +5,7 @@ import { basename, dirname } from "../lib/paths";
 import { TEMPLATES } from "../lib/templates";
 import { Button, IconButton } from "./ui/Button";
 import { Shortcut } from "./ui/Feedback";
+import { t } from "../lib/i18n";
 
 const TEMPLATE_ICON = { "java-classes": Network, "java-console": Coffee, web: Globe } as const;
 
@@ -20,35 +21,35 @@ export function Welcome() {
           <img className="welcome-icon" src="/app-icon.svg" alt="" />
           <div>
             <h1 className="welcome-title">
-              Logiq <span>Studio</span>
+              Logiq <span>{t("Studio")}</span>
             </h1>
-            <p className="welcome-sub">Write Java, HTML, CSS and JavaScript. See your classes as a UML diagram while you type.</p>
+            <p className="welcome-sub">{t("Write Java, HTML, CSS and JavaScript. See your classes as a UML diagram while you type.")}</p>
           </div>
         </div>
 
         <div className="welcome-actions">
           <Button appearance="primary" iconBefore={FolderPlus} onClick={() => openDialog({ kind: "newProject" })}>
-            New project
+            {t("New project")}
           </Button>
           <Button iconBefore={FolderOpen} onClick={() => void chooseFolder()}>
-            Open folder
+            {t("Open folder")}
           </Button>
         </div>
 
         <div className="welcome-grid">
           <section className="welcome-card panel">
-            <h2 className="eyebrow">Start from</h2>
+            <h2 className="eyebrow">{t("Start from")}</h2>
             <div className="welcome-templates">
-              {TEMPLATES.map((t) => {
-                const Icon = TEMPLATE_ICON[t.id];
+              {TEMPLATES.map((x) => {
+                const Icon = TEMPLATE_ICON[x.id];
                 return (
-                  <button key={t.id} type="button" className="template" onClick={() => openDialog({ kind: "newProject", template: t.id })}>
+                  <button key={x.id} type="button" className="template" onClick={() => openDialog({ kind: "newProject", template: x.id })}>
                     <span className="icon-tile" aria-hidden="true">
                       <Icon size={16} />
                     </span>
                     <span className="template-text">
-                      <span className="template-title">{t.title}</span>
-                      <span className="template-desc">{t.description}</span>
+                      <span className="template-title">{t(x.title)}</span>
+                      <span className="template-desc">{t(x.description)}</span>
                     </span>
                   </button>
                 );
@@ -57,9 +58,9 @@ export function Welcome() {
           </section>
 
           <section className="welcome-card panel">
-            <h2 className="eyebrow">Recent</h2>
+            <h2 className="eyebrow">{t("Recent")}</h2>
             {recent.length === 0 ? (
-              <p className="welcome-note">Folders you open appear here.</p>
+              <p className="welcome-note">{t("Folders you open appear here.")}</p>
             ) : (
               <ul className="recent">
                 {recent.map((p) => (
@@ -69,7 +70,7 @@ export function Welcome() {
                       <span className="recent-name">{basename(p)}</span>
                       <span className="recent-path">{dirname(p)}</span>
                     </button>
-                    <IconButton icon={X} label="Remove from recent" spacing="compact" onClick={() => setSettings({ recent: recent.filter((r) => r !== p) })} />
+                    <IconButton icon={X} label={t("Remove from recent")} spacing="compact" onClick={() => setSettings({ recent: recent.filter((r) => r !== p) })} />
                   </li>
                 ))}
               </ul>
@@ -79,7 +80,7 @@ export function Welcome() {
 
         <div className="welcome-foot">
           <span>
-            <FileCode size={13} aria-hidden="true" /> {jdks[0] ? `Java ${jdks[0].version} found` : "No JDK found: Java code can be edited but not compiled"}
+            <FileCode size={13} aria-hidden="true" /> {jdks[0] ? t("Java {0} found", jdks[0].version) : t("No JDK found: Java code can be edited but not compiled")}
           </span>
           <span>
             <Braces size={13} aria-hidden="true" /> Commands <Shortcut keys="Ctrl+Shift+P" />

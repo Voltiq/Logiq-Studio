@@ -79,6 +79,7 @@ pub fn run() {
             fs::fs_create_file,
             fs::fs_create_dir,
             fs::fs_rename,
+            fs::fs_copy,
             fs::fs_delete,
             fs::fs_exists,
             fs::fs_list_files,

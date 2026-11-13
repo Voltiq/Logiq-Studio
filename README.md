@@ -10,8 +10,9 @@ its structure as a UML class diagram that redraws itself while you type, as the 
 
 - **Editor**: CodeMirror 6 with syntax colouring for Java, HTML, CSS, JavaScript, TypeScript, JSON and Markdown,
   bracket matching, folding, multiple cursors, find and replace, go to line, comment toggling, re-indenting,
-  live syntax errors, and Java completion (keywords, snippets such as `sout`/`main`/`fori`, your own classes and
-  their members, common library classes).
+  live syntax errors, Java completion (keywords, snippets such as `sout`/`main`/`fori`, your own classes and
+  their members, common library classes), go to definition (`F12`), find usages, rename symbol (`F2`),
+  formatting with Prettier (Java too), Emmet, colour swatches, breadcrumbs, sticky scroll and a split view.
 - **UML class diagram** from the Java code in the folder: classes, abstract classes, interfaces, enums and
   records with attributes and methods in UML notation (visibility `+ - # ~`, static underlined, abstract in
   italics); generalisation, realisation, association with role names and multiplicities, dependency and nesting.
@@ -24,7 +25,9 @@ its structure as a UML class diagram that redraws itself while you type, as the 
   preview, which reloads on save.
 - **Workspace**: explorer with create, rename, delete (to the Recycle Bin), find in files (text, whole word,
   case, regex), outline of the active Java file, quick open (`Ctrl+P`), command palette (`Ctrl+Shift+P`), and the
-  folder is watched so changes made elsewhere show up at once.
+  folder is watched so changes made elsewhere show up at once. Drag files to move them, cut, copy, paste and
+  duplicate them; unsaved changes and open tabs survive a restart. Live Markdown preview.
+- **Languages**: English and German.
 
 ## Develop
 

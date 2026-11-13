@@ -68,6 +68,12 @@ export function installMock() {
           }
           return null;
         }
+        case "fs_copy": {
+          if (files.has(a.to) || dirs.has(a.to)) throw `“${name(a.to)}” already exists.`;
+          for (const [p, t] of [...files]) if (p === a.from || p.startsWith(a.from + "\\")) files.set(a.to + p.slice(a.from.length), t);
+          for (const d of [...dirs]) if (d === a.from || d.startsWith(a.from + "\\")) dirs.add(a.to + d.slice(a.from.length));
+          return null;
+        }
         case "fs_delete":
           files.delete(a.path);
           for (const p of [...files.keys()]) if (p.startsWith(a.path + "\\")) files.delete(p);

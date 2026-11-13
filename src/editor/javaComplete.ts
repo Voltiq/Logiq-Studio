@@ -6,6 +6,7 @@
 import { snippetCompletion as snip, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { syntaxTree } from "@codemirror/language";
 import { javaIndex } from "../uml/javaIndex";
+import { t } from "../lib/i18n";
 import { baseName } from "../uml/javaParser";
 import type { JType } from "../uml/model";
 
@@ -15,24 +16,24 @@ const KEYWORDS =
   );
 
 const SNIPPETS: Completion[] = [
-  snip("System.out.println(${});", { label: "sout", detail: "print a line", type: "text", boost: 3 }),
-  snip('System.out.printf("${%s}%n", ${});', { label: "souf", detail: "print formatted", type: "text" }),
-  snip("System.err.println(${});", { label: "serr", detail: "print an error", type: "text" }),
-  snip("public static void main(String[] args) {\n\t${}\n}", { label: "main", detail: "main method", type: "text", boost: 2 }),
-  snip("public static void main(String[] args) {\n\t${}\n}", { label: "psvm", detail: "main method", type: "text" }),
-  snip("for (int ${i} = 0; ${i} < ${n}; ${i}++) {\n\t${}\n}", { label: "fori", detail: "counting loop", type: "text" }),
-  snip("for (${Type} ${item} : ${items}) {\n\t${}\n}", { label: "foreach", detail: "loop over items", type: "text" }),
-  snip("if (${condition}) {\n\t${}\n}", { label: "if", detail: "if block", type: "keyword" }),
-  snip("if (${condition}) {\n\t${}\n} else {\n\t\n}", { label: "ifelse", detail: "if / else", type: "keyword" }),
-  snip("while (${condition}) {\n\t${}\n}", { label: "while", detail: "while loop", type: "keyword" }),
-  snip("do {\n\t${}\n} while (${condition});", { label: "dowhile", detail: "do / while loop", type: "keyword" }),
-  snip("switch (${value}) {\n\tcase ${a} -> ${};\n\tdefault -> ${};\n}", { label: "switch", detail: "switch", type: "keyword" }),
-  snip("try {\n\t${}\n} catch (${Exception} e) {\n\te.printStackTrace();\n}", { label: "try", detail: "try / catch", type: "keyword" }),
-  snip("public class ${Name} {\n\n\tpublic ${Name}() {\n\t\t${}\n\t}\n}", { label: "class", detail: "class", type: "keyword" }),
-  snip("public ${Type} get${Name}() {\n\treturn ${name};\n}", { label: "getter", detail: "get method", type: "text" }),
-  snip("public void set${Name}(${Type} ${name}) {\n\tthis.${name} = ${name};\n}", { label: "setter", detail: "set method", type: "text" }),
-  snip("@Override\npublic String toString() {\n\treturn ${};\n}", { label: "toString", detail: "override toString", type: "text" }),
-  snip("Scanner ${in} = new Scanner(System.in);", { label: "scanner", detail: "read from the keyboard", type: "text" }),
+  snip("System.out.println(${});", { label: "sout", detail: t("print a line"), type: "text", boost: 3 }),
+  snip('System.out.printf("${%s}%n", ${});', { label: "souf", detail: t("print formatted"), type: "text" }),
+  snip("System.err.println(${});", { label: "serr", detail: t("print an error"), type: "text" }),
+  snip("public static void main(String[] args) {\n\t${}\n}", { label: "main", detail: t("main method"), type: "text", boost: 2 }),
+  snip("public static void main(String[] args) {\n\t${}\n}", { label: "psvm", detail: t("main method"), type: "text" }),
+  snip("for (int ${i} = 0; ${i} < ${n}; ${i}++) {\n\t${}\n}", { label: "fori", detail: t("counting loop"), type: "text" }),
+  snip("for (${Type} ${item} : ${items}) {\n\t${}\n}", { label: "foreach", detail: t("loop over items"), type: "text" }),
+  snip("if (${condition}) {\n\t${}\n}", { label: "if", detail: t("if block"), type: "keyword" }),
+  snip("if (${condition}) {\n\t${}\n} else {\n\t\n}", { label: "ifelse", detail: t("if / else"), type: "keyword" }),
+  snip("while (${condition}) {\n\t${}\n}", { label: "while", detail: t("while loop"), type: "keyword" }),
+  snip("do {\n\t${}\n} while (${condition});", { label: "dowhile", detail: t("do / while loop"), type: "keyword" }),
+  snip("switch (${value}) {\n\tcase ${a} -> ${};\n\tdefault -> ${};\n}", { label: "switch", detail: t("switch"), type: "keyword" }),
+  snip("try {\n\t${}\n} catch (${Exception} e) {\n\te.printStackTrace();\n}", { label: "try", detail: t("try / catch"), type: "keyword" }),
+  snip("public class ${Name} {\n\n\tpublic ${Name}() {\n\t\t${}\n\t}\n}", { label: "class", detail: t("class"), type: "keyword" }),
+  snip("public ${Type} get${Name}() {\n\treturn ${name};\n}", { label: "getter", detail: t("get method"), type: "text" }),
+  snip("public void set${Name}(${Type} ${name}) {\n\tthis.${name} = ${name};\n}", { label: "setter", detail: t("set method"), type: "text" }),
+  snip("@Override\npublic String toString() {\n\treturn ${};\n}", { label: "toString", detail: t("override toString"), type: "text" }),
+  snip("Scanner ${in} = new Scanner(System.in);", { label: "scanner", detail: t("read from the keyboard"), type: "text" }),
 ];
 
 /** Members of library classes students use most. */
@@ -107,7 +108,7 @@ function typeMembers(t: JType, staticOnly: boolean, seen = new Set<string>()): C
 }
 
 /** The declared type of `name` in the text before the cursor: `List<Shape> shapes` → List<Shape>. */
-function declaredType(text: string, name: string): string | null {
+export function declaredType(text: string, name: string): string | null {
   const re = new RegExp(`([A-Za-z_$][\\w$.]*(?:<[^;(){}=]*>)?(?:\\[\\])*)\\s+${name.replace(/\$/g, "\\$")}\\s*[=;,):]`, "g");
   let found: string | null = null;
   for (const m of text.matchAll(re)) {

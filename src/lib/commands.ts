@@ -21,14 +21,16 @@ import {
   Search,
   Settings,
   SquareTerminal,
+  Wand2,
   X,
 } from "lucide-react";
-import { indentRange } from "@codemirror/language";
-import { openSearchPanel, gotoLine } from "@codemirror/search";
+import { expandAbbreviation } from "@emmetio/codemirror6-plugin";
+import { findUsages, goToDefinition, renameSymbol } from "../editor/javaNav";
+import { openSearchPanel } from "@codemirror/search";
 import { toggleComment } from "@codemirror/commands";
-import { activeView } from "../editor/docs";
+import { activeView, shownPath } from "../editor/docs";
 import * as A from "./actions";
-import { get, openDialog, set } from "./store";
+import { activeIdOf, activeTab, get, openDialog, set } from "./store";
 
 export interface Command {
   id: string;
@@ -39,10 +41,21 @@ export interface Command {
   run: () => void | Promise<void>;
   /** Hidden from the palette when false. */
   enabled?: () => boolean;
+  /** The shortcut belongs to the editor's own key map; it is shown, not handled here. */
+  editorKey?: boolean;
 }
 
 const hasFolder = () => !!get().root;
-const hasEditor = () => !!activeView() && get().tabs.find((t) => t.id === get().activeId)?.kind === "file";
+const hasEditor = () => !!activeView() && activeTab()?.kind === "file";
+const hasJava = () => hasEditor() && /\.java$/i.test(shownPath() ?? "");
+const hasWeb = () => hasEditor() && /\.(html?|css)$/i.test(shownPath() ?? "");
+
+function focusOther() {
+  const g = get().focusGroup === 0 ? 1 : 0;
+  const id = get().active[g];
+  if (id) A.activate(id);
+  requestAnimationFrame(() => activeView()?.focus());
+}
 const editor = (f: (v: NonNullable<ReturnType<typeof activeView>>) => void) => () => {
   const v = activeView();
   if (v && hasEditor()) {
@@ -61,7 +74,7 @@ export const COMMANDS: Command[] = [
   { id: "file.save", label: "Save", category: "File", icon: Save, shortcut: "Ctrl+S", enabled: hasEditor, run: () => A.saveActive() },
   { id: "file.saveAs", label: "Save as…", category: "File", shortcut: "Ctrl+Shift+S", enabled: hasEditor, run: () => A.saveActiveAs() },
   { id: "file.saveAll", label: "Save all", category: "File", shortcut: "Ctrl+Alt+S", run: () => void A.saveAll() },
-  { id: "file.close", label: "Close tab", category: "File", icon: X, shortcut: "Ctrl+W", enabled: () => !!get().activeId, run: () => void A.closeTab(get().activeId!) },
+  { id: "file.close", label: "Close tab", category: "File", icon: X, shortcut: "Ctrl+W", enabled: () => !!activeIdOf(), run: () => void A.closeTab(activeIdOf()!) },
   { id: "file.closeAll", label: "Close all tabs", category: "File", enabled: () => get().tabs.length > 0, run: () => void A.closeAllTabs() },
   { id: "file.closeFolder", label: "Close folder", category: "File", enabled: hasFolder, run: () => A.closeFolder() },
   { id: "file.settings", label: "Settings", category: "File", icon: Settings, shortcut: "Ctrl+,", run: () => openDialog({ kind: "settings" }) },
@@ -70,25 +83,21 @@ export const COMMANDS: Command[] = [
   { id: "edit.redo", label: "Redo", category: "Edit", shortcut: "Ctrl+Y", enabled: hasEditor, run: editor((v) => import("@codemirror/commands").then((m) => m.redo(v))) },
   { id: "edit.find", label: "Find and replace", category: "Edit", icon: Search, shortcut: "Ctrl+F", enabled: hasEditor, run: editor((v) => openSearchPanel(v)) },
   { id: "edit.findInFiles", label: "Find in files", category: "Edit", shortcut: "Ctrl+Shift+F", enabled: hasFolder, run: () => set({ sidebar: "search" }) },
-  { id: "edit.gotoLine", label: "Go to line…", category: "Edit", shortcut: "Ctrl+G", enabled: hasEditor, run: editor((v) => gotoLine(v)) },
+  { id: "edit.gotoLine", label: "Go to line…", category: "Edit", shortcut: "Ctrl+G", enabled: hasEditor, run: () => openDialog({ kind: "palette", mode: "line" }) },
   { id: "edit.comment", label: "Toggle comment", category: "Edit", shortcut: "Ctrl+/", enabled: hasEditor, run: editor((v) => toggleComment(v)) },
-  {
-    id: "edit.format",
-    label: "Format document",
-    category: "Edit",
-    shortcut: "Shift+Alt+F",
-    enabled: hasEditor,
-    run: editor((v) => {
-      const changes = indentRange(v.state, 0, v.state.doc.length);
-      if (!changes.empty) v.dispatch({ changes, userEvent: "format" });
-    }),
-  },
+  { id: "edit.format", label: "Format document", category: "Edit", icon: Wand2, shortcut: "Shift+Alt+F", enabled: hasEditor, run: () => A.formatActive() },
+  { id: "edit.definition", label: "Go to definition", category: "Edit", shortcut: "F12", editorKey: true, enabled: hasJava, run: editor((v) => void goToDefinition(v, shownPath()!)) },
+  { id: "edit.usages", label: "Find usages", category: "Edit", shortcut: "Shift+F12", editorKey: true, enabled: hasJava, run: editor((v) => findUsages(v)) },
+  { id: "edit.rename", label: "Rename symbol…", category: "Edit", shortcut: "F2", editorKey: true, enabled: hasJava, run: editor((v) => renameSymbol(v, shownPath()!)) },
+  { id: "edit.emmet", label: "Expand Emmet abbreviation", category: "Edit", shortcut: "Ctrl+E", editorKey: true, enabled: hasWeb, run: editor((v) => void expandAbbreviation(v)) },
 
   { id: "view.explorer", label: "Show explorer", category: "View", icon: PanelLeft, shortcut: "Ctrl+Shift+E", run: () => set({ sidebar: "explorer" }) },
   { id: "view.outline", label: "Show outline", category: "View", run: () => set({ sidebar: "outline" }) },
   { id: "view.sidebar", label: "Toggle side bar", category: "View", shortcut: "Ctrl+B", run: () => A.toggleSidebar() },
   { id: "view.panel", label: "Toggle output panel", category: "View", icon: PanelBottom, shortcut: "Ctrl+J", run: () => A.togglePanel() },
   { id: "view.problems", label: "Show problems", category: "View", shortcut: "Ctrl+Shift+M", run: () => set({ panelOpen: true, panelTab: "problems" }) },
+  { id: "view.split", label: "Split editor (move tab to the side)", category: "View", icon: Columns2, shortcut: "Ctrl+\\", enabled: () => !!activeTab(), run: () => A.splitEditor() },
+  { id: "view.focusOther", label: "Focus the other editor group", category: "View", enabled: () => get().tabs.some((t) => t.group === 1), run: () => focusOther() },
   { id: "view.preview", label: "Toggle web preview", category: "View", icon: Columns2, shortcut: "Ctrl+Shift+V", enabled: hasFolder, run: () => A.togglePreview() },
   { id: "view.palette", label: "Command palette…", category: "View", shortcut: "Ctrl+Shift+P", run: () => openDialog({ kind: "palette", mode: "commands" }) },
   { id: "view.zoomIn", label: "Larger editor text", category: "View", shortcut: "Ctrl+=", run: () => zoom(1) },
@@ -96,6 +105,7 @@ export const COMMANDS: Command[] = [
   { id: "view.zoomReset", label: "Reset editor text size", category: "View", shortcut: "Ctrl+0", run: () => zoom(0) },
 
   { id: "uml.open", label: "Show UML class diagram", category: "UML", icon: Network, shortcut: "Ctrl+Shift+U", enabled: hasFolder, run: () => A.openUml() },
+  { id: "uml.side", label: "Show UML class diagram to the side", category: "UML", enabled: hasFolder, run: () => A.openUml(1) },
   { id: "uml.layout", label: "Arrange UML diagram automatically", category: "UML", enabled: hasFolder, run: () => (A.openUml(), set((s) => ({ umlLayoutNonce: s.umlLayoutNonce + 1 }))) },
 
   { id: "run.run", label: "Run", category: "Run", icon: Play, shortcut: "F5", enabled: hasFolder, run: () => A.runActive() },
@@ -151,24 +161,27 @@ export function shortcutOf(e: KeyboardEvent): string {
   if (e.code === "Minus") key = "-";
   if (e.code === "Comma") key = ",";
   if (e.code === "Slash" || e.code === "NumpadDivide") key = "/";
+  if (e.code === "Backslash" || e.code === "IntlBackslash") key = "\\";
   if (/^Digit\d$/.test(e.code)) key = e.code.slice(5);
   parts.push(key);
   return parts.join("+");
 }
 
 /** Shortcuts the editor itself must not swallow. */
-const GLOBAL = new Set(COMMANDS.filter((c) => c.shortcut).map((c) => c.shortcut!));
+const GLOBAL = new Set(COMMANDS.filter((c) => c.shortcut && !c.editorKey).map((c) => c.shortcut!));
 // Left to CodeMirror while an editor has focus.
-const EDITOR_OWNED = new Set(["Ctrl+Z", "Ctrl+Y", "Ctrl+F", "Ctrl+G", "Ctrl+/"]);
+const EDITOR_OWNED = new Set(["Ctrl+Z", "Ctrl+Y", "Ctrl+F", "Ctrl+/"]);
 
 export function handleShortcut(e: KeyboardEvent, inEditor: boolean): boolean {
   const sc = shortcutOf(e);
   if (!GLOBAL.has(sc)) return false;
   if (inEditor && EDITOR_OWNED.has(sc)) return false;
-  const c = COMMANDS.find((x) => x.shortcut === sc);
+  const c = COMMANDS.find((x) => x.shortcut === sc && !x.editorKey);
   if (!c) return false;
   if (c.enabled && !c.enabled()) return true;
   e.preventDefault();
+  // Handled here: the editor must not act on the same key too.
+  e.stopPropagation();
   void c.run();
   return true;
 }

@@ -13,6 +13,10 @@ export interface Settings {
   autoSave: boolean;
   /** Reload the preview when an HTML, CSS or JS file is saved. */
   livePreview: boolean;
+  formatOnSave: boolean;
+  /** Keep unsaved changes and open files across restarts instead of asking on close. */
+  hotExit: boolean;
+  language: "system" | "en" | "de";
   /** Save all files before compiling. */
   saveBeforeRun: boolean;
   /** Empty: the newest JDK found. */
@@ -23,6 +27,7 @@ export interface Settings {
   sidebarWidth: number;
   panelHeight: number;
   previewWidth: number;
+  sideWidth: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -35,6 +40,9 @@ export const DEFAULT_SETTINGS: Settings = {
   autoCloseBrackets: true,
   autoSave: false,
   livePreview: true,
+  formatOnSave: false,
+  hotExit: true,
+  language: "system",
   saveBeforeRun: true,
   jdkHome: "",
   nodePath: "",
@@ -43,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarWidth: 272,
   panelHeight: 240,
   previewWidth: 520,
+  sideWidth: 640,
 };
 
 const KEY = "logiq.settings";

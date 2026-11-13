@@ -471,10 +471,15 @@ export function autoLayout(d: Diagram): Positions {
 }
 
 /** Gives boxes without a saved place one to the right of the others. */
-export function placeNew(d: Diagram, saved: Positions): Positions {
+export function placeNew(d: Diagram, saved: Positions, known: Set<string> = new Set(d.nodes.map((n) => n.id))): Positions {
   const result: Positions = {};
   const missing = d.nodes.filter((n) => !saved[n.id]);
   if (missing.length === d.nodes.length) return autoLayout(d);
+  // One class gone and one new: a rename, so the box stays where it was.
+  const stale = Object.keys(saved).filter((id) => !known.has(id));
+  if (missing.length === 1 && stale.length === 1) {
+    return { ...Object.fromEntries(d.nodes.filter((n) => saved[n.id]).map((n) => [n.id, saved[n.id]])), [missing[0].id]: saved[stale[0]] };
+  }
   let right = 0;
   for (const n of d.nodes) if (saved[n.id]) right = Math.max(right, saved[n.id].x + n.w);
   let y = 0;

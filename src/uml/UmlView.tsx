@@ -27,6 +27,7 @@ import { javaIndex, useJavaIndexVersion } from "./javaIndex";
 import { autoLayout, BOX, buildDiagram, placeNew, route, type Diagram, type Point, type Positions, type UmlEdge, type UmlNode, type UmlOptions } from "./diagram";
 import { exportPng, exportSvgString } from "./exportDiagram";
 import { cx } from "../lib/utils";
+import { t } from "../lib/i18n";
 
 interface Layout {
   version: 1;
@@ -254,7 +255,7 @@ export function UmlView({ visible }: { visible: boolean }) {
   const allTypes = useMemo(() => javaIndex.types(), [version]);
   const folders = useMemo(() => {
     const set = new Set<string>();
-    for (const t of allTypes) set.add(dirname(t.path));
+    for (const x of allTypes) set.add(dirname(x.path));
     return [...set].sort();
   }, [allTypes]);
   useEffect(() => {
@@ -263,23 +264,25 @@ export function UmlView({ visible }: { visible: boolean }) {
 
   const types = useMemo(() => {
     const hidden = new Set(layout?.hidden ?? []);
-    return allTypes.filter((t) => !hidden.has(t.qualifiedName) && (scope === ALL || dirname(t.path) === scope));
+    return allTypes.filter((x) => !hidden.has(x.qualifiedName) && (scope === ALL || dirname(x.path) === scope));
   }, [allTypes, layout?.hidden, scope]);
 
   const diagram: Diagram = useMemo(() => buildDiagram(types, opts), [types, opts]);
 
-  const positions = useMemo(() => (layout ? placeNew(diagram, layout.positions) : {}), [diagram, layout]);
+  const known = useMemo(() => new Set(allTypes.map((x) => x.qualifiedName)), [allTypes]);
+  const positions = useMemo(() => (layout ? placeNew(diagram, layout.positions, known) : {}), [diagram, layout, known]);
 
   // Keep the positions of new boxes, so they don't move when the next class appears.
   useEffect(() => {
     if (!layout) return;
     const missing = diagram.nodes.filter((n) => !layout.positions[n.id]);
     if (missing.length) {
-      const next = { ...layout.positions };
+      // Forget classes that no longer exist; keep those only filtered out.
+      const next = Object.fromEntries(Object.entries(layout.positions).filter(([id]) => known.has(id)));
       for (const n of missing) next[n.id] = positions[n.id];
       persist({ ...layout, positions: next });
     }
-  }, [diagram, layout, positions, persist]);
+  }, [diagram, layout, positions, persist, known]);
 
   const relayout = useCallback(() => {
     if (!layout) return;
@@ -404,9 +407,9 @@ export function UmlView({ visible }: { visible: boolean }) {
       x: e.clientX,
       y: e.clientY,
       items: [
-        { label: "Go to source", icon: FileCode, onSelect: () => openAt(node, node.type.line) },
-        { label: "Hide from diagram", icon: EyeOff, onSelect: () => hide(node.id) },
-        { label: "Copy name", icon: ClipboardCopy, onSelect: () => void navigator.clipboard.writeText(node.type.qualifiedName) },
+        { label: t("Go to source"), icon: FileCode, onSelect: () => openAt(node, node.type.line) },
+        { label: t("Hide from diagram"), icon: EyeOff, onSelect: () => hide(node.id) },
+        { label: t("Copy name"), icon: ClipboardCopy, onSelect: () => void navigator.clipboard.writeText(node.type.qualifiedName) },
       ],
     });
   };
@@ -420,19 +423,19 @@ export function UmlView({ visible }: { visible: boolean }) {
     openMenu({
       anchor: e.currentTarget,
       items: [
-        { type: "heading", label: "Compartments" },
-        toggle("showAttributes", "Attributes"),
-        toggle("showMethods", "Methods"),
-        toggle("showConstructors", "Constructors"),
-        toggle("showPrivate", "Private members"),
-        { type: "heading", label: "Details" },
-        toggle("showParams", "Parameters"),
-        toggle("showTypes", "Types"),
-        toggle("visibilitySymbols", "Visibility symbols (+ − # ~)"),
-        { type: "heading", label: "Relations" },
-        toggle("showAssociations", "Associations"),
-        toggle("showDependencies", "Dependencies"),
-        toggle("showNesting", "Nested classes"),
+        { type: "heading", label: t("Compartments") },
+        toggle("showAttributes", t("Attributes")),
+        toggle("showMethods", t("Methods")),
+        toggle("showConstructors", t("Constructors")),
+        toggle("showPrivate", t("Private members")),
+        { type: "heading", label: t("Details") },
+        toggle("showParams", t("Parameters")),
+        toggle("showTypes", t("Types")),
+        toggle("visibilitySymbols", t("Visibility symbols (+ − # ~)")),
+        { type: "heading", label: t("Relations") },
+        toggle("showAssociations", t("Associations")),
+        toggle("showDependencies", t("Dependencies")),
+        toggle("showNesting", t("Nested classes")),
       ],
     });
   };
@@ -442,9 +445,9 @@ export function UmlView({ visible }: { visible: boolean }) {
       anchor: e.currentTarget,
       align: "end",
       items: [
-        { label: "Export as SVG…", icon: Download, onSelect: () => void doExport("svg") },
-        { label: "Export as PNG…", icon: ImageIcon, onSelect: () => void doExport("png") },
-        { label: "Copy as image", icon: ClipboardCopy, onSelect: () => void doExport("copy") },
+        { label: t("Export as SVG…"), icon: Download, onSelect: () => void doExport("svg") },
+        { label: t("Export as PNG…"), icon: ImageIcon, onSelect: () => void doExport("png") },
+        { label: t("Copy as image"), icon: ClipboardCopy, onSelect: () => void doExport("copy") },
       ],
     });
   };
@@ -458,20 +461,20 @@ export function UmlView({ visible }: { visible: boolean }) {
       if (kind === "copy") {
         const blob = await exportPng(svg, 2);
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-        toast("success", "Diagram copied", "Paste it into a document or an image editor.");
+        toast("success", t("Diagram copied"), t("Paste it into a document or an image editor."));
         return;
       }
       const target = await pickSavePath({
-        title: kind === "svg" ? "Export as SVG" : "Export as PNG",
+        title: kind === "svg" ? t("Export as SVG") : t("Export as PNG"),
         defaultPath: root ? join(root, `class-diagram.${kind}`) : `class-diagram.${kind}`,
         filters: [{ name: kind.toUpperCase(), extensions: [kind] }],
       });
       if (!target) return;
       if (kind === "svg") await api.writeText(target, svg);
       else await api.writeBytes(target, new Uint8Array(await (await exportPng(svg, 2)).arrayBuffer()));
-      toast("success", "Diagram exported", target);
+      toast("success", t("Diagram exported"), target);
     } catch (err) {
-      toast("error", "The diagram wasn't exported", errorText(err));
+      toast("error", t("The diagram wasn't exported"), errorText(err));
     }
   }
 
@@ -497,38 +500,38 @@ export function UmlView({ visible }: { visible: boolean }) {
             fitted.current = false;
             requestAnimationFrame(() => fit());
           }}
-          options={[{ value: ALL, label: "All classes" }, ...folders.map((f) => ({ value: f, label: relative(root, f) === f || !relative(root, f) || f.toLowerCase() === root.toLowerCase() ? "Project folder" : relative(root, f) }))]}
-          label="Show classes from"
+          options={[{ value: ALL, label: t("All classes") }, ...folders.map((f) => ({ value: f, label: relative(root, f) === f || !relative(root, f) || f.toLowerCase() === root.toLowerCase() ? t("Project folder") : relative(root, f) }))]}
+          label={t("Show classes from")}
           compact
         />
         <Button spacing="compact" iconBefore={SlidersHorizontal} onClick={optionMenu}>
-          View
+          {t("View")}
         </Button>
         {hiddenCount > 0 && (
-          <Button spacing="compact" iconBefore={Eye} onClick={() => layout && persist({ ...layout, hidden: [] })} tooltip="Show the classes you hid">
-            Show {hiddenCount} hidden
+          <Button spacing="compact" iconBefore={Eye} onClick={() => layout && persist({ ...layout, hidden: [] })} tooltip={t("Show the classes you hid")}>
+            {t("Show {0} hidden", hiddenCount)}
           </Button>
         )}
         <span className="spacer" />
-        <IconButton icon={Code} label="New Java class" spacing="compact" onClick={() => openDialog({ kind: "newJavaFile", dir: scope === ALL ? root : scope })} />
-        <IconButton icon={LayoutDashboard} label="Arrange automatically" spacing="compact" onClick={relayout} />
+        <IconButton icon={Code} label={t("New Java class")} spacing="compact" onClick={() => openDialog({ kind: "newJavaFile", dir: scope === ALL ? root : scope })} />
+        <IconButton icon={LayoutDashboard} label={t("Arrange automatically")} spacing="compact" onClick={relayout} />
         <span className="toolbar-divider" />
-        <IconButton icon={Minus} label="Zoom out" spacing="compact" onClick={() => zoomBy(1 / 1.2)} />
-        <button type="button" className="uml-zoom" onClick={() => setView({ ...view, k: 1 })} data-tooltip="Actual size">
+        <IconButton icon={Minus} label={t("Zoom out")} spacing="compact" onClick={() => zoomBy(1 / 1.2)} />
+        <button type="button" className="uml-zoom" onClick={() => setView({ ...view, k: 1 })} data-tooltip={t("Actual size")}>
           {Math.round(view.k * 100)}%
         </button>
-        <IconButton icon={Plus} label="Zoom in" spacing="compact" onClick={() => zoomBy(1.2)} />
-        <IconButton icon={Maximize} label="Fit to window" spacing="compact" onClick={() => fit()} />
+        <IconButton icon={Plus} label={t("Zoom in")} spacing="compact" onClick={() => zoomBy(1.2)} />
+        <IconButton icon={Maximize} label={t("Fit to window")} spacing="compact" onClick={() => fit()} />
         <span className="toolbar-divider" />
         <Button spacing="compact" iconBefore={Download} onClick={exportMenu} disabled={!diagram.nodes.length}>
-          Export
+          {t("Export")}
         </Button>
       </div>
       <div
         ref={stageRef}
         className="uml-stage"
         tabIndex={0}
-        aria-label="UML class diagram"
+        aria-label={t("UML class diagram")}
         onKeyDown={(e) => {
           if (e.key === "f" || e.key === "F") fit();
           else if (e.key === "+" || e.key === "=") zoomBy(1.2);
@@ -550,18 +553,18 @@ export function UmlView({ visible }: { visible: boolean }) {
           <div className="uml-empty">
             <EmptyState
               icon={Network}
-              title={allTypes.length ? "Every class is hidden" : "No Java classes yet"}
+              title={allTypes.length ? t("Every class is hidden") : t("No Java classes yet")}
               actions={
                 allTypes.length ? (
-                  <Button onClick={() => layout && persist({ ...layout, hidden: [] })}>Show all classes</Button>
+                  <Button onClick={() => layout && persist({ ...layout, hidden: [] })}>{t("Show all classes")}</Button>
                 ) : (
                   <Button appearance="primary" iconBefore={Code} onClick={() => openDialog({ kind: "newJavaFile", dir: root })}>
-                    New Java class
+                    {t("New Java class")}
                   </Button>
                 )
               }
             >
-              {allTypes.length ? "Show them again to draw the diagram." : "The class diagram draws itself from the Java code in this folder, and changes as you type."}
+              {allTypes.length ? t("Show them again to draw the diagram.") : t("The class diagram draws itself from the Java code in this folder, and changes as you type.")}
             </EmptyState>
           </div>
         ) : (
@@ -616,9 +619,9 @@ export function UmlView({ visible }: { visible: boolean }) {
           </svg>
         )}
         <div className="uml-legend" aria-hidden="true">
-          <span>Drag boxes to arrange</span>
-          <span>Double-click to open the code</span>
-          <span>Ctrl + wheel to zoom</span>
+          <span>{t("Drag boxes to arrange")}</span>
+          <span>{t("Double-click to open the code")}</span>
+          <span>{t("Ctrl + wheel to zoom")}</span>
         </div>
       </div>
     </div>

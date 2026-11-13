@@ -6,6 +6,7 @@ import { basename, relative } from "../lib/paths";
 import { IconButton } from "./ui/Button";
 import { Badge } from "./ui/Feedback";
 import { cx } from "../lib/utils";
+import { t } from "../lib/i18n";
 
 function Output() {
   const output = useStore((s) => s.output);
@@ -34,7 +35,7 @@ function Output() {
         ref={scroller}
         className="output-log"
         role="log"
-        aria-label="Program output"
+        aria-label={t("Program output")}
         onScroll={(e) => {
           const el = e.currentTarget;
           stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
@@ -42,7 +43,7 @@ function Output() {
         onClick={() => running && !window.getSelection()?.toString() && field.current?.focus()}
       >
         {output.length === 0 ? (
-          <p className="output-empty">Output of the programs you run appears here. Press F5 to compile and run.</p>
+          <p className="output-empty">{t("Output of the programs you run appears here. Press F5 to compile and run.")}</p>
         ) : (
           output.map((c) => (
             <span key={c.id} className={`out-${c.kind}`}>
@@ -70,8 +71,8 @@ function Output() {
           value={input}
           disabled={!running}
           spellCheck={false}
-          aria-label="Input for the running program"
-          placeholder={running ? "Type input for the program and press Enter" : "Input is available while a program runs"}
+          aria-label={t("Input for the running program")}
+          placeholder={running ? t("Type input for the program and press Enter") : t("Input is available while a program runs")}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "ArrowUp" && history.length) {
@@ -87,7 +88,7 @@ function Output() {
             }
           }}
         />
-        <IconButton icon={CornerDownLeft} label="Send" spacing="compact" type="submit" disabled={!running} />
+        <IconButton icon={CornerDownLeft} label={t("Send")} spacing="compact" type="submit" disabled={!running} />
       </form>
     </div>
   );
@@ -96,7 +97,7 @@ function Output() {
 function Problems() {
   const problems = useStore((s) => s.problems);
   const root = useStore((s) => s.root);
-  if (!problems.length) return <p className="output-empty">No problems. Compile Java with Ctrl+F9 or run with F5 to check your code.</p>;
+  if (!problems.length) return <p className="output-empty">{t("No problems. Compile Java with Ctrl+F9 or run with F5 to check your code.")}</p>;
   return (
     <div className="problems" role="list">
       {problems.map((p, i) => {
@@ -127,21 +128,21 @@ export function BottomPanel() {
   const warnings = problems.length - errors;
 
   return (
-    <section className="bottom panel" aria-label="Output and problems">
+    <section className="bottom panel" aria-label={t("Output and problems")}>
       <div className="bottom-head">
         <div className="segmented" role="tablist">
           <button type="button" role="tab" aria-selected={tab === "output"} className={cx("segment", tab === "output" && "is-selected")} onClick={() => set({ panelTab: "output" })}>
-            Output
+            {t("Output")}
           </button>
           <button type="button" role="tab" aria-selected={tab === "problems"} className={cx("segment", tab === "problems" && "is-selected")} onClick={() => set({ panelTab: "problems" })}>
-            Problems
+            {t("Problems")}
             {errors > 0 && <Badge appearance="danger">{errors}</Badge>}
             {warnings > 0 && <Badge>{warnings}</Badge>}
           </button>
         </div>
         <span className="spacer" />
-        {tab === "output" && <IconButton icon={Eraser} label="Clear output" spacing="compact" onClick={clearOutput} />}
-        <IconButton icon={X} label="Close panel" shortcut="Ctrl+J" spacing="compact" onClick={() => set({ panelOpen: false })} />
+        {tab === "output" && <IconButton icon={Eraser} label={t("Clear output")} spacing="compact" onClick={clearOutput} />}
+        <IconButton icon={X} label={t("Close panel")} shortcut="Ctrl+J" spacing="compact" onClick={() => set({ panelOpen: false })} />
       </div>
       <div className="bottom-body">{tab === "output" ? <Output /> : <Problems />}</div>
     </section>

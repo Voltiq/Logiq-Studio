@@ -505,7 +505,7 @@ class Parser {
         const line = this.peek()!.line;
         this.i++;
         const params = this.is("(") ? this.params() : type.fields.map((f) => ({ name: f.name, type: f.type }));
-        this.methodTail(creates);
+        const end = this.methodTail(creates);
         type.methods.push({
           name: type.name,
           returnType: null,
@@ -516,6 +516,7 @@ class Parser {
           isConstructor: true,
           typeParams,
           line,
+          endLine: end ?? line,
         });
         continue;
       }
@@ -536,7 +537,8 @@ class Parser {
           returnType += "[]";
           this.i += 2;
         }
-        const hasBody = this.methodTail(creates);
+        const end = this.methodTail(creates);
+        const hasBody = end !== null;
         const method: JMethod = {
           name: nameTok.v,
           returnType,
@@ -547,6 +549,7 @@ class Parser {
           isConstructor: false,
           typeParams,
           line: nameTok.line,
+          endLine: end ?? nameTok.line,
         };
         type.methods.push(method);
         if (
@@ -605,19 +608,16 @@ class Parser {
     }
   }
 
-  /** After a parameter list: `throws …`, then a body or `;` (or `default …;`). Returns whether a body followed. */
-  methodTail(creates: Set<string>): boolean {
+  /** After a parameter list: `throws …`, then a body or `;` (or `default …;`). Returns the body's last line, or null. */
+  methodTail(creates: Set<string>): number | null {
     if (this.eat("throws")) this.typeList();
-    if (this.is("{")) {
-      this.skipGroup(creates);
-      return true;
-    }
+    if (this.is("{")) return this.skipGroup(creates);
     if (this.eat("default")) {
       this.skipStatement();
-      return false;
+      return null;
     }
     if (!this.eat(";")) this.skipStatement(creates);
-    return false;
+    return null;
   }
 }
 

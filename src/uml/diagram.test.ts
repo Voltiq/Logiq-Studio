@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseJava } from "./javaParser";
-import { autoLayout, buildDiagram, DEFAULT_UML_OPTIONS, multiplicity, roughMeasure, route } from "./diagram";
+import { autoLayout, buildDiagram, DEFAULT_UML_OPTIONS, multiplicity, placeNew, roughMeasure, route } from "./diagram";
 
 const SHAPES = `
 interface Drawable { void draw(); }
@@ -91,6 +91,13 @@ describe("buildDiagram", () => {
       { x: 100, y: 25 },
       { x: 300, y: 25 },
     ]);
+  });
+
+  it("keeps a renamed class in its place", () => {
+    const d = buildDiagram(parseJava("class A {} class B extends A {}").types, DEFAULT_UML_OPTIONS, roughMeasure);
+    const pos = placeNew(d, { A: { x: 10, y: 20 }, Old: { x: 300, y: 400 } });
+    expect(pos.B).toEqual({ x: 300, y: 400 });
+    expect(pos.A).toEqual({ x: 10, y: 20 });
   });
 
   it("knows multiplicities", () => {

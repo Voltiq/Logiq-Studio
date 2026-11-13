@@ -16,6 +16,7 @@
 
 .app {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 2rem 3rem minmax(0, 1fr) 1.75rem;
   height: 100vh;
   background:
@@ -245,6 +246,8 @@
 .workbench {
   display: flex;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   padding: var(--space-050) var(--space-150) var(--space-100);
 }
 
@@ -363,12 +366,55 @@
   flex-direction: column;
 }
 
+.groups {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.groups > .stage {
+  flex: 1;
+  min-width: 0;
+}
+
+.side-group {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 240px;
+  max-width: 60%;
+}
+
+.side-group > .stage {
+  flex: 1;
+  min-width: 0;
+}
+
+.stage.is-focused {
+  box-shadow:
+    var(--sh-2),
+    var(--inset-hi),
+    0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
 .bottom-wrap,
 .preview-wrap {
   display: flex;
   flex: none;
   min-height: 0;
   min-width: 0;
+}
+
+.preview-wrap {
+  flex: 0 1 auto;
+  min-width: 240px;
+  max-width: 50%;
+}
+
+.sidebar {
+  min-width: 180px;
+  max-width: 40%;
+  flex-shrink: 1;
 }
 
 .bottom-wrap > *,
@@ -529,6 +575,25 @@
 
 .tree-name.is-dim {
   opacity: 0.6;
+}
+
+.tree-row.is-cut {
+  opacity: 0.5;
+}
+
+.tree-row.is-drop,
+.tree.is-drop {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.tree-dir {
+  color: var(--text-subtlest);
+  font-size: var(--font-size-small);
+}
+
+.explorer-filter {
+  padding: 0 var(--space-150) var(--space-100);
 }
 
 .tree-dirty,
@@ -850,6 +915,26 @@ button.outline-row:hover {
   box-shadow: 0 0 8px var(--accent);
 }
 
+.tab.is-drop {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tabs.is-drop-end {
+  box-shadow: inset -2px 0 0 var(--accent);
+}
+
+.tab.is-pinned {
+  padding-right: 2px;
+}
+
+.tab-close.is-pin {
+  color: var(--icon-subtlest);
+}
+
+.tab-dot.is-shown {
+  display: block;
+}
+
 .tab.is-dirty .tab-close:not(:hover) .tab-dot {
   display: block;
 }
@@ -871,9 +956,117 @@ button.outline-row:hover {
   display: none;
 }
 
+.editor-mount {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-host {
+  position: relative;
+}
+
 .editor-host .cm-editor {
   flex: 1;
   min-height: 0;
+}
+
+/* Sticky scroll: the enclosing class and method stay at the top. */
+.sticky-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 14px;
+  z-index: 4;
+  padding: 2px 0;
+  background: color-mix(in oklab, var(--surface-1) 94%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.45);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-code);
+  font-size: var(--editor-font-size, 13px);
+  line-height: 1.6;
+}
+
+.sticky-line {
+  display: flex;
+  cursor: pointer;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.sticky-line:hover {
+  background: var(--wash);
+}
+
+.sticky-no {
+  flex: none;
+  width: 62px;
+  padding-right: 18px;
+  color: var(--text-subtlest);
+  text-align: right;
+  font-size: 0.92em;
+}
+
+.sticky-text {
+  color: var(--text-subtle);
+  padding-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Breadcrumbs under the tabs */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+  min-height: 1.625rem;
+  padding: 2px 14px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+  font-size: var(--font-size-small);
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.crumb-sep {
+  color: var(--icon-subtlest);
+}
+
+.crumb-button {
+  height: 1.375rem;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-subtlest);
+}
+
+.crumb-button:hover {
+  background: var(--wash-2);
+  color: var(--text);
+}
+
+.crumb:last-child .crumb-button {
+  color: var(--text-subtle);
+}
+
+.crumb-button.is-symbol {
+  color: var(--syntax-type);
+}
+
+.crumb-button.is-method {
+  color: var(--syntax-function);
+  font-family: var(--font-code);
 }
 
 .editor-host .cm-scroller {
@@ -1484,7 +1677,18 @@ button.status-item:hover {
   height: 100%;
 }
 
+.uml-stage {
+  container-type: inline-size;
+}
+
+@container (max-width: 560px) {
+  .uml-legend {
+    display: none;
+  }
+}
+
 .uml-legend {
+  white-space: nowrap;
   position: absolute;
   left: 10px;
   bottom: 10px;

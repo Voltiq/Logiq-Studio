@@ -26,6 +26,7 @@ export const api = {
   createFile: (path: string, text?: string) => invoke<void>("fs_create_file", { path, text }),
   createDir: (path: string) => invoke<void>("fs_create_dir", { path }),
   rename: (from: string, to: string) => invoke<void>("fs_rename", { from, to }),
+  copy: (from: string, to: string) => invoke<void>("fs_copy", { from, to }),
   delete: (path: string) => invoke<void>("fs_delete", { path }),
   exists: (path: string) => invoke<boolean>("fs_exists", { path }),
   listFiles: (root: string) => invoke<string[]>("fs_list_files", { root }),

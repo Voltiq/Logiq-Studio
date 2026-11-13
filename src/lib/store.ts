@@ -7,6 +7,8 @@ import type { TemplateId } from "./templates";
 export type SidebarView = "explorer" | "search" | "outline";
 export type PanelTab = "output" | "problems";
 
+export type Group = 0 | 1;
+
 export interface Tab {
   /** The file's path, or "uml" for the class diagram. */
   id: string;
@@ -14,6 +16,19 @@ export interface Tab {
   path: string | null;
   title: string;
   dirty: boolean;
+  /** The editor group: 0 on the left, 1 to the side. */
+  group: Group;
+  pinned?: boolean;
+}
+
+export interface SearchRequest {
+  query: string;
+  matchCase: boolean;
+  wholeWord: boolean;
+  regex: boolean;
+  /** Only files with these extensions. */
+  extensions?: string[];
+  nonce: number;
 }
 
 export type OutputKind = "stdout" | "stderr" | "system" | "input" | "success" | "error";
@@ -72,8 +87,16 @@ export interface State {
   tree: Record<string, Entry[] | undefined>;
   expanded: Record<string, boolean>;
   selected: string | null;
+  /** Explorer multi-selection (always includes `selected`). */
+  selection: string[];
+  /** Files cut or copied in the explorer. */
+  clipboard: { mode: "copy" | "cut"; paths: string[] } | null;
   tabs: Tab[];
-  activeId: string | null;
+  /** The active tab of each editor group. */
+  active: [string | null, string | null];
+  /** The group last used. */
+  focusGroup: Group;
+  searchRequest: SearchRequest | null;
   sidebar: SidebarView | null;
   panelOpen: boolean;
   panelTab: PanelTab;
@@ -101,8 +124,12 @@ export const useStore = create<State>(() => ({
   tree: {},
   expanded: {},
   selected: null,
+  selection: [],
+  clipboard: null,
   tabs: [],
-  activeId: null,
+  active: [null, null],
+  focusGroup: 0,
+  searchRequest: null,
   sidebar: "explorer",
   panelOpen: false,
   panelTab: "output",
@@ -123,6 +150,16 @@ export const useStore = create<State>(() => ({
 }));
 
 export const get = useStore.getState;
+
+/** The active tab of the focused group. */
+export function activeTab(s: State = get()): Tab | undefined {
+  const id = s.active[s.focusGroup] ?? s.active[0];
+  return s.tabs.find((t) => t.id === id);
+}
+
+export function activeIdOf(s: State = get()): string | null {
+  return s.active[s.focusGroup] ?? s.active[0];
+}
 export const set = useStore.setState;
 
 export function setSettings(patch: Partial<Settings>) {

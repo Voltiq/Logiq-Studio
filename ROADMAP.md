@@ -83,23 +83,59 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - Completion and error checking are syntax-level; type errors appear when compiling (`F5` / `Ctrl+F9`)
 - No debugger, integrated terminal or Git yet
 - Lines between classes are straight or simple trees and can cross boxes in crowded diagrams
-- The interface is in English only
+- ~~The interface is in English only~~ (German in v0.2)
 - Not yet run as an installed app end to end; the interface was checked in the browser stand-in and the
   native side with `cargo test` and a debug build
 
 ---
 
-## v0.2 — Editor depth
-- [ ] Format document with real formatters (google-java-format, Prettier for HTML/CSS/JS)
-- [ ] Emmet abbreviations in HTML and CSS; colour swatches and picker in CSS
-- [ ] Go to definition and find usages for the project's Java classes and members
-- [ ] Rename symbol across files (class rename renames the file too)
-- [ ] Split editor (two files side by side), breadcrumbs, sticky scroll for class and method headers
-- [ ] Explorer: drag and drop to move, copy / cut / paste, duplicate, multi-select, file-type filter
-- [ ] Hot exit: unsaved editors restored after a restart; reopen the last folder and tabs
-- [ ] Reorder tabs by dragging; pin tabs
-- [ ] Markdown preview
-- [ ] Interface in German, then Spanish and French (`t()` is already in place)
+## v0.2 — Editor depth (2026-11-13)
+
+### Editor
+- [x] **Format document** (`Shift+Alt+F`) with Prettier: Java through prettier-plugin-java, HTML, CSS,
+      JavaScript, TypeScript, JSON and Markdown; loaded on first use, one undoable change, cursor kept;
+      re-indent for other files; optional **format on save**
+- [x] **Emmet** in HTML and CSS: abbreviations are tracked while typing and expand with `Tab`, or any time with
+      `Ctrl+E`
+- [x] **Colour swatches** beside CSS colours (`#hex`, `rgb()`, `hsl()`); clicking one opens the colour picker and
+      writes the new colour back, keeping its alpha
+- [x] **Go to definition** (`F12` or `Ctrl`+click) for the project's classes, fields, methods (inherited ones
+      too), enum constants, nested classes, parameters and local variables; `Alt`+click now adds a cursor
+- [x] **Find usages** (`Shift+F12`): whole-word, case-sensitive search over the Java files in the search panel
+- [x] **Rename symbol** (`F2` in a Java editor): a local variable or parameter within its method, anything else
+      in every Java file (skipping comments and strings); open files change without saving, closed ones are
+      rewritten; renaming a top-level class renames its file; the class keeps its place in the UML diagram
+- [x] **Split editor** (`Ctrl+\`): a second editor group beside the first, each with its own tabs; move tabs
+      between groups from the context menu or by dragging; *Show UML class diagram to the side* puts code
+      and diagram next to each other (new Java class projects open that way)
+- [x] **Breadcrumbs** under the tabs: the file's folders, then the class and method at the cursor
+- [x] **Sticky scroll**: the class and method the top line belongs to stay pinned above the code
+- [x] Opening or switching to a file puts the keyboard focus in its editor
+
+### Workspace
+- [x] Explorer: multi-select (`Ctrl`/`Shift`+click, `Shift`+arrows, `Ctrl+A`), **drag and drop to move** (folders
+      open while hovering), **cut / copy / paste** (`Ctrl+X/C/V`, copies get “copy” names), **duplicate**, delete
+      several at once, **filter by name** (fuzzy, over the whole folder), *Open to the side*
+- [x] **Hot exit**: closing the window keeps unsaved text instead of asking; the last folder, its tabs, both
+      groups, pinned tabs and the unsaved text come back on the next start (can be switched off in Settings)
+- [x] Tabs: **reorder by dragging**, **pin** (pinned tabs stay first and survive *Close all / others*)
+- [x] **Markdown preview**: rendered live as you type, relative images resolved from the folder, no scripts
+- [x] `Ctrl+G` goes to a line through the palette (it was CodeMirror's “find next”)
+- [x] Native: recursive copy (`fs_copy`), with a test
+
+### Interface
+- [x] **German** interface (`de.ts`, 300+ strings), chosen from Windows or in Settings › Language; a test checks
+      that every interface string is translated and keeps its placeholders
+- [x] The side group, preview and side bar shrink instead of pushing the window wider
+- [x] Opaque line-number gutter, so code scrolled sideways no longer shows through
+
+### Known limits of v0.2
+- Find usages and rename work on names, not types: two unrelated members with the same name in different
+  classes are renamed together (a message afterwards counts the places; the language server in v0.5 fixes this)
+- Emmet's `Tab` expansion needs the abbreviation to be typed; pasted text expands with `Ctrl+E`
+- Drag and drop, hot exit and the split editor were checked in the browser stand-in, not yet in the installed app
+
+---
 
 ## v0.3 — UML like the Röhner editor
 - [ ] Create a class from the diagram: a class wizard with attributes (name, type, visibility), constructor,
@@ -145,6 +181,7 @@ UML class diagram draws itself from your Java code while you type, like in the R
 
 ## v1.0 — Release
 - [ ] Windows installer (NSIS, current user), signed updates from GitHub Releases like the other Studio apps
+- [ ] Interface in Spanish and French (German is done)
 - [ ] Manual (`F1`) and a short tour on first start
 - [ ] Accessibility pass (screen readers in the diagram, keyboard everywhere, contrast)
 - [ ] Performance: very large files and folders, diagrams with hundreds of classes

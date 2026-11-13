@@ -232,6 +232,32 @@ pub fn fs_rename(from: String, to: String) -> Result<(), String> {
     fs::rename(a, b).map_err(err)
 }
 
+/// Copies a file or a whole folder. The target must not exist yet.
+#[tauri::command]
+pub fn fs_copy(from: String, to: String) -> Result<(), String> {
+    let (a, b) = (Path::new(&from), Path::new(&to));
+    if b.exists() {
+        return Err(exists_error(b));
+    }
+    if b.starts_with(a) {
+        return Err("A folder can't be copied into itself.".into());
+    }
+    copy_recursive(a, b).map_err(err)
+}
+
+fn copy_recursive(a: &Path, b: &Path) -> std::io::Result<()> {
+    if a.is_dir() {
+        fs::create_dir_all(b)?;
+        for e in fs::read_dir(a)? {
+            let e = e?;
+            copy_recursive(&e.path(), &b.join(e.file_name()))?;
+        }
+        Ok(())
+    } else {
+        fs::copy(a, b).map(|_| ())
+    }
+}
+
 /// Moves to the Recycle Bin, so a deletion can be undone there.
 #[tauri::command]
 pub fn fs_delete(path: String) -> Result<(), String> {
@@ -332,6 +358,19 @@ mod tests {
         assert_eq!(read.eol, "crlf");
         fs::write(&file, [b'a', 0xE4, b'b']).unwrap();
         assert_eq!(fs_read_text(file).unwrap().text, "a\u{e4}b");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn copies_folders() {
+        let dir = std::env::temp_dir().join(format!("logiq-copy-{}", std::process::id()));
+        fs::create_dir_all(dir.join("a/b")).unwrap();
+        fs::write(dir.join("a/b/X.java"), "x").unwrap();
+        let (a, c) = (dir.join("a").to_string_lossy().to_string(), dir.join("c").to_string_lossy().to_string());
+        fs_copy(a.clone(), c.clone()).unwrap();
+        assert_eq!(fs::read_to_string(dir.join("c/b/X.java")).unwrap(), "x");
+        assert!(fs_copy(a.clone(), c).is_err());
+        assert!(fs_copy(a.clone(), dir.join("a/b/z").to_string_lossy().to_string()).is_err());
         let _ = fs::remove_dir_all(dir);
     }
 

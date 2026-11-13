@@ -3,7 +3,10 @@
  * settings live in compartments, so they change without rebuilding a state
  * (and its undo history).
  */
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
+import { abbreviationTracker, expandAbbreviation } from "@emmetio/codemirror6-plugin";
+import { findUsages, goToDefinition, renameSymbol } from "./javaNav";
+import { colorSwatches } from "./colors";
 import {
   EditorView,
   crosshairCursor,
@@ -27,6 +30,7 @@ import { javaCompletions } from "./javaComplete";
 import type { Settings } from "../lib/settings";
 import { get } from "../lib/store";
 import { samePath } from "../lib/paths";
+import { t } from "../lib/i18n";
 
 export const compartments = {
   language: new Compartment(),
@@ -40,8 +44,33 @@ function languageExtension(path: string): Extension {
   const lang = languageFor(path);
   const ext: Extension[] = [lang.support()];
   if (lang.id === "java") {
-    ext.push(EditorState.languageData.of(() => [{ autocomplete: javaCompletions(() => currentPath(path)) }]));
+    const here = () => currentPath(path);
+    ext.push(
+      EditorState.languageData.of(() => [{ autocomplete: javaCompletions(here) }]),
+      Prec.high(
+        keymap.of([
+          { key: "F12", run: (v) => goToDefinition(v, here()) },
+          { key: "Shift-F12", run: (v) => (findUsages(v), true) },
+          { key: "F2", run: (v) => (renameSymbol(v, here()), true) },
+        ]),
+      ),
+      // Ctrl+click follows a name to its definition (Alt+click adds a cursor).
+      EditorView.domEventHandlers({
+        mousedown: (e, v) => {
+          if (!(e.ctrlKey || e.metaKey) || e.button !== 0) return false;
+          const pos = v.posAtCoords({ x: e.clientX, y: e.clientY });
+          if (pos === null) return false;
+          e.preventDefault();
+          goToDefinition(v, here(), pos);
+          return true;
+        },
+      }),
+    );
   }
+  if (lang.id === "html" || lang.id === "css") {
+    ext.push(Prec.high(abbreviationTracker({ syntax: lang.id === "css" ? "css" : "html" } as never)), Prec.high(keymap.of([{ key: "Mod-e", run: expandAbbreviation }])));
+  }
+  if (lang.id === "css" || lang.id === "html") ext.push(colorSwatches);
   return ext;
 }
 
@@ -88,7 +117,7 @@ function lintSource(path: () => string) {
             to: n.from === n.to && before && from > 0 ? from : to,
             severity: "error",
             source: "syntax",
-            message: n.from === n.to ? "Syntax error: something is missing here." : "Syntax error",
+            message: n.from === n.to ? t("Syntax error: something is missing here.") : t("Syntax error"),
           });
         },
       });
@@ -123,6 +152,7 @@ export function createState(path: string, text: string, s: Settings, onUpdate: E
       drawSelection(),
       dropCursor(),
       EditorState.allowMultipleSelections.of(true),
+      EditorView.clickAddsSelectionRange.of((e) => e.altKey),
       indentOnInput(),
       bracketMatching(),
       compartments.brackets.of(s.autoCloseBrackets ? closeBrackets() : []),

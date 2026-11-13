@@ -13,6 +13,7 @@ import { Button } from "./ui/Button";
 import { Checkbox, RadioList, Segmented, Select, TextField, Toggle } from "./ui/Field";
 import { SectionMessage, Shortcut } from "./ui/Feedback";
 import type { ThemePreference } from "../lib/types";
+import { t } from "../lib/i18n";
 
 function PromptDialog({ d }: { d: Extract<Dialog, { kind: "prompt" }> }) {
   const [value, setValue] = useState(d.value);
@@ -55,7 +56,7 @@ function PromptDialog({ d }: { d: Extract<Dialog, { kind: "prompt" }> }) {
       footer={
         <>
           <Button appearance="subtle" onClick={closeDialog}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button appearance="primary" loading={busy} onClick={() => void submit()}>
             {d.confirmLabel}
@@ -115,7 +116,7 @@ function ConfirmDialog({ d }: { d: Extract<Dialog, { kind: "confirm" }> }) {
             </div>
           )}
           <Button appearance="subtle" onClick={closeDialog}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button appearance={d.danger ? "danger" : "primary"} loading={busy} data-autofocus onClick={() => void finish(d.onConfirm)}>
             {d.confirmLabel}
@@ -131,7 +132,7 @@ function ConfirmDialog({ d }: { d: Extract<Dialog, { kind: "confirm" }> }) {
 function NewProjectDialog({ d }: { d: Extract<Dialog, { kind: "newProject" }> }) {
   const recent = useStore((s) => s.settings.recent);
   const [template, setTemplate] = useState<TemplateId>(d.template ?? "java-classes");
-  const [name, setName] = useState(TEMPLATES.find((t) => t.id === (d.template ?? "java-classes"))!.id === "web" ? "my-page" : "MyProject");
+  const [name, setName] = useState(TEMPLATES.find((x) => x.id === (d.template ?? "java-classes"))!.id === "web" ? "my-page" : "MyProject");
   const [parent, setParent] = useState(() => {
     const last = recent[0];
     return last ? last.replace(/[\\/][^\\/]+$/, "") : "";
@@ -140,14 +141,14 @@ function NewProjectDialog({ d }: { d: Extract<Dialog, { kind: "newProject" }> })
   const [busy, setBusy] = useState(false);
 
   const choose = async () => {
-    const picked = await pickPath({ directory: true, title: "Where should the project go?", defaultPath: parent || undefined }).catch(() => null);
+    const picked = await pickPath({ directory: true, title: t("Where should the project go?"), defaultPath: parent || undefined }).catch(() => null);
     if (typeof picked === "string") setParent(picked);
   };
 
   const create = async () => {
     const bad = invalidName(name.trim());
     if (bad) return setError(bad);
-    if (!parent) return setError("Choose where the project folder should go.");
+    if (!parent) return setError(t("Choose where the project folder should go."));
     setBusy(true);
     try {
       closeDialog();
@@ -160,35 +161,35 @@ function NewProjectDialog({ d }: { d: Extract<Dialog, { kind: "newProject" }> })
 
   return (
     <Modal
-      title="New project"
+      title={t("New project")}
       onClose={closeDialog}
       closeOnBlanket={false}
       footer={
         <>
           <Button appearance="subtle" onClick={closeDialog}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button appearance="primary" loading={busy} onClick={() => void create()}>
-            Create project
+            {t("Create project")}
           </Button>
         </>
       }
     >
       <RadioList
-        label="Template"
+        label={t("Template")}
         value={template}
         onChange={(v) => setTemplate(v)}
-        options={TEMPLATES.map((t) => ({ value: t.id, label: t.title, description: t.description }))}
+        options={TEMPLATES.map((x) => ({ value: x.id, label: t(x.title), description: t(x.description) }))}
       />
-      <TextField label="Project name" value={name} spellCheck={false} onChange={(e) => (setName(e.target.value), setError(null))} />
+      <TextField label={t("Project name")} value={name} spellCheck={false} onChange={(e) => (setName(e.target.value), setError(null))} />
       <div className="field">
-        <span className="field-label">Location</span>
+        <span className="field-label">{t("Location")}</span>
         <div className="path-pick">
           <span className="path-pick-value" data-tooltip={parent} data-tooltip-overflow>
-            {parent ? join(parent, name || "…") : "No folder chosen"}
+            {parent ? join(parent, name || "…") : t("No folder chosen")}
           </span>
           <Button iconBefore={FolderOpen} onClick={() => void choose()}>
-            Choose…
+            {t("Choose…")}
           </Button>
         </div>
       </div>
@@ -204,7 +205,7 @@ function NewJavaFileDialog({ d }: { d: Extract<Dialog, { kind: "newJavaFile" }> 
   const [error, setError] = useState<string | null>(null);
   const create = async () => {
     const n = name.trim().replace(/\.java$/i, "");
-    if (!/^[\p{L}_$][\p{L}\p{N}_$]*$/u.test(n)) return setError("A class name starts with a letter and has only letters, digits and _.");
+    if (!/^[\p{L}_$][\p{L}\p{N}_$]*$/u.test(n)) return setError(t("A class name starts with a letter and has only letters, digits and _."));
     try {
       closeDialog();
       await newJavaFile(d.dir, n, kind);
@@ -214,17 +215,17 @@ function NewJavaFileDialog({ d }: { d: Extract<Dialog, { kind: "newJavaFile" }> 
   };
   return (
     <Modal
-      title="New Java class"
+      title={t("New Java class")}
       width="small"
       onClose={closeDialog}
       closeOnBlanket={false}
       footer={
         <>
           <Button appearance="subtle" onClick={closeDialog}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button appearance="primary" onClick={() => void create()}>
-            Create
+            {t("Create")}
           </Button>
         </>
       }
@@ -235,19 +236,19 @@ function NewJavaFileDialog({ d }: { d: Extract<Dialog, { kind: "newJavaFile" }> 
           void create();
         }}
       >
-        <TextField label="Name" value={name} placeholder="Account" autoFocus spellCheck={false} error={error ?? undefined} onChange={(e) => (setName(e.target.value), setError(null))} />
+        <TextField label={t("Name")} value={name} placeholder={t("Account")} autoFocus spellCheck={false} error={error ?? undefined} onChange={(e) => (setName(e.target.value), setError(null))} />
       </form>
       <Select
-        label="Kind"
+        label={t("Kind")}
         value={kind}
         onChange={setKind}
         options={[
-          { value: "class", label: "Class" },
-          { value: "main", label: "Class with a main method" },
-          { value: "abstract", label: "Abstract class" },
-          { value: "interface", label: "Interface" },
-          { value: "enum", label: "Enum" },
-          { value: "record", label: "Record" },
+          { value: "class", label: t("Class") },
+          { value: "main", label: t("Class with a main method") },
+          { value: "abstract", label: t("Abstract class") },
+          { value: "interface", label: t("Interface") },
+          { value: "enum", label: t("Enum") },
+          { value: "record", label: t("Record") },
         ]}
       />
       <p className="dialog-text">In {root ? relative(root, d.dir) || "the project folder" : d.dir}</p>
@@ -260,53 +261,71 @@ function SettingsDialog() {
   const jdks = useStore((st) => st.jdks);
   const node = useStore((st) => st.node);
   const jdkOptions = useMemo(
-    () => [{ value: "", label: jdks[0] ? `Newest found (Java ${jdks[0].version})` : "None found" }, ...jdks.map((j) => ({ value: j.home, label: `Java ${j.version} · ${j.home}` }))],
+    () => [{ value: "", label: jdks[0] ? t("Newest found (Java {0})", jdks[0].version) : t("None found") }, ...jdks.map((j) => ({ value: j.home, label: `Java ${j.version} · ${j.home}` }))],
     [jdks],
   );
   const chooseJdk = async () => {
-    const picked = await pickPath({ directory: true, title: "Choose a JDK folder" }).catch(() => null);
+    const picked = await pickPath({ directory: true, title: t("Choose a JDK folder") }).catch(() => null);
     if (typeof picked === "string") setSettings({ jdkHome: picked });
   };
   return (
-    <Modal title="Settings" width="medium" onClose={closeDialog}>
-      <h3 className="settings-heading">Appearance</h3>
+    <Modal title={t("Settings")} width="medium" onClose={closeDialog}>
+      <h3 className="settings-heading">{t("Appearance")}</h3>
       <Segmented<ThemePreference>
-        label="Theme"
+        label={t("Theme")}
         value={s.theme}
         onChange={(theme) => {
           setSettings({ theme });
           void applyTheme(theme);
         }}
         options={[
-          { value: "system", label: "System" },
-          { value: "dark", label: "Graphite" },
-          { value: "light", label: "Porcelain" },
+          { value: "system", label: t("System") },
+          { value: "dark", label: t("Graphite") },
+          { value: "light", label: t("Porcelain") },
+        ]}
+      />
+      <Select
+        label={t("Language")}
+        value={s.language}
+        onChange={(language) => setSettings({ language })}
+        helper={t("Applies the next time Logiq Studio starts.")}
+        options={[
+          { value: "system", label: t("Same as Windows") },
+          { value: "en", label: "English" },
+          { value: "de", label: "Deutsch" },
         ]}
       />
       <div className="settings-row">
-        <TextField label="Editor text size" type="number" min={9} max={28} value={s.fontSize} onChange={(e) => setSettings({ fontSize: Math.max(9, Math.min(28, +e.target.value || 13)) })} compact />
-        <TextField label="Tab size" type="number" min={1} max={8} value={s.tabSize} onChange={(e) => setSettings({ tabSize: Math.max(1, Math.min(8, +e.target.value || 4)) })} compact />
+        <TextField label={t("Editor text size")} type="number" min={9} max={28} value={s.fontSize} onChange={(e) => setSettings({ fontSize: Math.max(9, Math.min(28, +e.target.value || 13)) })} compact />
+        <TextField label={t("Tab size")} type="number" min={1} max={8} value={s.tabSize} onChange={(e) => setSettings({ tabSize: Math.max(1, Math.min(8, +e.target.value || 4)) })} compact />
       </div>
-      <h3 className="settings-heading">Editor</h3>
-      <Checkbox label="Indent with spaces" checked={s.insertSpaces} onChange={(v) => setSettings({ insertSpaces: v })} />
-      <Checkbox label="Wrap long lines" checked={s.wordWrap} onChange={(v) => setSettings({ wordWrap: v })} />
-      <Checkbox label="Line numbers" checked={s.lineNumbers} onChange={(v) => setSettings({ lineNumbers: v })} />
-      <Checkbox label="Close brackets and quotes automatically" checked={s.autoCloseBrackets} onChange={(v) => setSettings({ autoCloseBrackets: v })} />
-      <h3 className="settings-heading">Saving and running</h3>
-      <Toggle label="Save automatically" description="A second after you stop typing." checked={s.autoSave} onChange={(v) => setSettings({ autoSave: v })} />
-      <Toggle label="Save all files before running" checked={s.saveBeforeRun} onChange={(v) => setSettings({ saveBeforeRun: v })} />
-      <Toggle label="Reload the web preview on save" checked={s.livePreview} onChange={(v) => setSettings({ livePreview: v })} />
-      <h3 className="settings-heading">Java</h3>
+      <h3 className="settings-heading">{t("Editor")}</h3>
+      <Checkbox label={t("Indent with spaces")} checked={s.insertSpaces} onChange={(v) => setSettings({ insertSpaces: v })} />
+      <Checkbox label={t("Wrap long lines")} checked={s.wordWrap} onChange={(v) => setSettings({ wordWrap: v })} />
+      <Checkbox label={t("Line numbers")} checked={s.lineNumbers} onChange={(v) => setSettings({ lineNumbers: v })} />
+      <Checkbox label={t("Close brackets and quotes automatically")} checked={s.autoCloseBrackets} onChange={(v) => setSettings({ autoCloseBrackets: v })} />
+      <h3 className="settings-heading">{t("Saving and running")}</h3>
+      <Toggle label={t("Save automatically")} description={t("A second after you stop typing.")} checked={s.autoSave} onChange={(v) => setSettings({ autoSave: v })} />
+      <Toggle label={t("Format when saving")} description={t("Java, HTML, CSS, JavaScript, JSON and Markdown, with Prettier.")} checked={s.formatOnSave} onChange={(v) => setSettings({ formatOnSave: v })} />
+      <Toggle
+        label={t("Keep unsaved changes when closing")}
+        description={t("Open files and unsaved text come back on the next start, without asking.")}
+        checked={s.hotExit}
+        onChange={(v) => setSettings({ hotExit: v })}
+      />
+      <Toggle label={t("Save all files before running")} checked={s.saveBeforeRun} onChange={(v) => setSettings({ saveBeforeRun: v })} />
+      <Toggle label={t("Reload the web preview on save")} checked={s.livePreview} onChange={(v) => setSettings({ livePreview: v })} />
+      <h3 className="settings-heading">{t("Java")}</h3>
       <div className="settings-row is-end">
-        <Select label="JDK" value={jdkOptions.some((o) => o.value === s.jdkHome) ? s.jdkHome : ""} options={jdkOptions} onChange={(v) => setSettings({ jdkHome: v })} />
+        <Select label={t("JDK")} value={jdkOptions.some((o) => o.value === s.jdkHome) ? s.jdkHome : ""} options={jdkOptions} onChange={(v) => setSettings({ jdkHome: v })} />
         <Button iconBefore={FolderOpen} onClick={() => void chooseJdk()}>
-          Other…
+          {t("Other…")}
         </Button>
       </div>
       {s.jdkHome && !jdks.some((j) => j.home === s.jdkHome) && <p className="dialog-text">Using {s.jdkHome}</p>}
       {!jdks.length && (
-        <SectionMessage appearance="warning" title="No JDK found">
-          Install a JDK (for example Temurin from adoptium.net), then restart Logiq Studio, or choose its folder here.
+        <SectionMessage appearance="warning" title={t("No JDK found")}>
+          {t("Install a JDK (for example Temurin from adoptium.net), then restart Logiq Studio, or choose its folder here.")}
         </SectionMessage>
       )}
       <p className="dialog-text">JavaScript files run with {node ? `Node.js ${node.version}` : "Node.js, which wasn't found on this computer"}.</p>
@@ -316,12 +335,12 @@ function SettingsDialog() {
 
 function AboutDialog() {
   return (
-    <Modal title="About Logiq Studio" width="small" onClose={closeDialog}>
+    <Modal title={t("About Logiq Studio")} width="small" onClose={closeDialog}>
       <div className="about">
         <img src="/app-icon.svg" alt="" width={64} height={64} />
         <div>
-          <p className="about-name">Logiq Studio 0.1.0</p>
-          <p className="dialog-text">An IDE for Java, HTML, CSS and JavaScript that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.</p>
+          <p className="about-name">Logiq Studio 0.2.0</p>
+          <p className="dialog-text">{t("An IDE for Java, HTML, CSS and JavaScript that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.")}</p>
         </div>
       </div>
     </Modal>
@@ -339,17 +358,17 @@ function ShortcutsDialog() {
     ["Show completions", "Ctrl+Space"],
   ];
   return (
-    <Modal title="Keyboard shortcuts" width="medium" onClose={closeDialog}>
+    <Modal title={t("Keyboard shortcuts")} width="medium" onClose={closeDialog}>
       <div className="shortcut-list">
         {list.map((c) => (
           <div key={c.id} className="shortcut-row">
-            <span>{c.label.replace(/…$/, "")}</span>
+            <span>{t(c.label).replace(/…$/, "")}</span>
             <Shortcut keys={c.shortcut!} />
           </div>
         ))}
         {extra.map(([label, keys]) => (
           <div key={label} className="shortcut-row">
-            <span>{label}</span>
+            <span>{t(label)}</span>
             <Shortcut keys={keys} />
           </div>
         ))}

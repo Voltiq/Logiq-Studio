@@ -33,6 +33,8 @@ export interface JMethod {
   isConstructor: boolean;
   typeParams: string;
   line: number;
+  /** The line of the body's closing brace (the declaration's line when there is no body). */
+  endLine: number;
 }
 
 export interface JType {

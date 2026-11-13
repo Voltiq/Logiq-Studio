@@ -9,6 +9,7 @@ import { basename, join } from "../lib/paths";
 import { FileIcon } from "./FileIcon";
 import { Shortcut } from "./ui/Feedback";
 import { cx } from "../lib/utils";
+import { t } from "../lib/i18n";
 
 /** Subsequence match with a score that prefers starts of words and the file name. */
 export function fuzzy(query: string, text: string): number | null {
@@ -63,18 +64,18 @@ export function Palette() {
   const items: Item[] = useMemo(() => {
     if (mode === "line") {
       const n = parseInt(q, 10);
-      return [{ key: "line", label: n ? `Go to line ${n}` : "Type a line number", run: () => n && goTo(n) }];
+      return [{ key: "line", label: n ? t("Go to line {0}", n) : t("Type a line number"), run: () => n && goTo(n) }];
     }
     if (mode === "commands") {
       return COMMANDS.filter((c) => !c.enabled || c.enabled())
-        .map((c) => ({ c, score: fuzzy(q, `${c.category}: ${c.label}`) }))
+        .map((c) => ({ c, score: fuzzy(q, `${t(c.category)}: ${t(c.label)} ${c.label}`) }))
         .filter((x) => x.score !== null)
         .sort((a, b) => (q ? b.score! - a.score! : 0))
-        .map(({ c }) => ({ key: c.id, label: c.label.replace(/…$/, ""), detail: c.category, shortcut: c.shortcut, run: () => void c.run() }));
+        .map(({ c }) => ({ key: c.id, label: t(c.label).replace(/…$/, ""), detail: t(c.category), shortcut: c.shortcut, run: () => void c.run() }));
     }
     const open = get()
-      .tabs.filter((t) => t.path)
-      .map((t) => t.path!);
+      .tabs.filter((x) => x.path)
+      .map((x) => x.path!);
     return files
       .map((f) => ({ f, score: fuzzy(q, f) }))
       .filter((x) => x.score !== null)
@@ -110,15 +111,15 @@ export function Palette() {
 
   return createPortal(
     <div className="palette-blanket" onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
-      <div className="palette" role="dialog" aria-label="Command palette">
+      <div className="palette" role="dialog" aria-label={t("Command palette")}>
         <label className="palette-field">
           <Search size={16} aria-hidden="true" />
           <input
             ref={input}
             value={query}
             spellCheck={false}
-            placeholder={root ? "Go to file, > for commands, : for a line" : "> Type a command"}
-            aria-label="Search files and commands"
+            placeholder={root ? t("Go to file, > for commands, : for a line") : t("> Type a command")}
+            aria-label={t("Search files and commands")}
             onChange={(e) => setQuery(!root && !e.target.value.startsWith(">") && !e.target.value.startsWith(":") ? ">" + e.target.value : e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") setActive((a) => Math.min(items.length - 1, a + 1));
@@ -131,7 +132,7 @@ export function Palette() {
           />
         </label>
         <div ref={list} className="palette-list" role="listbox">
-          {items.length === 0 && <p className="palette-empty">{mode === "files" && !files.length ? "Loading files…" : "Nothing matches."}</p>}
+          {items.length === 0 && <p className="palette-empty">{mode === "files" && !files.length ? t("Loading files…") : t("Nothing matches.")}</p>}
           {items.map((item, i) => (
             <div
               key={item.key}

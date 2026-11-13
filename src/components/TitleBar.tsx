@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useStore } from "../lib/store";
+import { activeTab, useStore } from "../lib/store";
 import { requestCloseWindow } from "../lib/actions";
 import { basename } from "../lib/paths";
 import { t } from "../lib/i18n";
@@ -13,7 +13,7 @@ import { t } from "../lib/i18n";
 export function TitleBar() {
   const [maximized, setMaximized] = useState(false);
   const root = useStore((s) => s.root);
-  const tab = useStore((s) => s.tabs.find((x) => x.id === s.activeId));
+  const tab = useStore((s) => activeTab(s));
 
   useEffect(() => {
     const win = getCurrentWindow();

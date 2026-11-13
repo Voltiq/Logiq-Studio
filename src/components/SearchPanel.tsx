@@ -9,6 +9,7 @@ import { IconButton } from "./ui/Button";
 import { Spinner } from "./ui/Feedback";
 import { FileIcon } from "./FileIcon";
 import { cx } from "../lib/utils";
+import { t } from "../lib/i18n";
 
 /* Find in files: results grouped by file, the match highlighted in its line. */
 export function SearchPanel() {
@@ -21,10 +22,22 @@ export function SearchPanel() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [extensions, setExtensions] = useState<string[] | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const seq = useRef(0);
+  const request = useStore((s) => s.searchRequest);
 
   useEffect(() => input.current?.focus(), []);
+
+  // "Find usages" and other commands fill in the search.
+  useEffect(() => {
+    if (!request) return;
+    setQuery(request.query);
+    setMatchCase(request.matchCase);
+    setWholeWord(request.wholeWord);
+    setRegex(request.regex);
+    setExtensions(request.extensions ?? null);
+  }, [request?.nonce]);
 
   useEffect(() => {
     if (!root) return;
@@ -52,17 +65,19 @@ export function SearchPanel() {
   const groups = useMemo(() => {
     const map = new Map<string, SearchHit[]>();
     for (const h of result?.hits ?? []) {
+      if (extensions && !extensions.some((x) => h.path.toLowerCase().endsWith("." + x))) continue;
       const list = map.get(h.path) ?? [];
       list.push(h);
       map.set(h.path, list);
     }
     return [...map];
-  }, [result]);
+  }, [result, extensions]);
+  const hitCount = groups.reduce((n, [, hits]) => n + hits.length, 0);
 
   return (
     <div className="side-section">
       <div className="side-head">
-        <span className="side-title">Find in files</span>
+        <span className="side-title">{t("Find in files")}</span>
       </div>
       <div className="search-box">
         <label className="search-field">
@@ -70,26 +85,30 @@ export function SearchPanel() {
           <input
             ref={input}
             value={query}
-            placeholder="Search"
-            aria-label="Search in files"
+            placeholder={t("Search")}
+            aria-label={t("Search in files")}
             spellCheck={false}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setExtensions(null);
+            }}
             onKeyDown={(e) => e.key === "Escape" && setQuery("")}
           />
-          {busy && query ? <Spinner size={14} /> : query && <IconButton icon={X} label="Clear" spacing="compact" onClick={() => setQuery("")} />}
+          {busy && query ? <Spinner size={14} /> : query && <IconButton icon={X} label={t("Clear")} spacing="compact" onClick={() => setQuery("")} />}
         </label>
         <div className="search-toggles">
-          <IconButton icon={CaseSensitive} label="Match case" spacing="compact" selected={matchCase} onClick={() => setMatchCase(!matchCase)} />
-          <IconButton icon={WholeWord} label="Whole word" spacing="compact" selected={wholeWord} onClick={() => setWholeWord(!wholeWord)} />
-          <IconButton icon={Regex} label="Regular expression" spacing="compact" selected={regex} onClick={() => setRegex(!regex)} />
+          <IconButton icon={CaseSensitive} label={t("Match case")} spacing="compact" selected={matchCase} onClick={() => setMatchCase(!matchCase)} />
+          <IconButton icon={WholeWord} label={t("Whole word")} spacing="compact" selected={wholeWord} onClick={() => setWholeWord(!wholeWord)} />
+          <IconButton icon={Regex} label={t("Regular expression")} spacing="compact" selected={regex} onClick={() => setRegex(!regex)} />
         </div>
       </div>
       {error && <p className="search-note is-error">{error}</p>}
       {result && !error && (
         <p className="search-note">
-          {result.hits.length === 0
-            ? "No results."
-            : `${result.hits.length}${result.truncated ? "+" : ""} result${result.hits.length === 1 ? "" : "s"} in ${groups.length} file${groups.length === 1 ? "" : "s"}`}
+          {hitCount === 0
+            ? t("No results.")
+            : t("Results: {0}{1} in files: {2}", hitCount, result.truncated ? "+" : "", groups.length)}
+          {extensions && <span className="search-scope"> · {t("only .{0} files", extensions.join(", ."))}</span>}
         </p>
       )}
       <div className="search-results">
