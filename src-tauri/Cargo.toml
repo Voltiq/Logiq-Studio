@@ -1,6 +1,6 @@
 [package]
 name = "logiq-studio"
-version = "0.3.0"
+version = "0.4.0"
 description = "Logiq Studio: an IDE for Java, HTML, CSS and JavaScript with live UML class diagrams"
 license = "MIT"
 authors = ["Voltiq"]
@@ -27,6 +27,8 @@ trash = "5"
 notify = "8"
 # Find in files with regular expressions
 regex = "1"
+# Downloading the JUnit console launcher from Maven Central
+ureq = "2"
 
 [profile.release]
 lto = true

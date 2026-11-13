@@ -6,6 +6,8 @@ import { basename, relative } from "../lib/paths";
 import { IconButton } from "./ui/Button";
 import { Badge } from "./ui/Feedback";
 import { cx } from "../lib/utils";
+import { ShellPanel, TestsPanel } from "./ToolPanels";
+import { useTests } from "../lib/tools";
 import { t } from "../lib/i18n";
 
 function Output() {
@@ -126,6 +128,7 @@ export function BottomPanel() {
   const problems = useStore((s) => s.problems);
   const errors = problems.filter((p) => p.severity === "error").length;
   const warnings = problems.length - errors;
+  const failedTests = useTests((s) => s.cases.filter((c) => c.status === "failed" || c.status === "error").length);
 
   return (
     <section className="bottom panel" aria-label={t("Output and problems")}>
@@ -139,12 +142,19 @@ export function BottomPanel() {
             {errors > 0 && <Badge appearance="danger">{errors}</Badge>}
             {warnings > 0 && <Badge>{warnings}</Badge>}
           </button>
+          <button type="button" role="tab" aria-selected={tab === "tests"} className={cx("segment", tab === "tests" && "is-selected")} onClick={() => set({ panelTab: "tests" })}>
+            {t("Tests")}
+            {failedTests > 0 && <Badge appearance="danger">{failedTests}</Badge>}
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "jshell"} className={cx("segment", tab === "jshell" && "is-selected")} onClick={() => set({ panelTab: "jshell" })}>
+            JShell
+          </button>
         </div>
         <span className="spacer" />
         {tab === "output" && <IconButton icon={Eraser} label={t("Clear output")} spacing="compact" onClick={clearOutput} />}
         <IconButton icon={X} label={t("Close panel")} shortcut="Ctrl+J" spacing="compact" onClick={() => set({ panelOpen: false })} />
       </div>
-      <div className="bottom-body">{tab === "output" ? <Output /> : <Problems />}</div>
+      <div className="bottom-body">{tab === "output" ? <Output /> : tab === "problems" ? <Problems /> : tab === "tests" ? <TestsPanel /> : <ShellPanel />}</div>
     </section>
   );
 }

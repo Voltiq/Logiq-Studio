@@ -37,8 +37,8 @@ export const api = {
   detectJdks: () => invoke<Jdk[]>("detect_jdks"),
   detectNode: () => invoke<NodeInfo | null>("detect_node"),
   javaCompile: (root: string, jdkHome: string | null) => invoke<CompileResult>("java_compile", { root, jdkHome }),
-  runJava: (root: string, mainClass: string, jdkHome: string | null, args: string[]) =>
-    invoke<number>("run_java", { root, mainClass, jdkHome, args }),
+  runJava: (root: string, mainClass: string, jdkHome: string | null, args: string[], vmOptions = "") =>
+    invoke<number>("run_java", { root, mainClass, jdkHome, args, vmOptions }),
   runNode: (file: string, node: string | null) => invoke<number>("run_node", { file, node }),
   runStdin: (runId: number, text: string) => invoke<void>("run_stdin", { runId, text }),
   runStop: () => invoke<void>("run_stop"),

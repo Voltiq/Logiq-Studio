@@ -7,6 +7,7 @@ import { Compartment, EditorState, Prec, type Extension } from "@codemirror/stat
 import { abbreviationTracker, expandAbbreviation } from "@emmetio/codemirror6-plugin";
 import { findUsages, goToDefinition, renameSymbol } from "./javaNav";
 import { colorSwatches } from "./colors";
+import { breakpointGutter, debugLineField, toggleBreakpointAt } from "./breakpoints";
 import {
   EditorView,
   crosshairCursor,
@@ -52,8 +53,11 @@ function languageExtension(path: string): Extension {
           { key: "F12", run: (v) => goToDefinition(v, here()) },
           { key: "Shift-F12", run: (v) => (findUsages(v), true) },
           { key: "F2", run: (v) => (renameSymbol(v, here()), true) },
+          { key: "F9", run: (v) => (toggleBreakpointAt(v, v.state.selection.main.head), true) },
         ]),
       ),
+      // Breakpoints sit left of the line numbers, as in other IDEs.
+      Prec.highest(breakpointGutter),
       // Ctrl+click follows a name to its definition (Alt+click adds a cursor).
       EditorView.domEventHandlers({
         mousedown: (e, v) => {
@@ -163,6 +167,7 @@ export function createState(path: string, text: string, s: Settings, onUpdate: E
       highlightSelectionMatches(),
       search({ top: true }),
       lintGutter(),
+      debugLineField,
       linter(lintSource(() => currentPath(path)), { delay: 450 }),
       compartments.indent.of(indentFor(s)),
       compartments.wrap.of(s.wordWrap ? EditorView.lineWrapping : []),

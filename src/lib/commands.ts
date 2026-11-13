@@ -23,12 +23,29 @@ import {
   SquareTerminal,
   Wand2,
   X,
+  Bug,
+  ListVideo,
+  StepForward,
+  ArrowRightToLine,
+  ArrowDownToDot,
+  ArrowUpFromDot,
+  CircleDot,
+  FlaskConical,
+  TerminalSquare,
+  SlidersHorizontal,
+  Package,
+  BookOpen,
+  FileArchive,
+  Coffee,
 } from "lucide-react";
 import { expandAbbreviation } from "@emmetio/codemirror6-plugin";
 import { findUsages, goToDefinition, renameSymbol } from "../editor/javaNav";
 import { openSearchPanel } from "@codemirror/search";
 import { toggleComment } from "@codemirror/commands";
 import { activeView, shownPath } from "../editor/docs";
+import { toggleBreakpointAt } from "../editor/breakpoints";
+import * as D from "./debug";
+import * as T from "./tools";
 import * as A from "./actions";
 import { activeIdOf, activeTab, get, openDialog, set } from "./store";
 
@@ -47,6 +64,7 @@ export interface Command {
 
 const hasFolder = () => !!get().root;
 const hasEditor = () => !!activeView() && activeTab()?.kind === "file";
+const paused = () => D.useDebug.getState().status === "paused";
 const hasJava = () => hasEditor() && /\.java$/i.test(shownPath() ?? "");
 const hasWeb = () => hasEditor() && /\.(html?|css)$/i.test(shownPath() ?? "");
 
@@ -108,12 +126,28 @@ export const COMMANDS: Command[] = [
   { id: "uml.side", label: "Show UML class diagram to the side", category: "UML", enabled: hasFolder, run: () => A.openUml(1) },
   { id: "uml.layout", label: "Arrange UML diagram automatically", category: "UML", enabled: hasFolder, run: () => (A.openUml(), set((s) => ({ umlLayoutNonce: s.umlLayoutNonce + 1 }))) },
 
-  { id: "run.run", label: "Run", category: "Run", icon: Play, shortcut: "F5", enabled: hasFolder, run: () => A.runActive() },
+  { id: "run.run", label: "Run", category: "Run", icon: Play, shortcut: "F5", enabled: hasFolder, run: () => (D.useDebug.getState().status === "paused" ? void D.resume() : A.runActive()) },
+  { id: "run.debug", label: "Start debugging", category: "Run", icon: Bug, shortcut: "F6", enabled: () => hasFolder() && !D.isDebugging() && get().run.status === "idle", run: () => D.startDebug() },
+  { id: "run.trace", label: "Record a sequence diagram", category: "Run", icon: ListVideo, enabled: () => hasFolder() && !D.isDebugging() && get().run.status === "idle", run: () => D.startDebug(true) },
+  { id: "debug.continue", label: "Continue", category: "Run", icon: StepForward, shortcut: "F8", enabled: paused, run: () => void D.resume() },
+  { id: "debug.over", label: "Step over", category: "Run", icon: ArrowRightToLine, shortcut: "F10", enabled: paused, run: () => void D.stepOver() },
+  { id: "debug.into", label: "Step into", category: "Run", icon: ArrowDownToDot, shortcut: "F11", enabled: paused, run: () => void D.stepInto() },
+  { id: "debug.out", label: "Step out", category: "Run", icon: ArrowUpFromDot, shortcut: "Shift+F11", enabled: paused, run: () => void D.stepOut() },
+  { id: "debug.breakpoint", label: "Toggle breakpoint", category: "Run", icon: CircleDot, shortcut: "F9", editorKey: true, enabled: hasJava, run: editor((v) => toggleBreakpointAt(v, v.state.selection.main.head)) },
+  { id: "run.tests", label: "Run all tests", category: "Run", icon: FlaskConical, shortcut: "Ctrl+Shift+T", enabled: hasFolder, run: () => T.runTests() },
+  { id: "run.jshell", label: "Open JShell", category: "Run", icon: TerminalSquare, enabled: hasFolder, run: () => (T.setPanelTab("jshell"), T.useShell.getState().running ? undefined : void T.startShell()) },
+  { id: "run.config", label: "Run configuration…", category: "Run", icon: SlidersHorizontal, enabled: hasFolder, run: () => openDialog({ kind: "runConfig" }) },
+  { id: "build.jar", label: "Export runnable JAR…", category: "Run", icon: Package, enabled: hasFolder, run: () => T.exportJar() },
+  { id: "build.javadoc", label: "Generate Javadoc", category: "Run", icon: BookOpen, enabled: hasFolder, run: () => T.generateJavadoc() },
+  { id: "project.libraries", label: "Libraries…", category: "Run", icon: FileArchive, enabled: hasFolder, run: () => openDialog({ kind: "libraries" }) },
   { id: "run.compile", label: "Compile Java", category: "Run", icon: Hammer, shortcut: "Ctrl+F9", enabled: hasFolder, run: () => void A.compileJava() },
   { id: "run.stop", label: "Stop", category: "Run", icon: CircleStop, shortcut: "Shift+F5", enabled: () => get().run.status === "running", run: () => A.stopRun() },
   { id: "run.output", label: "Show output", category: "Run", icon: SquareTerminal, run: () => set({ panelOpen: true, panelTab: "output" }) },
 
   { id: "help.shortcuts", label: "Keyboard shortcuts", category: "Help", icon: Keyboard, shortcut: "Ctrl+K", run: () => openDialog({ kind: "shortcuts" }) },
+  { id: "help.jdk", label: "Install a JDK…", category: "Help", icon: Coffee, run: () => openDialog({ kind: "installJdk" }) },
+  { id: "view.debug", label: "Show debugger", category: "View", icon: Bug, shortcut: "Ctrl+Shift+D", run: () => set({ sidebar: "debug" }) },
+  { id: "uml.sequence", label: "Show sequence diagram", category: "UML", icon: ListVideo, enabled: hasFolder, run: () => A.openSequence() },
   { id: "help.about", label: "About Logiq Studio", category: "Help", run: () => openDialog({ kind: "about" }) },
 ];
 

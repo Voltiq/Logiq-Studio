@@ -25,6 +25,9 @@ import { Palette } from "./components/Palette";
 import { Toasts } from "./components/Toasts";
 import { Resizer } from "./components/Resizer";
 import { UmlView } from "./uml/UmlView";
+import { SequenceView } from "./uml/SequenceView";
+import { DebugPanel } from "./components/DebugPanel";
+import { initDebug } from "./lib/debug";
 import { Menu } from "./components/ui/Menu";
 import { TooltipLayer } from "./components/ui/Tooltip";
 import { Button } from "./components/ui/Button";
@@ -100,6 +103,7 @@ function EditorGroup({ group }: { group: Group }) {
       <div className="stage-body">
         <Editor group={group} visible={active?.kind === "file"} />
         {hasUml && <UmlView visible={active?.kind === "uml"} />}
+        {mine.some((x) => x.kind === "sequence") && <SequenceView visible={active?.kind === "sequence"} />}
         {active?.kind === "image" && active.path && <ImageView path={active.path} />}
         {group === 0 && !root && <Welcome />}
         {group === 0 && root && mine.length === 0 && <NoTabs />}
@@ -121,6 +125,7 @@ export default function App() {
 
   useEffect(() => {
     void init();
+    void initDebug();
   }, []);
 
   // Theme: apply, then show the window (it starts hidden to avoid a white flash).
@@ -162,6 +167,7 @@ export default function App() {
               {sidebar === "explorer" && <Explorer />}
               {sidebar === "search" && <SearchPanel />}
               {sidebar === "outline" && <OutlinePanel />}
+              {sidebar === "debug" && <DebugPanel />}
             </aside>
             <Resizer axis="x" size={settings.sidebarWidth} min={190} max={560} label={t("Side bar width")} onResize={(w) => setSettings({ sidebarWidth: w })} />
           </>

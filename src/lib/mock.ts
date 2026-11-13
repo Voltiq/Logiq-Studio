@@ -28,6 +28,23 @@ function list(dir: string): Entry[] {
 }
 
 let runId = 0;
+let mockLine = 4;
+
+function mockStop(reason: string) {
+  return {
+    event: "stopped",
+    reason,
+    thread: "main",
+    frame: 0,
+    frames: [
+      { cls: "Main", method: "main", line: mockLine, source: "Main.java" },
+    ],
+    variables: [
+      { name: "args", type: "String[]", value: "String[0] #10", id: 10 },
+      { name: "drawing", type: "Drawing", value: "Drawing #11", id: 11 },
+    ],
+  };
+}
 
 // The bench: objects with fields taken from the classes' source, constructor arguments assigned by name.
 interface MockObject {
@@ -175,6 +192,78 @@ export function installMock() {
           return null;
         case "bench_send":
           return benchAnswer(String(a.request).split(""));
+        case "debug_start": {
+          const ev = (o: unknown, ms: number) => setTimeout(() => emit("debug-event", JSON.stringify(o)), ms);
+          ev({ event: "started" }, 100);
+          if (a.trace) {
+            ev({ event: "output", stream: "stdout", text: "== My first drawing ==\n" }, 200);
+            ev({
+              event: "trace",
+              participants: ["actor", "Main", "drawing1:Drawing", "circle1:Circle", "rectangle1:Rectangle"],
+              calls: [
+                { kind: "call", from: "actor", to: "Main", method: "main", args: "String[0]", depth: 0 },
+                { kind: "call", from: "Main", to: "drawing1:Drawing", method: "new", args: '"My first drawing"', depth: 1 },
+                { kind: "return", from: "drawing1:Drawing", to: "Main", method: "new", value: "", depth: 1 },
+                { kind: "call", from: "Main", to: "circle1:Circle", method: "new", args: "0.0, 0.0, 2.0", depth: 1 },
+                { kind: "return", from: "circle1:Circle", to: "Main", method: "new", value: "", depth: 1 },
+                { kind: "call", from: "Main", to: "drawing1:Drawing", method: "add", args: "circle1", depth: 1 },
+                { kind: "return", from: "drawing1:Drawing", to: "Main", method: "add", value: "", depth: 1 },
+                { kind: "call", from: "Main", to: "drawing1:Drawing", method: "totalArea", args: "", depth: 1 },
+                { kind: "call", from: "drawing1:Drawing", to: "circle1:Circle", method: "area", args: "", depth: 2 },
+                { kind: "return", from: "circle1:Circle", to: "drawing1:Drawing", method: "area", value: "12.566", depth: 2 },
+                { kind: "call", from: "drawing1:Drawing", to: "rectangle1:Rectangle", method: "area", args: "", depth: 2 },
+                { kind: "return", from: "rectangle1:Rectangle", to: "drawing1:Drawing", method: "area", value: "6.0", depth: 2 },
+                { kind: "return", from: "drawing1:Drawing", to: "Main", method: "totalArea", value: "18.566", depth: 1 },
+                { kind: "return", from: "Main", to: "actor", method: "main", value: "", depth: 0 },
+              ],
+              truncated: false,
+            }, 400);
+            ev({ event: "exited", code: 0 }, 500);
+          } else {
+            mockLine = 4;
+            ev(mockStop("breakpoint"), 300);
+          }
+          return null;
+        }
+        case "debug_send": {
+          const op = a.fields[0];
+          const ev = (o: unknown, ms: number) => setTimeout(() => emit("debug-event", JSON.stringify(o)), ms);
+          if (op === "over" || op === "into") {
+            mockLine++;
+            ev({ event: "resumed" }, 10);
+            ev(mockStop("step"), 120);
+          } else if (op === "resume") {
+            ev({ event: "resumed" }, 10);
+            ev({ event: "output", stream: "stdout", text: "Total area: 20.82\n" }, 100);
+            ev({ event: "exited", code: 0 }, 200);
+          } else if (op === "expand") {
+            ev({ event: "children", id: Number(a.fields[1]), children: [{ name: "shapes", type: "List", value: "ArrayList (0) #12", id: 12 }, { name: "title", type: "String", value: '"My first drawing"' }] }, 50);
+          } else if (op === "eval") {
+            ev({ event: "watch", value: { name: a.fields[2], type: "int", value: "3" } }, 50);
+          }
+          return null;
+        }
+        case "debug_stop":
+          return null;
+        case "jshell_start":
+          setTimeout(() => emit("jshell-output", "|  Welcome to JShell -- Version 27\n\njshell> "), 100);
+          return null;
+        case "jshell_send":
+          setTimeout(() => emit("jshell-output", `$1 ==> ${a.text.trim()}\n\njshell> `), 100);
+          return null;
+        case "jshell_stop":
+          return null;
+        case "junit_find":
+          return "C:\\lib\\junit-platform-console-standalone-1.12.2.jar";
+        case "junit_run":
+          return {
+            ok: false,
+            output: "",
+            report: '<testsuite><testcase name="area()" classname="CircleTest" time="0.012"/><testcase name="moveBy()" classname="CircleTest" time="0.003"><failure message="expected: &lt;2.0&gt; but was: &lt;1.0&gt;" type="org.opentest4j.AssertionFailedError">stack</failure></testcase></testsuite>',
+          };
+        case "jar_export":
+        case "javadoc_generate":
+          return { ok: true, output: "", path: "C:\\out.jar" };
         case "plugin:dialog|open":
           return ROOT;
         default:

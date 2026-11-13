@@ -9,6 +9,7 @@ import { invalidName, join, relative } from "../lib/paths";
 import { TEMPLATES, type TemplateId } from "../lib/templates";
 import { COMMANDS } from "../lib/commands";
 import { UmlDialogs } from "../uml/ClassDialogs";
+import { ToolDialogs } from "./ToolDialogs";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { Checkbox, RadioList, Segmented, Select, TextField, Toggle } from "./ui/Field";
@@ -356,7 +357,7 @@ function AboutDialog() {
       <div className="about">
         <img src="/app-icon.svg" alt="" width={64} height={64} />
         <div>
-          <p className="about-name">Logiq Studio 0.3.0</p>
+          <p className="about-name">Logiq Studio 0.4.0</p>
           <p className="dialog-text">{t("An IDE for Java, HTML, CSS and JavaScript that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.")}</p>
         </div>
       </div>
@@ -412,6 +413,10 @@ export function Dialogs() {
       return <AboutDialog />;
     case "shortcuts":
       return <ShortcutsDialog />;
+    case "runConfig":
+    case "libraries":
+    case "installJdk":
+      return <ToolDialogs d={d} />;
     default:
       return <UmlDialogs d={d} />;
   }

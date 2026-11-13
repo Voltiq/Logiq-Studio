@@ -32,10 +32,30 @@ import {
 import { createState, languageEffect, notePathChange, settingsEffects } from "../editor/setup";
 import { IMAGE_EXTENSIONS, languageFor } from "../editor/languages";
 import { canFormat, formatText, formatView } from "../editor/format";
+import { breakpointField } from "../editor/breakpoints";
+import { loadRunConfig, splitArgs, useRunConfig } from "./runConfig";
 import { javaIndex } from "../uml/javaIndex";
 import { HTML_SKELETON, javaSkeleton, TEMPLATES, type TemplateId } from "./templates";
 import type { Diagnostic } from "./types";
 import { t } from "./i18n";
+
+// ----- Debugger hooks (set by lib/debug.ts, which depends on this module) ---------------
+
+interface DebugHooks {
+  active(): boolean;
+  input(text: string): void;
+  stop(): void;
+  /** An editor's breakpoints changed. */
+  lines(path: string, state: import("@codemirror/state").EditorState): void;
+  /** The breakpoints a newly opened file starts with. */
+  initial(path: string): import("@codemirror/state").StateEffect<unknown>;
+  folder(root: string | null): void;
+}
+
+let debugHooks: DebugHooks | null = null;
+export function setDebugHooks(h: DebugHooks) {
+  debugHooks = h;
+}
 
 // ----- Editor listeners ---------------------------------------------------------------
 
@@ -52,6 +72,7 @@ const docListener = EditorView.updateListener.of((u) => {
   if (!doc) return;
   doc.state = u.state;
   if (u.docChanged) onDocChanged(doc);
+  if (debugHooks && u.startState.field(breakpointField, false) !== u.state.field(breakpointField, false)) debugHooks.lines(path, u.state);
   if ((u.selectionSet || u.docChanged || u.focusChanged) && g === focusedGroup()) {
     const sel = u.state.selection.main;
     const line = u.state.doc.lineAt(sel.head);
@@ -143,6 +164,8 @@ export async function openFolder(path: string) {
   if (!(await closeAllTabs(true))) return;
   set({ root: path, tree: {}, expanded: { [path]: true }, selected: null, selection: [], problems: [], output: [], previewOpen: false, previewPath: null });
   addRecent(path);
+  loadRunConfig(path);
+  debugHooks?.folder(path);
   void api.watch(path).catch(() => {});
   void api.setPreviewRoot(path).catch(() => {});
   await loadDir(path);
@@ -291,12 +314,9 @@ export async function openFile(path: string, at?: { line: number; col?: number; 
       return;
     }
     if (!getDoc(path)) {
-      putDoc({
-        path,
-        state: createState(path, file.text, get().settings, editorHooks),
-        saved: Text.of(file.text.split("\n")),
-        eol: file.eol,
-      });
+      let state = createState(path, file.text, get().settings, editorHooks);
+      if (debugHooks && extname(path) === "java") state = state.update({ effects: debugHooks.initial(path) }).state;
+      putDoc({ path, state, saved: Text.of(file.text.split("\n")), eol: file.eol });
     }
     const tab: Tab = { id: path, kind: "file", path, title: basename(path), dirty: false, group: group ?? targetGroup() };
     insertTab(tab);
@@ -773,6 +793,14 @@ export function openUml(group?: Group) {
   activate("uml");
 }
 
+/** Shows the sequence diagram of the last traced run. */
+export function openSequence() {
+  if (!get().tabs.some((x) => x.id === "sequence")) {
+    insertTab({ id: "sequence", kind: "sequence", path: null, title: t("Sequence diagram"), dirty: false, group: targetGroup() });
+  }
+  activate("sequence");
+}
+
 export function isPreviewable(path: string) {
   const id = languageFor(path).id;
   return id === "html" || id === "markdown";
@@ -830,8 +858,10 @@ function setProblems(problems: Diagnostic[]) {
   set((s) => ({ problems, problemsVersion: s.problemsVersion + 1 }));
 }
 
-/** The class whose main method runs: the active file's, else the only one (or one called Main). */
-function mainClassFor(path: string | null): { name: string; note?: string } | null {
+/** The class whose main method runs: the chosen one, the active file's, else the only one (or one called Main). */
+export function mainClassFor(path: string | null): { name: string; note?: string } | null {
+  const chosen = useRunConfig.getState().config.mainClass;
+  if (chosen && javaIndex.types().some((x) => x.qualifiedName === chosen && x.hasMain)) return { name: chosen };
   if (path) {
     const own = javaIndex.file(path)?.types.find((x) => x.hasMain);
     if (own) return { name: own.qualifiedName };
@@ -915,7 +945,7 @@ export async function runActive() {
     appendOutput("system", t("Running {0}", main.name) + "\n");
     try {
       const jdk = get().settings.jdkHome || get().jdks[0]?.home || null;
-      const runId = await api.runJava(get().root!, main.name, jdk, []);
+      const runId = await api.runJava(get().root!, main.name, jdk, splitArgs(useRunConfig.getState().config.args), useRunConfig.getState().config.vmOptions);
       set({ run: { status: "running", runId, label: main.name.split(".").pop()!, startedAt: Date.now() } });
     } catch (e) {
       appendOutput("error", errorText(e) + "\n");
@@ -926,6 +956,7 @@ export async function runActive() {
 }
 
 export async function stopRun() {
+  if (debugHooks?.active()) return debugHooks.stop();
   if (get().run.status !== "running") return;
   await api.runStop().catch(() => {});
 }
@@ -934,6 +965,7 @@ export async function sendInput(text: string) {
   const run = get().run;
   if (run.status !== "running") return;
   appendOutput("input", text + "\n");
+  if (debugHooks?.active()) return debugHooks.input(text + "\n");
   await api.runStdin(run.runId, text + "\n").catch((e) => appendOutput("error", errorText(e) + "\n"));
 }
 

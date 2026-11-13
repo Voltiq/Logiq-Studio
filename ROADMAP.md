@@ -195,16 +195,50 @@ UML class diagram draws itself from your Java code while you type, like in the R
 
 ---
 
-## v0.4 — Java toolchain
-- [ ] Sequence diagrams generated from a run (method calls traced through the debugger)
-- [ ] Debugger over JDWP: breakpoints, step over / into / out, variables, watches, call stack
-- [ ] JUnit 5 tests: run all / one, results tree, jump to failures
-- [ ] JShell console for trying expressions
-- [ ] Program arguments and run configurations; several main classes to choose from
-- [ ] Export a runnable JAR; generate Javadoc
-- [ ] Maven and Gradle projects (open, build, dependencies); library management UI for `lib/`
-- [ ] GUI designer for Swing / JavaFX forms (as in the Röhner editor)
-- [ ] Help install a JDK when none is found
+## v0.4 — Java toolchain (2026-11-13)
+
+### Debugger
+- [x] **Breakpoints**: a click left of the line numbers or `F9`; red dots that follow their lines as code is
+      edited; kept per project; listed in the debugger with jump and remove; set and removed while running
+- [x] **Debugging** (`F6`): the program runs under JDI (a helper JVM, `bench/LogiqDebug.java`); it stops at
+      breakpoints and at uncaught exceptions (with the message), the current line is highlighted
+- [x] **Stepping**: continue (`F8`), step over (`F10`), into (`F11`), out (`Shift+F11`), pause, stop; library code
+      (`java.*`) is stepped over; controls in the top bar and in the debugger panel
+- [x] **Call stack** with frame selection (variables of any frame), **variables** as a tree (fields of objects,
+      array elements, `ArrayList` elements, boxed values and enums shown as values), **watches** (paths like
+      `shapes[0].x`, `this.name`, `array.length`), program output and keyboard input while debugging
+- [x] Native test against a real JDK: breakpoint, variables, step into / out / over, watch, expand, output with
+      umlauts, exit code
+
+### Sequence diagrams
+- [x] **Record a run** (Run menu or the sequence tab): every call between the project's classes is traced
+      (method entry and exit, arguments and return values, up to 2000 calls), objects are named `circle1 : Circle`
+- [x] Drawn as a UML sequence diagram: participants, lifelines, activation bars (nested calls too), calls with
+      arguments, `«create»`, dashed returns with values; export as SVG, copy as PlantUML
+
+### Running and building
+- [x] **Run configuration**: the main class (the active file's, the only one, or a chosen one), program
+      arguments (quoted like a shell) and JVM options, for Run and Debug
+- [x] **JShell** tab: a JShell session with the project's compiled classes, history with ↑/↓, UTF-8 throughout
+- [x] **JUnit 5**: *Run all tests* (`Ctrl+Shift+T`), a class or a test class from the diagram; results as a tree with
+      times, failures with their message, a click opens the test; the console launcher is downloaded from Maven
+      Central into `lib/` after asking; *Create JUnit test* in a class's menu writes a test class to fill in
+- [x] **Export runnable JAR** (`java -jar` ready, libraries copied beside it and listed in the manifest) and
+      **Javadoc** (private members included, opened in the browser); both tested against a real JDK
+- [x] **Libraries** dialog for the JARs in `lib/` (add, remove); they are on the class path everywhere
+- [x] **Install a JDK** help when none is found (Temurin download, `winget` command, search again without restart)
+
+### Still open, moved on
+- [ ] Maven and Gradle projects (no Maven or Gradle on this machine to test with) → v0.6
+- [ ] GUI designer for Swing / JavaFX forms → its own milestone, v0.8
+
+### Known limits of v0.4
+- Watches follow variables, fields and indexes; method calls and arithmetic in watches aren't evaluated yet
+- No conditional breakpoints or hit counts yet; the debugger shows the thread that stopped (or `main` when paused)
+- JUnit's download from Maven Central and the whole debugger UI were checked with the browser stand-in; the
+  native parts were tested against the JDK, but not yet in the installed app
+
+---
 
 ## v0.5 — Language intelligence
 - [ ] Orthogonal line routing around boxes in the UML diagram; manual bend points; label dragging
@@ -215,7 +249,8 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - [ ] HTML and CSS language services (validation, attribute and property completion everywhere)
 - [ ] ESLint and Stylelint integration
 
-## v0.6 — Terminal and Git
+## v0.6 — Terminal, Git and build tools
+- [ ] Maven and Gradle projects: open, build, run, dependencies on the class path
 - [ ] Integrated terminal (PTY + xterm.js) with several tabs
 - [ ] Git: status colours in the explorer and gutter, diff view, stage / commit / push / pull, branches,
       history
@@ -226,6 +261,9 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - [ ] C and C++ (gcc / clang, run with input)
 - [ ] Kotlin, SQL (with Atomiq Studio's grid), PHP
 - [ ] Language support as plug-ins: grammar, runner, outline and diagram extractor per language
+
+## v0.8 — GUI designer
+- [ ] Design Swing (and later JavaFX) windows by dragging components; the code is generated and stays editable
 
 ## v1.0 — Release
 - [ ] Windows installer (NSIS, current user), signed updates from GitHub Releases like the other Studio apps

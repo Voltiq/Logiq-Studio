@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ClipboardCopy, Columns2, FolderOpen, Network, Pin, PinOff, X } from "lucide-react";
+import { ClipboardCopy, Columns2, FolderOpen, ListVideo, Network, Pin, PinOff, X } from "lucide-react";
 import { get, openMenu, useStore, type Group, type Tab } from "../lib/store";
 import * as A from "../lib/actions";
 import { FileIcon } from "./FileIcon";
@@ -107,7 +107,7 @@ export function Tabs({ group }: { group: Group }) {
           }}
           onDragEnd={() => setDropBefore(undefined)}
         >
-          {tab.kind === "uml" ? <Network size={15} className="tab-uml-icon" aria-hidden="true" /> : <FileIcon name={tab.title} />}
+          {tab.kind === "uml" ? <Network size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "sequence" ? <ListVideo size={15} className="tab-uml-icon" aria-hidden="true" /> : <FileIcon name={tab.title} />}
           <span className="tab-title">{tab.title}</span>
           {tab.pinned ? (
             <button

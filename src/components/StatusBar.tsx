@@ -41,7 +41,7 @@ export function StatusBar() {
           <span className="status-item">{lang?.name}</span>
         </>
       )}
-      <button type="button" className="status-item" onClick={() => openDialog({ kind: "settings" })} data-tooltip={jdk ? jdk.home : t("No JDK found")}>
+      <button type="button" className="status-item" onClick={() => openDialog(jdk ? { kind: "settings" } : { kind: "installJdk" })} data-tooltip={jdk ? jdk.home : t("No JDK found")}>
         <Coffee size={13} aria-hidden="true" />
         {jdk ? `Java ${jdk.version}` : t("No JDK")}
       </button>

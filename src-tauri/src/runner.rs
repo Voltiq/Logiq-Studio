@@ -449,17 +449,46 @@ pub fn run_java(
     main_class: String,
     jdk_home: Option<String>,
     args: Vec<String>,
+    vm_options: Option<String>,
 ) -> Result<u32, String> {
     let root = PathBuf::from(root);
     let out = root.join("out");
     let mut cmd = Command::new(java_bin(&jdk_home, "java"));
     cmd.current_dir(&root)
         .args(["-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8"])
+        .args(split_options(vm_options.as_deref().unwrap_or("")))
         .arg("-cp")
         .arg(class_path(&root, &out))
         .arg(&main_class)
         .args(args);
     start(app, &runner, cmd)
+}
+
+/// Splits JVM options like a shell: spaces separate, double quotes group.
+pub fn split_options(s: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut quoted = false;
+    let mut has = false;
+    for c in s.chars() {
+        match c {
+            '"' => {
+                quoted = !quoted;
+                has = true;
+            }
+            c if c.is_whitespace() && !quoted => {
+                if has || !cur.is_empty() {
+                    out.push(std::mem::take(&mut cur));
+                }
+                has = false;
+            }
+            c => cur.push(c),
+        }
+    }
+    if has || !cur.is_empty() {
+        out.push(cur);
+    }
+    out
 }
 
 /// Runs a script with Node.js; returns the run's id.
@@ -523,6 +552,12 @@ mod tests {
         let b = s.push(&bytes[3..]);
         assert_eq!(format!("{a}{b}"), "Grüße");
         assert_eq!(a, "Gr");
+    }
+
+    #[test]
+    fn splits_options() {
+        assert_eq!(split_options(r#" -Xmx256m  -Dname="a b" "#), vec!["-Xmx256m", "-Dname=a b"]);
+        assert!(split_options("").is_empty());
     }
 
     #[test]

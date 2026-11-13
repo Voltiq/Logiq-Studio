@@ -81,6 +81,11 @@ export function Welcome() {
         <div className="welcome-foot">
           <span>
             <FileCode size={13} aria-hidden="true" /> {jdks[0] ? t("Java {0} found", jdks[0].version) : t("No JDK found: Java code can be edited but not compiled")}
+            {!jdks[0] && (
+              <button type="button" className="link-button" onClick={() => openDialog({ kind: "installJdk" })}>
+                {t("Install a JDK…")}
+              </button>
+            )}
           </span>
           <span>
             <Braces size={13} aria-hidden="true" /> Commands <Shortcut keys="Ctrl+Shift+P" />

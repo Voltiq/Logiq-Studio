@@ -7,10 +7,12 @@
 //! to the HTML preview.
 
 mod bench;
+mod debug;
 mod fs;
 mod preview;
 mod runner;
 mod search;
+mod tools;
 mod watch;
 
 use tauri::{Emitter, Manager};
@@ -55,6 +57,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(runner::Runner::default())
         .manage(bench::Bench::default())
+        .manage(debug::Debugger::default())
+        .manage(tools::JShell::default())
         .manage(watch::Watcher::default())
         .manage(preview::PreviewRoot::default())
         .register_uri_scheme_protocol("logiq-preview", |ctx, request| preview::serve(ctx.app_handle(), &request))
@@ -99,6 +103,17 @@ pub fn run() {
             bench::bench_start,
             bench::bench_send,
             bench::bench_stop,
+            debug::debug_start,
+            debug::debug_send,
+            debug::debug_stop,
+            tools::jshell_start,
+            tools::jshell_send,
+            tools::jshell_stop,
+            tools::jar_export,
+            tools::javadoc_generate,
+            tools::junit_find,
+            tools::junit_download,
+            tools::junit_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Logiq Studio");

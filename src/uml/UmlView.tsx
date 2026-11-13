@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Box,
+  FlaskConical,
   ClipboardCopy,
   Download,
   FileText,
@@ -39,6 +40,7 @@ import { simpleType } from "./javaParser";
 import { toMermaid, toPlantUml } from "./exportText";
 import { addInheritance, askAssociation, deleteClass, deleteMember, newClassDir, removeAssociation, removeInheritance } from "./edit";
 import { BenchPanel } from "./BenchPanel";
+import { createTestFor, runTests } from "../lib/tools";
 import { benchCall, describeMethod, useBench } from "./bench";
 import { cx } from "../lib/utils";
 import { t } from "../lib/i18n";
@@ -569,6 +571,9 @@ export function UmlView({ visible }: { visible: boolean }) {
     }
     if (items.length) items.push({ type: "separator" });
     items.push(
+      { label: t("Create JUnit test"), icon: FlaskConical, onSelect: () => void createTestFor(type) },
+      ...(type.name.endsWith("Test") ? [{ label: t("Run these tests"), icon: Play, onSelect: () => void runTests(q) }] : []),
+      { type: "separator" },
       { label: t("Add attribute…"), icon: Plus, onSelect: () => openDialog({ kind: "member", owner: q, member: "field" }) },
       { label: t("Add method…"), icon: Plus, onSelect: () => openDialog({ kind: "member", owner: q, member: "method" }) },
     );

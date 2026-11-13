@@ -22,6 +22,12 @@ const PRINT_CSS = `
 .uml-arrow-hollow{fill:#ffffff;stroke:#2b3038;stroke-width:1.2}
 .uml-arrow-open{fill:none;stroke:#2b3038;stroke-width:1.2}
 .uml-label{fill:#4a505e;font:400 11px Geist,"Segoe UI",Arial,sans-serif}
+.seq-lifeline{stroke:#9ea3ad;stroke-dasharray:5 4}
+.seq-activation{fill:#efedff;stroke:#2b3038}
+.seq-arrow-filled{fill:#2b3038}
+.uml-note-shape{fill:#fff7d6;stroke:#c9a227}.uml-note-fold{fill:none;stroke:#c9a227}.uml-note-text{fill:#111318;font:400 12px Geist,"Segoe UI",Arial,sans-serif}
+.uml-frame{fill:none;stroke:#9ea3ad;stroke-dasharray:4 4}.uml-frame-label{fill:#4a505e;font:600 11px "Geist Mono",Consolas,monospace}
+.uml-node.is-library .uml-box{fill:#eeeeee}
 `;
 
 let fontCss: Promise<string> | null = null;

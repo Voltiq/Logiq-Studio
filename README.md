@@ -26,6 +26,9 @@ its structure as a UML class diagram that redraws itself while you type, as the 
   the panel, and keyboard input (for `Scanner`) can be typed while the program runs. Compiler errors are listed
   under Problems and underlined in the editor. JavaScript files run with Node.js; HTML pages show in the live
   preview, which reloads on save.
+- **Debugger**: breakpoints, stepping, call stack, variables and watches; record a run as a UML sequence diagram.
+- **Java tools**: run configurations (main class, arguments, JVM options), JShell, JUnit 5 tests with a results
+  tree, runnable JAR export, Javadoc, a library manager for `lib/`.
 - **Workspace**: explorer with create, rename, delete (to the Recycle Bin), find in files (text, whole word,
   case, regex), outline of the active Java file, quick open (`Ctrl+P`), command palette (`Ctrl+Shift+P`), and the
   folder is watched so changes made elsewhere show up at once. Drag files to move them, cut, copy, paste and
