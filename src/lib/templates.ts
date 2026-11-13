@@ -1,6 +1,6 @@
 /* Starting points for a new project. */
 
-export type TemplateId = "java-console" | "java-classes" | "web" | "maven" | "gradle" | "python" | "c" | "cpp" | "php" | "kotlin" | "sql";
+export type TemplateId = "java-console" | "java-classes" | "swing" | "web" | "maven" | "gradle" | "python" | "c" | "cpp" | "php" | "kotlin" | "sql";
 
 export interface Template {
   id: TemplateId;
@@ -588,6 +588,14 @@ export const TEMPLATES: Template[] = [
     description: "A main class that reads from the keyboard and prints an answer.",
     open: "Main.java",
     files: { "Main.java": consoleMain },
+  },
+  {
+    id: "swing",
+    title: "Swing window",
+    description: "A window with a text field and a button, made in the GUI designer: drag components, set their properties, and write what a click does.",
+    open: "GreetingWindow.java",
+    // The class is made by the designer's code generator when the project is created.
+    files: {},
   },
   {
     id: "python",

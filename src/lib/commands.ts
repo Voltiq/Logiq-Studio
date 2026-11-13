@@ -41,6 +41,7 @@ import {
   GitBranch,
   Download,
   Upload,
+  AppWindow,
   GitMerge,
   Archive,
   Tag,
@@ -79,6 +80,7 @@ export interface Command {
 const hasFolder = () => !!get().root;
 const inRepo = () => !!G.useGit.getState().repo;
 const hasEditor = () => !!activeView() && activeTab()?.kind === "file";
+const inDesigner = () => activeTab()?.kind === "gui" && !!activeTab()?.path;
 const paused = () => D.useDebug.getState().status === "paused";
 const hasJava = () => hasEditor() && /\.java$/i.test(shownPath() ?? "");
 const hasWeb = () => hasEditor() && /\.(html?|css)$/i.test(shownPath() ?? "");
@@ -129,6 +131,15 @@ export const COMMANDS: Command[] = [
   { id: "file.newProject", label: "New project…", category: "File", icon: FolderPlus, shortcut: "Ctrl+Shift+N", run: () => openDialog({ kind: "newProject" }) },
   { id: "file.newFile", label: "New file…", category: "File", icon: FilePlus, shortcut: "Ctrl+N", enabled: hasFolder, run: () => A.newFile(currentDir()) },
   { id: "file.newClass", label: "New Java class…", category: "File", icon: Code, enabled: hasFolder, run: () => openDialog({ kind: "classWizard", dir: currentDir() }) },
+  { id: "file.newWindow", label: "New Swing window…", category: "File", icon: AppWindow, enabled: hasFolder, run: () => A.newSwingWindow(currentDir()) },
+  {
+    id: "view.designer",
+    label: "Open in the GUI designer",
+    category: "View",
+    icon: AppWindow,
+    enabled: () => !!activeTab()?.path && /\.java$/i.test(activeTab()!.path!) && activeTab()?.kind === "file",
+    run: () => void A.openDesigner(activeTab()!.path!),
+  },
   { id: "file.openFolder", label: "Open folder…", category: "File", icon: FolderOpen, shortcut: "Ctrl+O", run: () => A.chooseFolder() },
   { id: "file.openFile", label: "Open file…", category: "File", run: () => A.chooseFile() },
   { id: "file.quickOpen", label: "Go to file…", category: "File", shortcut: "Ctrl+P", enabled: hasFolder, run: () => openDialog({ kind: "palette", mode: "files" }) },
@@ -140,8 +151,22 @@ export const COMMANDS: Command[] = [
   { id: "file.closeFolder", label: "Close folder", category: "File", enabled: hasFolder, run: () => A.closeFolder() },
   { id: "file.settings", label: "Settings", category: "File", icon: Settings, shortcut: "Ctrl+,", run: () => openDialog({ kind: "settings" }) },
 
-  { id: "edit.undo", label: "Undo", category: "Edit", shortcut: "Ctrl+Z", enabled: hasEditor, run: editor((v) => import("@codemirror/commands").then((m) => m.undo(v))) },
-  { id: "edit.redo", label: "Redo", category: "Edit", shortcut: "Ctrl+Y", enabled: hasEditor, run: editor((v) => import("@codemirror/commands").then((m) => m.redo(v))) },
+  {
+    id: "edit.undo",
+    label: "Undo",
+    category: "Edit",
+    shortcut: "Ctrl+Z",
+    enabled: () => hasEditor() || inDesigner(),
+    run: () => (inDesigner() ? void import("@codemirror/commands").then((m) => A.runOnDoc(activeTab()!.path!, m.undo)) : editor((v) => import("@codemirror/commands").then((m) => m.undo(v)))()),
+  },
+  {
+    id: "edit.redo",
+    label: "Redo",
+    category: "Edit",
+    shortcut: "Ctrl+Y",
+    enabled: () => hasEditor() || inDesigner(),
+    run: () => (inDesigner() ? void import("@codemirror/commands").then((m) => A.runOnDoc(activeTab()!.path!, m.redo)) : editor((v) => import("@codemirror/commands").then((m) => m.redo(v)))()),
+  },
   { id: "edit.find", label: "Find and replace", category: "Edit", icon: Search, shortcut: "Ctrl+F", enabled: hasEditor, run: editor((v) => openSearchPanel(v)) },
   { id: "edit.findInFiles", label: "Find in files", category: "Edit", shortcut: "Ctrl+Shift+F", enabled: hasFolder, run: () => set({ sidebar: "search" }) },
   { id: "edit.gotoLine", label: "Go to line…", category: "Edit", shortcut: "Ctrl+G", enabled: hasEditor, run: () => openDialog({ kind: "palette", mode: "line" }) },

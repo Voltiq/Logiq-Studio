@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AppWindow,
   ChevronRight,
   ChevronsDownUp,
   ClipboardCopy,
@@ -54,6 +55,7 @@ function entryMenu(entry: Entry): MenuItem[] {
   const items: MenuItem[] = [
     { label: t("New file…"), icon: FilePlus, onSelect: () => A.newFile(dir) },
     { label: t("New Java class…"), icon: Code, onSelect: () => openDialog({ kind: "newJavaFile", dir }) },
+    { label: t("New Swing window…"), icon: AppWindow, onSelect: () => A.newSwingWindow(dir) },
     { label: t("New folder…"), icon: FolderPlus, onSelect: () => A.newFolder(dir) },
     { type: "separator" },
   ];

@@ -1,4 +1,4 @@
-import { Boxes, Braces, Clock, Coffee, Cpu, Database, FileCode, FileCode2, FolderOpen, FolderPlus, GitBranch, Globe, Network, Package, Server, X } from "lucide-react";
+import { AppWindow, Boxes, Braces, Clock, Coffee, Cpu, Database, FileCode, FileCode2, FolderOpen, FolderPlus, GitBranch, Globe, Network, Package, Server, X } from "lucide-react";
 import { openDialog, setSettings, useStore } from "../lib/store";
 import { chooseFolder, openFolder } from "../lib/actions";
 import { basename, dirname } from "../lib/paths";
@@ -10,6 +10,7 @@ import { t } from "../lib/i18n";
 const TEMPLATE_ICON = {
   "java-classes": Network,
   "java-console": Coffee,
+  swing: AppWindow,
   web: Globe,
   maven: Package,
   gradle: Boxes,

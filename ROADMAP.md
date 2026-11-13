@@ -408,8 +408,43 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - The PHP preview needs PHP's web server; pages that need a database server or Apache's rewrite rules don't run
 - Not yet tried in the installed app; checked in the browser stand-in and with native tests
 
-## v0.8 — GUI designer
-- [ ] Design Swing (and later JavaFX) windows by dragging components; the code is generated and stays editable
+## v0.8 — GUI designer (2026-11-13)
+
+### Designing a window
+- [x] **GUI designer** for Swing windows: a palette (button, label, text field, password field, text area, check
+      box, radio button, combo box, list, spinner, slider, progress bar, panel), the window as it will look (Swing's
+      Windows look, which the generated `main` sets), and an inspector
+- [x] Drag a component in from the palette, or pick it and draw it; move and resize with handles, snapping to the
+      8-pixel grid and to the other components' and the window's edges and centres with guide lines (Alt: free);
+      rubber-band and Shift/Ctrl selection; arrows nudge (Shift: 8 px); Ctrl+C / X / V / D, Delete; bring to front
+      and send to back; align edges and centres, same width or height, spread evenly; zoom 75–200 %
+- [x] **Inspector**: the window's title, size, resizable and background; per component its variable name
+      (checked; renaming renames it in all the code, handlers included), text, items, position and size, value,
+      minimum, maximum, step and ticks, text alignment, font size, bold, italic, text and background colour,
+      image, tooltip, enabled, editable, selected, line wrap, button group, border title
+- [x] **Events**: actionPerformed, stateChanged, valueChanged, mouseClicked, keyReleased; ticking one writes the
+      listener and a handler method (`okButton_ActionPerformed`) to fill in; a double-click (or Enter) on a
+      component goes to its main handler, writing it first if needed
+
+### The code stays yours
+- [x] The window is the class's code: the designer writes two regions (the fields, and the components in the
+      constructor) between `// GUI-BEGIN …` and `// GUI-END …` comments; everything else, handlers included, is
+      left as you write it; removing a component keeps its handler
+- [x] Each change goes into the code at once, as a change of the editor's text: undo and redo (in the designer
+      too) are the editor's, and the designer follows edits made in the code, also inside the regions (formatted
+      code reads too; statements it doesn't know, such as `okButton.setMnemonic(…)`, are kept with their
+      component)
+- [x] **File → New Swing window**, the explorer's *New Swing window…*, a **Swing window** project template with a
+      working greeting form; *Design* in the code's breadcrumb bar and *Open in the GUI designer* go back
+- [x] The code view opens beside the designer for handlers; Run starts the window; the class appears in the UML
+      diagram like any other
+- [x] Tested: writing and reading back every component, property and event, formatted code and kept statements,
+      renaming, snapping and alignment; the generated code (every component, property and event) and the template
+      compile with the real javac without a warning; the designer tried in the browser stand-in
+
+### Still open, moved on
+- [ ] JavaFX windows (FXML) → later
+- [ ] Containers with their own layout (components inside a panel, layout managers) → later
 
 ## v1.0 — Release
 - [ ] Windows installer (NSIS, current user), signed updates from GitHub Releases like the other Studio apps

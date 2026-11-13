@@ -27,6 +27,10 @@ its structure as a UML class diagram that redraws itself while you type, as the 
   filtered by folder, zoomed, printed, and exported as SVG, PNG, PlantUML or Mermaid. Double-click a class or member
   to jump to its code. **Edit the code from the diagram**: create classes with a wizard, add, change and delete
   attributes, methods and constructors, draw inheritance and associations, add notes.
+- **GUI designer**: design Swing windows by dragging buttons, labels, text fields, lists, sliders and more into
+  the window, with snapping, guide lines and alignment; set their properties and events in an inspector. The code is
+  written into the class as you go, between `// GUI-BEGIN` and `// GUI-END` comments, and stays editable: edits in
+  the code show in the designer, undo works in both, and event handlers are ordinary methods you fill in.
 - **Object bench**: create objects from the diagram's classes, call their methods with arguments, and watch their
   fields change, drawn as UML objects.
 - **Run**: `F5` compiles every `.java` file with `javac` into `out/` and runs the main class; output streams into

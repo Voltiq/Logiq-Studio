@@ -12,7 +12,7 @@ export type Group = 0 | 1;
 export interface Tab {
   /** The file's path; for the class diagram, its .uml file (null for the project's diagram). */
   id: string;
-  kind: "file" | "uml" | "image" | "sequence" | "diff";
+  kind: "file" | "uml" | "image" | "sequence" | "diff" | "gui";
   path: string | null;
   title: string;
   dirty: boolean;

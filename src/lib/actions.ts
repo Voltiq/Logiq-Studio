@@ -100,7 +100,34 @@ export function focusGroup(g: Group) {
   }
 }
 
+const docWatchers = new Map<string, Set<() => void>>();
+
+/** Calls `f` whenever an open document's text changes (the GUI designer follows its class). */
+export function watchDoc(path: string, f: () => void): () => void {
+  const key = path.toLowerCase();
+  if (!docWatchers.has(key)) docWatchers.set(key, new Set());
+  docWatchers.get(key)!.add(f);
+  return () => void docWatchers.get(key)?.delete(f);
+}
+
+/** Runs an editor command (undo, redo) on a document, in its view when it is shown. */
+export function runOnDoc(path: string, command: (target: { state: import("@codemirror/state").EditorState; dispatch: (tr: import("@codemirror/state").Transaction) => void }) => boolean): boolean {
+  const doc = getDoc(path);
+  if (!doc) return false;
+  const g = groupShowing(path);
+  const view = g !== null ? viewOf(g) : null;
+  if (view) return command(view);
+  return command({
+    state: doc.state,
+    dispatch: (tr) => {
+      doc.state = tr.state;
+      if (tr.docChanged) onDocChanged(doc);
+    },
+  });
+}
+
 function onDocChanged(doc: Doc) {
+  docWatchers.get(doc.path.toLowerCase())?.forEach((f) => f());
   const dirty = isDirty(doc);
   const tab = get().tabs.find((t) => t.kind === "file" && t.path && samePath(t.path, doc.path));
   if (tab && tab.dirty !== dirty) {
@@ -121,15 +148,26 @@ function onDocChanged(doc: Doc) {
 }
 
 /** Applies changes to an open document, in its view when it is shown. */
-export function changeDoc(path: string, changes: { from: number; to: number; insert: string }[]) {
+export function changeDoc(path: string, changes: { from: number; to: number; insert: string }[], userEvent = "input.rename") {
   const doc = getDoc(path);
   if (!doc) return;
   const g = groupShowing(path);
-  if (g !== null && viewOf(g)) viewOf(g)!.dispatch({ changes, userEvent: "input.rename" });
+  if (g !== null && viewOf(g)) viewOf(g)!.dispatch({ changes, userEvent });
   else {
-    doc.state = doc.state.update({ changes }).state;
+    doc.state = doc.state.update({ changes, userEvent }).state;
     onDocChanged(doc);
   }
+}
+
+/** Opens a Swing window class in the GUI designer, with its code in a tab beside it. */
+export async function openDesigner(path: string, group?: Group) {
+  const id = `gui:${path}`;
+  if (get().tabs.some((x) => x.id === id)) return activate(id);
+  if (!getDoc(path) || !get().tabs.some((x) => x.kind === "file" && x.path && samePath(x.path, path))) {
+    await openFile(path, undefined, group);
+    if (!getDoc(path)) return;
+  }
+  openViewTab({ id, kind: "gui", path, title: t("{0} (design)", stem(path)), dirty: false, group });
 }
 
 /** Rebuilds the language support of open editors, when a language server starts or stops. */
@@ -454,6 +492,9 @@ function askToSave(names: string[]): Promise<SaveChoice> {
 
 /** Closes tabs, asking about unsaved changes first. Returns false when cancelled. */
 export async function closeTabs(ids: string[]): Promise<boolean> {
+  // A designer goes with its class's code.
+  const closing = get().tabs.filter((t) => ids.includes(t.id) && t.kind === "file" && t.path);
+  ids = [...ids, ...get().tabs.filter((t) => t.kind === "gui" && closing.some((c) => samePath(c.path!, t.path!))).map((t) => t.id)];
   const tabs = get().tabs.filter((t) => ids.includes(t.id));
   const dirty = tabs.filter((t) => t.dirty && t.path);
   if (dirty.length) {
@@ -540,7 +581,7 @@ export async function saveDoc(path: string): Promise<boolean> {
 
 export async function saveActive() {
   const tab = activeTab();
-  if (tab?.path && tab.kind === "file") await saveDoc(tab.path);
+  if (tab?.path && (tab.kind === "file" || tab.kind === "gui")) await saveDoc(tab.path);
 }
 
 export async function saveAll(_quiet = false): Promise<boolean> {
@@ -623,6 +664,27 @@ export function packageFor(dir: string): string {
   if (src >= 0) rel = rel.split("/").slice(src + 1).join("/");
   const parts = rel.split("/").filter(Boolean);
   return parts.every((p) => /^[a-z_$][\w$]*$/i.test(p)) ? parts.join(".") : "";
+}
+
+/** Asks for a name, makes a Swing window class (JFrame) in the folder and opens it in the GUI designer. */
+export function newSwingWindow(dir: string) {
+  const validate = nameValidator(dir);
+  openDialog({
+    kind: "prompt",
+    title: t("New Swing window"),
+    label: t("Class name"),
+    value: "MainWindow",
+    confirmLabel: t("Create"),
+    validate: (v) => (!/^[A-Za-z_$][\w$]*$/.test(v) ? t("A class name starts with a letter and has only letters, digits and _.") : validate(`${v}.java`)),
+    onSubmit: async (name) => {
+      const { newWindowSource } = await import("../gui/codegen");
+      const path = join(dir, `${name}.java`);
+      const title = name.replace(/([a-z])([A-Z])/g, "$1 $2");
+      await api.createFile(path, newWindowSource(name, packageFor(dir), title, { fields: t("the designer writes this part"), components: t("the designer writes this part"), lookFallback: t("The default look stays.") }));
+      await afterCreate(dir);
+      await openDesigner(path);
+    },
+  });
 }
 
 export async function newJavaFile(dir: string, name: string, kind: Parameters<typeof javaSkeleton>[0]) {
@@ -824,10 +886,15 @@ export async function createProject(parent: string, name: string, template: Temp
   // Maven and Gradle want a lower-case project id.
   const artifact = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "app";
   for (const [file, text] of Object.entries(tpl.files)) await api.createFile(join(root, file), text.replace(/\{\{artifact\}\}/g, artifact));
+  if (template === "swing") {
+    const { swingTemplate } = await import("../gui/template");
+    await api.createFile(join(root, tpl.open), swingTemplate());
+  }
   await openFolder(root);
   await openFile(join(root, tpl.open));
   if (template === "web") openPreview();
   if (template === "java-classes" || template === "python") openUml(1);
+  if (template === "swing") await openDesigner(join(root, tpl.open));
   if (template === "php") openPreview(join(root, "index.php"));
 }
 
@@ -1142,6 +1209,10 @@ async function restoreSession(): Promise<boolean> {
     await openFolder(session.root);
     for (const tab of session.tabs) {
       if (tab.kind === "diff" || tab.kind === "sequence") continue;
+      if (tab.kind === "gui") {
+        if (tab.path && (await api.exists(tab.path).catch(() => false))) await openDesigner(tab.path, tab.group);
+        continue;
+      }
       if (tab.kind === "uml") openDiagram(tab.path && (await api.exists(tab.path).catch(() => false)) ? tab.path : null, tab.group);
       else if (tab.path && (await api.exists(tab.path).catch(() => false))) await openFile(tab.path, undefined, tab.group);
       else continue;

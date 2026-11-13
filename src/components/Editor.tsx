@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { EditorView } from "@codemirror/view";
 import { forceLinting } from "@codemirror/lint";
-import { ChevronRight } from "lucide-react";
-import { setShownPath, setView, shownPath, type Group } from "../editor/docs";
+import { AppWindow, ChevronRight } from "lucide-react";
+import { getDoc, setShownPath, setView, shownPath, type Group } from "../editor/docs";
 import { get, useStore } from "../lib/store";
-import { activate, applyEditorSettings, goTo, revealInTree } from "../lib/actions";
+import { activate, applyEditorSettings, goTo, openDesigner, revealInTree } from "../lib/actions";
 import { scopeAt } from "../editor/javaNav";
 import { relint } from "../editor/setup";
 import { useJavaIndexVersion } from "../uml/javaIndex";
@@ -102,6 +102,8 @@ export function Breadcrumbs({ path, focused }: { path: string; focused: boolean 
   useJavaIndexVersion();
   const parts = (root ? relative(root, path) : path).split("/");
   const scope = focused && languageFor(path).id === "java" ? scopeAt(path, line) : { types: [], method: null };
+  // A Swing window the designer made: a way back to the designer.
+  const designable = languageFor(path).id === "java" && !!getDoc(path)?.state.doc.toString().includes("// GUI-BEGIN fields");
   return (
     <nav className="breadcrumbs" aria-label={t("Breadcrumbs")}>
       {parts.map((p, i) => (
@@ -128,6 +130,12 @@ export function Breadcrumbs({ path, focused }: { path: string; focused: boolean 
             {scope.method.name}()
           </button>
         </span>
+      )}
+      {designable && (
+        <button type="button" className="crumb-design" onClick={() => void openDesigner(path)} data-tooltip={t("Open in the GUI designer")}>
+          <AppWindow size={13} aria-hidden="true" />
+          {t("Design")}
+        </button>
       )}
     </nav>
   );

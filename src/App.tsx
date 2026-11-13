@@ -9,6 +9,7 @@ import { previewUrl } from "./lib/api";
 import { relative } from "./lib/paths";
 import { t } from "./lib/i18n";
 import { TitleBar } from "./components/TitleBar";
+import { GuiDesigner } from "./gui/GuiDesigner";
 import { TopBar } from "./components/TopBar";
 import { ActivityRail } from "./components/ActivityRail";
 import { Explorer } from "./components/Explorer";
@@ -108,6 +109,7 @@ function EditorGroup({ group }: { group: Group }) {
         {mine.some((x) => x.kind === "sequence") && <SequenceView visible={active?.kind === "sequence"} />}
         {active?.kind === "image" && active.path && <ImageView path={active.path} />}
         {active?.kind === "diff" && <DiffView key={active.id} id={active.id} />}
+        {active?.kind === "gui" && active.path && <GuiDesigner key={active.id} path={active.path} />}
         {group === 0 && !root && <Welcome />}
         {group === 0 && root && mine.length === 0 && <NoTabs />}
       </div>

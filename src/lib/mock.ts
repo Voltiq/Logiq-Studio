@@ -9,6 +9,7 @@ import { TEMPLATES } from "./templates";
 import { parseJava } from "../uml/javaParser";
 import type { Entry, SearchHit } from "./types";
 import { createMockGit } from "./mockGit";
+import { swingTemplate } from "../gui/template";
 
 const ROOT = "C:\\Users\\Demo\\Projects\\Shapes";
 const files = new Map<string, string>();
@@ -17,6 +18,7 @@ const dirs = new Set<string>([ROOT, ROOT + "\\web"]);
 for (const [name, text] of Object.entries(TEMPLATES.find((x) => x.id === "java-classes")!.files)) files.set(`${ROOT}\\${name}`, text);
 for (const [name, text] of Object.entries(TEMPLATES.find((x) => x.id === "web")!.files)) files.set(`${ROOT}\\web\\${name}`, text);
 files.set(`${ROOT}\\README.md`, "# Shapes\n\nA sample project for Logiq Studio.\n");
+files.set(`${ROOT}\\GreetingWindow.java`, swingTemplate());
 // Other languages, to try their plug-ins.
 for (const [id, dir] of [["python", "py"], ["sql", "db"], ["c", "c"], ["php", "php"]] as const) {
   dirs.add(`${ROOT}\\${dir}`);

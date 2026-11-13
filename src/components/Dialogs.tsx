@@ -421,7 +421,7 @@ function AboutDialog() {
       <div className="about">
         <img src="/app-icon.svg" alt="" width={64} height={64} />
         <div>
-          <p className="about-name">Logiq Studio 0.7.0</p>
+          <p className="about-name">Logiq Studio 0.8.0</p>
           <p className="dialog-text">{t("An IDE for Java, Python, C, C++, Kotlin, PHP, SQL and the web that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.")}</p>
         </div>
       </div>
