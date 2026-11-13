@@ -1,0 +1,56 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Logiq Studio",
+  "version": "0.1.0",
+  "identifier": "com.voltiq.logiq-studio",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1430",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Logiq Studio",
+        "width": 1480,
+        "height": 940,
+        "minWidth": 960,
+        "minHeight": 600,
+        "center": true,
+        "visible": false,
+        "decorations": false,
+        "dragDropEnabled": false,
+        "backgroundColor": "#0D0E11"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "Voltiq",
+    "copyright": "© 2026 Voltiq",
+    "category": "DeveloperTool",
+    "shortDescription": "An IDE for Java and the web with live UML class diagrams",
+    "longDescription": "Logiq Studio edits, compiles and runs Java, HTML, CSS and JavaScript projects. It draws a UML class diagram from your Java code as you type, previews web pages live and shows compiler problems right in the editor.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}
