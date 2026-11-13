@@ -25,6 +25,8 @@ import { Palette } from "./components/Palette";
 import { Toasts } from "./components/Toasts";
 import { Resizer } from "./components/Resizer";
 import { UmlView } from "./uml/UmlView";
+import { SourceControl } from "./components/SourceControl";
+import { DiffView } from "./components/DiffView";
 import { SequenceView } from "./uml/SequenceView";
 import { DebugPanel } from "./components/DebugPanel";
 import { initDebug } from "./lib/debug";
@@ -105,6 +107,7 @@ function EditorGroup({ group }: { group: Group }) {
         {hasUml && <UmlView visible={active?.kind === "uml"} />}
         {mine.some((x) => x.kind === "sequence") && <SequenceView visible={active?.kind === "sequence"} />}
         {active?.kind === "image" && active.path && <ImageView path={active.path} />}
+        {active?.kind === "diff" && <DiffView key={active.id} id={active.id} />}
         {group === 0 && !root && <Welcome />}
         {group === 0 && root && mine.length === 0 && <NoTabs />}
       </div>
@@ -138,8 +141,9 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (useStore.getState().dialog) return;
-      const inEditor = !!(e.target as HTMLElement | null)?.closest?.(".cm-editor");
-      handleShortcut(e, inEditor);
+      const target = e.target as HTMLElement | null;
+      const inEditor = !!target?.closest?.(".cm-editor");
+      handleShortcut(e, inEditor, !!target?.closest?.(".xterm"));
     };
     // Capture, so the editor doesn't eat Ctrl+P, F5 and the like first.
     window.addEventListener("keydown", onKey, true);
@@ -168,6 +172,7 @@ export default function App() {
               {sidebar === "search" && <SearchPanel />}
               {sidebar === "outline" && <OutlinePanel />}
               {sidebar === "debug" && <DebugPanel />}
+              {sidebar === "git" && <SourceControl />}
             </aside>
             <Resizer axis="x" size={settings.sidebarWidth} min={190} max={560} label={t("Side bar width")} onResize={(w) => setSettings({ sidebarWidth: w })} />
           </>

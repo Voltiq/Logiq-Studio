@@ -31,6 +31,8 @@ import { cx } from "../lib/utils";
 import { isPreviewable } from "../lib/actions";
 import { fuzzy } from "./Palette";
 import { t } from "../lib/i18n";
+import { useGit } from "../lib/git";
+import { letterOf } from "../lib/gitParse";
 
 interface Row {
   entry: Entry;
@@ -97,6 +99,7 @@ export function Explorer() {
   const tabs = useStore((s) => s.tabs);
   const problems = useStore((s) => s.problems);
   const dirtyPaths = useMemo(() => new Set(tabs.filter((x) => x.dirty).map((x) => x.path)), [tabs]);
+  const gitKinds = useGit((g) => g.kinds);
   const errorPaths = useMemo(() => new Set(problems.filter((p) => p.severity === "error").map((p) => p.path.toLowerCase())), [problems]);
   const [filter, setFilter] = useState<string | null>(null);
   const [allFiles, setAllFiles] = useState<string[]>([]);
@@ -318,6 +321,7 @@ export function Explorer() {
           const { entry } = r;
           const open = entry.isDir && !!expanded[entry.path];
           const isError = !entry.isDir && errorPaths.has(entry.path.toLowerCase());
+          const gitKind = gitKinds.get(entry.path.toLowerCase());
           const target = dropDir(r);
           return (
             <div
@@ -333,6 +337,7 @@ export function Explorer() {
                 selection.includes(entry.path) && "is-selected",
                 entry.path === activePath && "is-active",
                 cut?.has(entry.path) && "is-cut",
+                gitKind && `git-${gitKind}`,
                 dropTarget && entry.isDir && samePath(dropTarget, entry.path) && "is-drop",
               )}
               style={{ paddingLeft: 6 + r.depth * 14 }}
@@ -389,6 +394,7 @@ export function Explorer() {
               </span>
               {dirtyPaths.has(entry.path) && <span className="tree-dirty" aria-label={t("Unsaved changes")} />}
               {isError && <span className="tree-error" aria-label={t("Has errors")} />}
+              {gitKind && gitKind !== "ignored" && (entry.isDir ? <span className="tree-git-dot" aria-hidden="true" /> : <span className="tree-git">{letterOf(gitKind)}</span>)}
             </div>
           );
         })}

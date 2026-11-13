@@ -1,4 +1,5 @@
-import { Bug, Files, ListTree, Network, Search, Settings, SquareTerminal, type LucideIcon } from "lucide-react";
+import { Bug, Files, GitBranch, ListTree, Network, Search, Settings, SquareTerminal, type LucideIcon } from "lucide-react";
+import { useGit } from "../lib/git";
 import { activeIdOf, openDialog, set, useStore, type SidebarView } from "../lib/store";
 import { openUml, togglePanel } from "../lib/actions";
 import { cx } from "../lib/utils";
@@ -30,6 +31,7 @@ export function ActivityRail() {
   const panelOpen = useStore((s) => s.panelOpen);
   const errors = useStore((s) => s.problems.filter((p) => p.severity === "error").length);
   const debugPaused = useDebug((s) => s.status === "paused");
+  const gitChanges = useGit((s) => s.status?.files.length ?? 0);
   const pick = (v: SidebarView) => set((s) => ({ sidebar: s.sidebar === v ? null : v }));
 
   return (
@@ -37,6 +39,7 @@ export function ActivityRail() {
       <RailButton icon={Files} label={t("Explorer")} shortcut="Ctrl+Shift+E" on={sidebar === "explorer"} onClick={() => pick("explorer")} />
       <RailButton icon={Search} label={t("Find in files")} shortcut="Ctrl+Shift+F" on={sidebar === "search"} disabled={!root} onClick={() => pick("search")} />
       <RailButton icon={ListTree} label={t("Outline")} on={sidebar === "outline"} disabled={!root} onClick={() => pick("outline")} />
+      <RailButton icon={GitBranch} label={t("Source control")} shortcut="Ctrl+Shift+G" on={sidebar === "git"} disabled={!root} badge={gitChanges} onClick={() => pick("git")} />
       <RailButton icon={Bug} label={t("Debugger")} shortcut="Ctrl+Shift+D" on={sidebar === "debug"} disabled={!root} badge={debugPaused ? 1 : 0} onClick={() => pick("debug")} />
       <span className="rail-sep" />
       <RailButton icon={Network} label={t("UML class diagram")} shortcut="Ctrl+Shift+U" on={umlOn} disabled={!root} onClick={openUml} />

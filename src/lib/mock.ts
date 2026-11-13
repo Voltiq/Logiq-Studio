@@ -8,13 +8,14 @@ import { emit } from "@tauri-apps/api/event";
 import { TEMPLATES } from "./templates";
 import { parseJava } from "../uml/javaParser";
 import type { Entry, SearchHit } from "./types";
+import { createMockGit } from "./mockGit";
 
 const ROOT = "C:\\Users\\Demo\\Projects\\Shapes";
 const files = new Map<string, string>();
 const dirs = new Set<string>([ROOT, ROOT + "\\web"]);
 
-for (const [name, text] of Object.entries(TEMPLATES[0].files)) files.set(`${ROOT}\\${name}`, text);
-for (const [name, text] of Object.entries(TEMPLATES[2].files)) files.set(`${ROOT}\\web\\${name}`, text);
+for (const [name, text] of Object.entries(TEMPLATES.find((x) => x.id === "java-classes")!.files)) files.set(`${ROOT}\\${name}`, text);
+for (const [name, text] of Object.entries(TEMPLATES.find((x) => x.id === "web")!.files)) files.set(`${ROOT}\\web\\${name}`, text);
 files.set(`${ROOT}\\README.md`, "# Shapes\n\nA sample project for Logiq Studio.\n");
 
 const parent = (p: string) => p.slice(0, p.lastIndexOf("\\"));
@@ -93,6 +94,9 @@ function benchAnswer(f: string[]): string {
   return JSON.stringify({ ok: true, out: "", objects: benchState() });
 }
 
+const terms = new Map<number, { line: string; prompt: string }>();
+const mockGit = createMockGit(ROOT, files, (event, payload) => void emit(event, payload));
+
 export function installMock() {
   mockWindows("main");
   mockIPC(
@@ -114,6 +118,8 @@ export function installMock() {
         case "fs_create_file":
           if (files.has(a.path)) throw `“${name(a.path)}” already exists.`;
           files.set(a.path, a.text ?? "");
+          // Like the native side, the folders it needs come with it.
+          for (let d = parent(a.path); d.includes("\\") && !dirs.has(d); d = parent(d)) dirs.add(d);
           return null;
         case "fs_create_dir":
           dirs.add(a.path);
@@ -252,6 +258,62 @@ export function installMock() {
           setTimeout(() => emit("jshell-output", `$1 ==> ${a.text.trim()}\n\njshell> `), 100);
           return null;
         case "jshell_stop":
+          return null;
+        case "git_info":
+          return { version: "2.55.0.windows.1", name: "Ada Lovelace", email: "ada@example.invalid" };
+        case "git_exec":
+          return mockGit.exec(a.args, a.input ?? null);
+        case "git_show_file":
+          return mockGit.show(a.spec);
+        case "git_stream":
+          mockGit.stream(a.id, a.args);
+          return null;
+        case "git_cancel":
+          return null;
+        case "term_shells":
+          return [
+            { id: "pwsh", name: "PowerShell", path: "pwsh.exe", args: ["-NoLogo"] },
+            { id: "cmd", name: "Command Prompt", path: "cmd.exe", args: [] },
+            { id: "bash", name: "Git Bash", path: "bash.exe", args: ["--login", "-i"] },
+          ];
+        case "term_open": {
+          const prompt = `PS ${a.cwd}> `;
+          terms.set(a.id, { line: "", prompt });
+          setTimeout(() => emit("term-data", { id: a.id, data: `\x1b[2mPowerShell (stand-in)\x1b[0m\r\n${prompt}` }), 60);
+          return null;
+        }
+        case "term_write": {
+          const term = terms.get(a.id);
+          if (!term) throw "The terminal has closed.";
+          let out = "";
+          for (const ch of a.data as string) {
+            if (ch === "\r") {
+              const cmd = term.line.trim();
+              term.line = "";
+              if (cmd === "exit") {
+                setTimeout(() => emit("term-exit", { id: a.id, code: 0 }), 30);
+                terms.delete(a.id);
+                out += "\r\n";
+                break;
+              }
+              out += "\r\n" + (cmd.startsWith("echo ") ? cmd.slice(5) + "\r\n" : cmd ? `\x1b[33m${cmd}\x1b[0m: ran (stand-in)\r\n` : "") + term.prompt;
+            } else if (ch === "\x7f") {
+              if (term.line) {
+                term.line = term.line.slice(0, -1);
+                out += "\b \b";
+              }
+            } else if (ch >= " ") {
+              term.line += ch;
+              out += ch;
+            }
+          }
+          if (out) setTimeout(() => emit("term-data", { id: a.id, data: out }), 10);
+          return null;
+        }
+        case "term_resize":
+          return null;
+        case "term_close":
+          terms.delete(a.id);
           return null;
         case "junit_find":
           return "C:\\lib\\junit-platform-console-standalone-1.12.2.jar";

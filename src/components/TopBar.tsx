@@ -10,10 +10,11 @@ import { t } from "../lib/i18n";
 
 /** Menus are lists of command ids; "-" draws a separator. */
 const MENUS: Record<string, string[]> = {
-  File: ["file.newProject", "file.newFile", "file.newClass", "-", "file.openFolder", "file.openFile", "file.quickOpen", "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.close", "file.closeAll", "file.closeFolder", "-", "file.settings"],
-  Edit: ["edit.undo", "edit.redo", "-", "edit.find", "edit.findInFiles", "edit.gotoLine", "-", "edit.definition", "edit.usages", "edit.rename", "edit.quickfix", "edit.organizeImports", "-", "edit.comment", "edit.format", "edit.emmet"],
-  View: ["view.palette", "-", "view.explorer", "view.outline", "view.sidebar", "view.panel", "view.problems", "view.preview", "-", "view.split", "view.focusOther", "-", "uml.open", "uml.side", "uml.layout", "-", "view.zoomIn", "view.zoomOut", "view.zoomReset"],
-  Run: ["run.run", "run.debug", "run.trace", "run.compile", "run.stop", "-", "debug.continue", "debug.over", "debug.into", "debug.out", "debug.breakpoint", "-", "run.tests", "run.jshell", "-", "run.config", "project.libraries", "-", "build.jar", "build.javadoc", "-", "run.output"],
+  File: ["file.newProject", "file.newFile", "file.newClass", "-", "file.openFolder", "git.clone", "file.openFile", "file.quickOpen", "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.close", "file.closeAll", "file.closeFolder", "-", "file.settings"],
+  Edit: ["edit.undo", "edit.redo", "-", "edit.find", "edit.findInFiles", "edit.gotoLine", "-", "edit.definition", "edit.usages", "edit.rename", "edit.quickfix", "edit.refactor", "edit.organizeImports", "-", "edit.comment", "edit.format", "edit.emmet"],
+  View: ["view.palette", "-", "view.explorer", "view.outline", "view.sidebar", "view.panel", "view.terminal", "view.newTerminal", "view.problems", "view.preview", "-", "view.split", "view.focusOther", "-", "uml.open", "uml.side", "uml.layout", "-", "view.zoomIn", "view.zoomOut", "view.zoomReset"],
+  Run: ["run.run", "run.debug", "run.trace", "run.compile", "run.stop", "-", "debug.continue", "debug.over", "debug.into", "debug.out", "debug.breakpoint", "-", "run.tests", "run.jshell", "-", "run.config", "project.libraries", "-", "build.tasks", "build.task", "build.jar", "build.javadoc", "-", "run.output"],
+  Git: ["view.git", "-", "git.commit", "git.amend", "git.stageAll", "git.openChanges", "-", "git.pull", "git.push", "git.sync", "git.fetch", "-", "git.newBranch", "git.addRemote", "-", "git.clone", "git.init", "git.identity"],
   Help: ["help.shortcuts", "help.jdk", "help.about"],
 };
 

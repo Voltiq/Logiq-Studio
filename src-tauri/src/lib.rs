@@ -7,12 +7,16 @@
 //! to the HTML preview.
 
 mod bench;
+mod build;
 mod debug;
 mod fs;
+mod git;
 mod lsp;
 mod preview;
 mod runner;
 mod search;
+mod stylelint;
+mod terminal;
 mod tools;
 mod watch;
 
@@ -61,6 +65,8 @@ pub fn run() {
         .manage(debug::Debugger::default())
         .manage(tools::JShell::default())
         .manage(lsp::Servers::default())
+        .manage(terminal::Terminals::default())
+        .manage(git::GitJobs::default())
         .manage(watch::Watcher::default())
         .manage(preview::PreviewRoot::default())
         .register_uri_scheme_protocol("logiq-preview", |ctx, request| preview::serve(ctx.app_handle(), &request))
@@ -98,6 +104,7 @@ pub fn run() {
             runner::detect_jdks,
             runner::detect_node,
             runner::java_compile,
+            build::build_info,
             runner::run_java,
             runner::run_node,
             runner::run_stdin,
@@ -121,6 +128,18 @@ pub fn run() {
             lsp::jdtls_status,
             lsp::jdtls_install,
             lsp::jdtls_start,
+            terminal::term_shells,
+            terminal::term_open,
+            terminal::term_write,
+            terminal::term_resize,
+            terminal::term_close,
+            git::git_info,
+            git::git_exec,
+            git::git_show_file,
+            git::git_stream,
+            git::git_cancel,
+            stylelint::stylelint_available,
+            stylelint::stylelint_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Logiq Studio");

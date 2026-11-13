@@ -28,9 +28,11 @@ import { lintGutter, linter, lintKeymap, type Diagnostic as CmDiagnostic } from 
 import { graphiqHighlight, graphiqTheme } from "./theme";
 import { languageFor } from "./languages";
 import { javaCompletions } from "./javaComplete";
+import { gitGutter } from "./gitGutter";
+import { stylelintDiagnostics } from "./stylelint";
 import { eslintDiagnostics } from "./eslint";
 import { jumpToDefinition } from "@codemirror/lsp-client";
-import { hasServer, lspExtension, organizeImports, quickFix, serverDiagnosticsFor } from "../lsp/clients";
+import { hasServer, lspExtension, organizeImports, quickFix, refactor, serverDiagnosticsFor } from "../lsp/clients";
 import type { Settings } from "../lib/settings";
 import { get } from "../lib/store";
 import { samePath } from "../lib/paths";
@@ -60,7 +62,10 @@ function languageExtension(path: string): Extension {
       Prec.high(
         keymap.of([
           ...(server
-            ? [{ key: "Shift-Alt-o", run: (v: EditorView) => (void organizeImports(v, here()), true) }]
+            ? [
+                { key: "Shift-Alt-o", run: (v: EditorView) => (void organizeImports(v, here()), true) },
+                { key: "Mod-Shift-r", run: (v: EditorView) => (void refactor(v, here()), true) },
+              ]
             : [
                 { key: "F12", run: (v: EditorView) => goToDefinition(v, here()) },
                 { key: "Shift-F12", run: (v: EditorView) => (findUsages(v), true) },
@@ -192,12 +197,18 @@ export function createState(path: string, text: string, s: Settings, onUpdate: E
       highlightSelectionMatches(),
       search({ top: true }),
       lintGutter(),
+      gitGutter(
+        () => currentPath(path),
+        (p) => void import("../lib/diffTabs").then((m) => m.openWorkingDiff(p)),
+      ),
       debugLineField,
       linter(lintSource(() => currentPath(path)), {
         delay: 450,
         // New problems from the compiler or a language server re-run the check.
         needsRefresh: (u) => u.transactions.some((tr) => tr.effects.some((e) => e.is(relint))),
       }),
+      // Stylelint for style sheets, when the project has it.
+      /\.(css|scss|less)$/i.test(path) ? linter((view) => stylelintDiagnostics(currentPath(path), view.state.doc), { delay: 800 }) : [],
       // ESLint for JavaScript, next to the language server's own checks.
       /\.(m|c)?jsx?$/i.test(path)
         ? linter((view) => eslintDiagnostics(view.state.doc.toString(), view.state.doc, /\.mjs$/i.test(currentPath(path)) || /^\s*(import|export)\s/m.test(view.state.doc.toString())).catch(() => []), { delay: 700 })

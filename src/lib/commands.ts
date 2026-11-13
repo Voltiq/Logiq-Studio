@@ -38,6 +38,9 @@ import {
   FileArchive,
   Coffee,
   Lightbulb,
+  GitBranch,
+  Download,
+  Upload,
 } from "lucide-react";
 import { expandAbbreviation } from "@emmetio/codemirror6-plugin";
 import { findUsages, goToDefinition, renameSymbol } from "../editor/javaNav";
@@ -47,14 +50,18 @@ import { activeView, shownPath } from "../editor/docs";
 import { toggleBreakpointAt } from "../editor/breakpoints";
 import * as D from "./debug";
 import * as T from "./tools";
-import { hasServer, organizeImports, quickFix, useLsp } from "../lsp/clients";
+import { newTerminal, toggleTerminal } from "./terminals";
+import * as G from "./git";
+import * as B from "./build";
+import { hasServer, organizeImports, quickFix, refactor, useLsp } from "../lsp/clients";
 import * as A from "./actions";
-import { activeIdOf, activeTab, get, openDialog, set } from "./store";
+import { activeIdOf, activeTab, get, openDialog, openMenu, set } from "./store";
+import { t } from "./i18n";
 
 export interface Command {
   id: string;
   label: string;
-  category: "File" | "Edit" | "View" | "Run" | "Help" | "UML";
+  category: "File" | "Edit" | "View" | "Run" | "Help" | "UML" | "Git";
   shortcut?: string;
   icon?: LucideIcon;
   run: () => void | Promise<void>;
@@ -65,6 +72,7 @@ export interface Command {
 }
 
 const hasFolder = () => !!get().root;
+const inRepo = () => !!G.useGit.getState().repo;
 const hasEditor = () => !!activeView() && activeTab()?.kind === "file";
 const paused = () => D.useDebug.getState().status === "paused";
 const hasJava = () => hasEditor() && /\.java$/i.test(shownPath() ?? "");
@@ -83,6 +91,34 @@ const editor = (f: (v: NonNullable<ReturnType<typeof activeView>>) => void) => (
     v.focus();
   }
 };
+
+/** The build tool's common tasks, as a menu (from the status bar or the Run menu). */
+export function buildMenu(anchor?: HTMLElement) {
+  const info = B.useBuild.getState().info;
+  if (!info) return;
+  openMenu({
+    ...(anchor ? { anchor } : { x: window.innerWidth / 2 - 120, y: 120 }),
+    items: [
+      { type: "heading", label: `${B.toolName(info)}${info.wrapper ? " (" + t("wrapper") + ")" : ""}` },
+      ...B.TASKS[info.tool].map((x) => ({ label: `${t(x.label)}  ·  ${x.task.join(" ")}`, onSelect: () => void B.runBuildTask(x.task) })),
+      { type: "separator" },
+      { label: info.tool === "maven" ? t("Run a Maven goal…") : t("Run a Gradle task…"), onSelect: () => askBuildTask() },
+    ],
+  });
+}
+
+function askBuildTask() {
+  const info = B.useBuild.getState().info;
+  if (!info) return;
+  openDialog({
+    kind: "prompt",
+    title: info.tool === "maven" ? t("Run a Maven goal") : t("Run a Gradle task"),
+    label: info.tool === "maven" ? t("Goals and options (for example clean verify -DskipTests)") : t("Tasks and options (for example clean build --info)"),
+    value: info.tool === "maven" ? "clean verify" : "build",
+    confirmLabel: t("Run"),
+    onSubmit: (v) => void B.runBuildTask(v.split(/\s+/).filter(Boolean)),
+  });
+}
 
 export const COMMANDS: Command[] = [
   { id: "file.newProject", label: "New project…", category: "File", icon: FolderPlus, shortcut: "Ctrl+Shift+N", run: () => openDialog({ kind: "newProject" }) },
@@ -110,6 +146,7 @@ export const COMMANDS: Command[] = [
   { id: "edit.usages", label: "Find usages", category: "Edit", shortcut: "Shift+F12", editorKey: true, enabled: hasJava, run: editor((v) => findUsages(v)) },
   { id: "edit.rename", label: "Rename symbol…", category: "Edit", shortcut: "F2", editorKey: true, enabled: hasJava, run: editor((v) => renameSymbol(v, shownPath()!)) },
   { id: "edit.quickfix", label: "Quick fix…", category: "Edit", icon: Lightbulb, shortcut: "Ctrl+.", editorKey: true, enabled: hasEditor, run: editor((v) => void quickFix(v, shownPath()!)) },
+  { id: "edit.refactor", label: "Refactor…", category: "Edit", shortcut: "Ctrl+Shift+R", editorKey: true, enabled: () => hasEditor() && hasServer(shownPath()!), run: editor((v) => void refactor(v, shownPath()!)) },
   { id: "edit.organizeImports", label: "Organize imports", category: "Edit", shortcut: "Shift+Alt+O", editorKey: true, enabled: () => hasJava() && hasServer(shownPath()!), run: editor((v) => void organizeImports(v, shownPath()!)) },
   { id: "help.javaServer", label: "Install the Java language server…", category: "Help", enabled: () => useLsp.getState().java === "missing", run: () => openDialog({ kind: "settings" }) },
   { id: "edit.emmet", label: "Expand Emmet abbreviation", category: "Edit", shortcut: "Ctrl+E", editorKey: true, enabled: hasWeb, run: editor((v) => void expandAbbreviation(v)) },
@@ -118,6 +155,24 @@ export const COMMANDS: Command[] = [
   { id: "view.outline", label: "Show outline", category: "View", run: () => set({ sidebar: "outline" }) },
   { id: "view.sidebar", label: "Toggle side bar", category: "View", shortcut: "Ctrl+B", run: () => A.toggleSidebar() },
   { id: "view.panel", label: "Toggle output panel", category: "View", icon: PanelBottom, shortcut: "Ctrl+J", run: () => A.togglePanel() },
+  { id: "view.terminal", label: "Toggle terminal", category: "View", icon: SquareTerminal, shortcut: "Ctrl+`", run: () => void toggleTerminal() },
+  { id: "view.newTerminal", label: "New terminal", category: "View", icon: SquareTerminal, shortcut: "Ctrl+Shift+`", run: () => void newTerminal() },
+  { id: "view.git", label: "Show source control", category: "Git", icon: GitBranch, shortcut: "Ctrl+Shift+G", enabled: hasFolder, run: () => set({ sidebar: "git" }) },
+  { id: "git.commit", label: "Commit", category: "Git", enabled: inRepo, run: () => void G.commit() },
+  { id: "git.amend", label: "Commit and amend the last commit", category: "Git", enabled: inRepo, run: () => void G.commit({ amend: true }) },
+  { id: "git.stageAll", label: "Stage all changes", category: "Git", enabled: inRepo, run: () => void G.stage(["."]) },
+  { id: "git.openChanges", label: "Open changes of this file", category: "Git", enabled: () => inRepo() && !!activeTab()?.path && activeTab()?.kind === "file", run: () => void import("./diffTabs").then((m) => m.openWorkingDiff(activeTab()!.path!)) },
+  { id: "git.pull", label: "Pull", category: "Git", icon: Download, enabled: inRepo, run: () => void G.pull() },
+  { id: "git.push", label: "Push", category: "Git", icon: Upload, enabled: inRepo, run: () => void G.push() },
+  { id: "git.sync", label: "Pull and push", category: "Git", enabled: inRepo, run: () => void G.sync() },
+  { id: "git.fetch", label: "Fetch", category: "Git", enabled: inRepo, run: () => void G.fetchAll() },
+  { id: "git.newBranch", label: "New branch…", category: "Git", icon: GitBranch, enabled: inRepo, run: () => G.newBranch() },
+  { id: "git.addRemote", label: "Add a remote…", category: "Git", enabled: inRepo, run: () => G.addRemote() },
+  { id: "git.clone", label: "Clone a repository…", category: "Git", icon: GitBranch, run: () => openDialog({ kind: "clone" }) },
+  { id: "git.init", label: "Create a Git repository", category: "Git", enabled: () => hasFolder() && !G.useGit.getState().repo && G.useGit.getState().info !== false, run: () => void G.initRepo() },
+  { id: "git.identity", label: "Set your name and e-mail for commits…", category: "Git", enabled: () => !!G.useGit.getState().info, run: () => G.askIdentity() },
+  { id: "build.tasks", label: "Build tool tasks…", category: "Run", icon: Hammer, enabled: () => !!B.useBuild.getState().info, run: () => buildMenu() },
+  { id: "build.task", label: "Run a Maven goal or Gradle task…", category: "Run", enabled: () => !!B.useBuild.getState().info, run: () => askBuildTask() },
   { id: "view.problems", label: "Show problems", category: "View", shortcut: "Ctrl+Shift+M", run: () => set({ panelOpen: true, panelTab: "problems" }) },
   { id: "view.split", label: "Split editor (move tab to the side)", category: "View", icon: Columns2, shortcut: "Ctrl+\\", enabled: () => !!activeTab(), run: () => A.splitEditor() },
   { id: "view.focusOther", label: "Focus the other editor group", category: "View", enabled: () => get().tabs.some((t) => t.group === 1), run: () => focusOther() },
@@ -199,6 +254,7 @@ export function shortcutOf(e: KeyboardEvent): string {
   if (e.code === "Equal") key = "=";
   if (e.code === "Minus") key = "-";
   if (e.code === "Comma") key = ",";
+  if (e.code === "Backquote") key = "`";
   if (e.code === "Slash" || e.code === "NumpadDivide") key = "/";
   if (e.code === "Backslash" || e.code === "IntlBackslash") key = "\\";
   if (/^Digit\d$/.test(e.code)) key = e.code.slice(5);
@@ -211,10 +267,17 @@ const GLOBAL = new Set(COMMANDS.filter((c) => c.shortcut && !c.editorKey).map((c
 // Left to CodeMirror while an editor has focus.
 const EDITOR_OWNED = new Set(["Ctrl+Z", "Ctrl+Y", "Ctrl+F", "Ctrl+/"]);
 
-export function handleShortcut(e: KeyboardEvent, inEditor: boolean): boolean {
+/**
+ * In a terminal the shell gets the keys (Ctrl+R, Ctrl+B, Ctrl+W…); only these,
+ * function keys and Ctrl+Shift shortcuts still reach the app.
+ */
+const TERMINAL_PASSES = new Set(["Ctrl+J", "Ctrl+`", "Ctrl+P", "Ctrl+,", "Ctrl+Tab", "Ctrl+Shift+Tab", "Ctrl+=", "Ctrl+-", "Ctrl+0"]);
+
+export function handleShortcut(e: KeyboardEvent, inEditor: boolean, inTerminal = false): boolean {
   const sc = shortcutOf(e);
   if (!GLOBAL.has(sc)) return false;
   if (inEditor && EDITOR_OWNED.has(sc)) return false;
+  if (inTerminal && !TERMINAL_PASSES.has(sc) && !sc.startsWith("Ctrl+Shift+") && !/(^|\+)F\d+$/.test(sc)) return false;
   const c = COMMANDS.find((x) => x.shortcut === sc && !x.editorKey);
   if (!c) return false;
   if (c.enabled && !c.enabled()) return true;

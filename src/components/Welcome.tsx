@@ -1,4 +1,4 @@
-import { Braces, Clock, Coffee, FileCode, FolderOpen, FolderPlus, Globe, Network, X } from "lucide-react";
+import { Boxes, Braces, Clock, Coffee, FileCode, FolderOpen, FolderPlus, GitBranch, Globe, Network, Package, X } from "lucide-react";
 import { openDialog, setSettings, useStore } from "../lib/store";
 import { chooseFolder, openFolder } from "../lib/actions";
 import { basename, dirname } from "../lib/paths";
@@ -7,7 +7,7 @@ import { Button, IconButton } from "./ui/Button";
 import { Shortcut } from "./ui/Feedback";
 import { t } from "../lib/i18n";
 
-const TEMPLATE_ICON = { "java-classes": Network, "java-console": Coffee, web: Globe } as const;
+const TEMPLATE_ICON = { "java-classes": Network, "java-console": Coffee, web: Globe, maven: Package, gradle: Boxes } as const;
 
 /* The start screen: open or create a project, or pick up a recent one. */
 export function Welcome() {
@@ -33,6 +33,9 @@ export function Welcome() {
           </Button>
           <Button iconBefore={FolderOpen} onClick={() => void chooseFolder()}>
             {t("Open folder")}
+          </Button>
+          <Button iconBefore={GitBranch} onClick={() => openDialog({ kind: "clone" })}>
+            {t("Clone repository")}
           </Button>
         </div>
 

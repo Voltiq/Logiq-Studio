@@ -4,15 +4,15 @@ import { loadSettings, saveSettings, type Settings } from "./settings";
 import type { Diagnostic, Entry, Jdk, NodeInfo } from "./types";
 import type { TemplateId } from "./templates";
 
-export type SidebarView = "explorer" | "search" | "outline" | "debug";
-export type PanelTab = "output" | "problems" | "tests" | "jshell";
+export type SidebarView = "explorer" | "search" | "outline" | "debug" | "git";
+export type PanelTab = "output" | "problems" | "tests" | "jshell" | "terminal";
 
 export type Group = 0 | 1;
 
 export interface Tab {
   /** The file's path; for the class diagram, its .uml file (null for the project's diagram). */
   id: string;
-  kind: "file" | "uml" | "image" | "sequence";
+  kind: "file" | "uml" | "image" | "sequence" | "diff";
   path: string | null;
   title: string;
   dirty: boolean;
@@ -99,7 +99,8 @@ export type Dialog =
   | { kind: "benchCall"; owner: string; methodLine: number; target: string | null }
   | { kind: "runConfig" }
   | { kind: "libraries" }
-  | { kind: "installJdk" };
+  | { kind: "installJdk" }
+  | { kind: "clone" };
 
 export interface State {
   settings: Settings;

@@ -15,7 +15,8 @@ its structure as a UML class diagram that redraws itself while you type, as the 
   formatting with Prettier (Java too), Emmet, colour swatches, breadcrumbs, sticky scroll and a split view.
 - **Language servers**: Eclipse JDT LS for Java (installed once from Settings: errors as you type, completion
   that knows types, quick fixes with `Ctrl+.`, organize imports), the TypeScript language service for JavaScript
-  and TypeScript, VS Code's HTML and CSS language services, and ESLint for JavaScript.
+  and TypeScript, VS Code's HTML and CSS language services, ESLint for JavaScript and the project's Stylelint for
+  style sheets. Java refactorings (extract variable, constant, field or method) with `Ctrl+Shift+R`.
 - **UML class diagram** from the Java code in the folder: classes, abstract classes, interfaces, enums and
   records with attributes and methods in UML notation (visibility `+ - # ~`, static underlined, abstract in
   italics); generalisation, realisation, association with role names and multiplicities, dependency and nesting.
@@ -38,6 +39,12 @@ its structure as a UML class diagram that redraws itself while you type, as the 
   case, regex), outline of the active Java file, quick open (`Ctrl+P`), command palette (`Ctrl+Shift+P`), and the
   folder is watched so changes made elsewhere show up at once. Drag files to move them, cut, copy, paste and
   duplicate them; unsaved changes and open tabs survive a restart. Live Markdown preview.
+- **Terminal**: PowerShell, the Command Prompt or Git Bash in the bottom panel, several at once, with the
+  project's JDK on the path.
+- **Git**: a source control view (stage, commit, branches, push, pull, history), changed files coloured in the
+  explorer, a change bar in the editor, side-by-side diffs, and cloning from the welcome screen.
+- **Maven and Gradle**: projects compile with their build tool (wrapper or installed), and Run, Debug, the
+  object bench and tests use its class path; build tasks run in the terminal; templates for both.
 - **Languages**: English and German.
 
 ## Develop

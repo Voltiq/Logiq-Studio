@@ -102,7 +102,7 @@ export function focusGroup(g: Group) {
 
 function onDocChanged(doc: Doc) {
   const dirty = isDirty(doc);
-  const tab = get().tabs.find((t) => t.path && samePath(t.path, doc.path));
+  const tab = get().tabs.find((t) => t.kind === "file" && t.path && samePath(t.path, doc.path));
   if (tab && tab.dirty !== dirty) {
     set((s) => ({ tabs: s.tabs.map((t) => (t === tab ? { ...t, dirty } : t)) }));
   }
@@ -301,6 +301,12 @@ function insertTab(tab: Tab) {
   });
 }
 
+/** Opens a tab that isn't a file editor (a diff, a view), or shows it when it is open already. */
+export function openViewTab(tab: Omit<Tab, "group"> & { group?: Group }) {
+  if (!get().tabs.some((x) => x.id === tab.id)) insertTab({ ...tab, group: tab.group ?? targetGroup() });
+  activate(tab.id);
+}
+
 /** Pinned tabs come first in their group. */
 function sortPinned(tabs: Tab[]): Tab[] {
   return [...tabs.filter((t) => t.pinned), ...tabs.filter((t) => !t.pinned)];
@@ -311,7 +317,8 @@ export async function openFile(path: string, at?: { line: number; col?: number; 
     openDiagram(path, group);
     return;
   }
-  const existing = get().tabs.find((t) => t.path && samePath(t.path, path));
+  // A diff of the file carries its path too; only an editor (or image) tab is the file.
+  const existing = get().tabs.find((t) => (t.kind === "file" || t.kind === "image") && t.path && samePath(t.path, path));
   if (existing) {
     activate(existing.id);
   } else if (IMAGE_EXTENSIONS.has(extname(path))) {
@@ -496,7 +503,7 @@ export async function saveDoc(path: string): Promise<boolean> {
     return false;
   }
   doc.saved = doc.state.doc;
-  set((s) => ({ tabs: s.tabs.map((t) => (t.path && samePath(t.path, path) ? { ...t, dirty: false } : t)) }));
+  set((s) => ({ tabs: s.tabs.map((t) => (t.kind === "file" && t.path && samePath(t.path, path) ? { ...t, dirty: false } : t)) }));
   if (extname(path) === "java") javaIndex.set(path, text);
   const lang = languageFor(path).id;
   if (get().settings.livePreview && (lang === "html" || lang === "css" || lang === "javascript")) {
@@ -789,7 +796,9 @@ export async function createProject(parent: string, name: string, template: Temp
   const root = join(parent, name);
   if (await api.exists(root)) throw new Error(t("A folder named “{0}” already exists there.", name));
   await api.createDir(root);
-  for (const [file, text] of Object.entries(tpl.files)) await api.createFile(join(root, file), text);
+  // Maven and Gradle want a lower-case project id.
+  const artifact = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "app";
+  for (const [file, text] of Object.entries(tpl.files)) await api.createFile(join(root, file), text.replace(/\{\{artifact\}\}/g, artifact));
   await openFolder(root);
   await openFile(join(root, tpl.open));
   if (template === "web") openPreview();
@@ -911,7 +920,12 @@ export async function compileJava(quiet = false): Promise<boolean> {
   clearOutput();
   const jdk = get().settings.jdkHome || get().jdks[0]?.home || null;
   const version = get().jdks.find((j) => j.home === jdk)?.version;
-  appendOutput("system", (version ? t("Compiling with JDK {0}…", version) : t("Compiling with javac…")) + "\n");
+  const { useBuild, toolName } = await import("./build");
+  const build = useBuild.getState().info;
+  appendOutput(
+    "system",
+    (build ? t("Building with {0} (the first build downloads the dependencies, which can take a while)…", toolName(build)) : version ? t("Compiling with JDK {0}…", version) : t("Compiling with javac…")) + "\n",
+  );
   try {
     const result = await api.javaCompile(root, jdk);
     const problems = normalizeDiagnostics(result.diagnostics);
@@ -1057,6 +1071,7 @@ async function restoreSession(): Promise<boolean> {
   try {
     await openFolder(session.root);
     for (const tab of session.tabs) {
+      if (tab.kind === "diff" || tab.kind === "sequence") continue;
       if (tab.kind === "uml") openDiagram(tab.path && (await api.exists(tab.path).catch(() => false)) ? tab.path : null, tab.group);
       else if (tab.path && (await api.exists(tab.path).catch(() => false))) await openFile(tab.path, undefined, tab.group);
       else continue;
@@ -1126,7 +1141,7 @@ async function applyFsChanges() {
           if (g !== null && viewOf(g)) viewOf(g)!.dispatch({ changes });
           else doc.state = doc.state.update({ changes }).state;
           doc.saved = doc.state.doc;
-          set((s) => ({ tabs: s.tabs.map((x) => (x.path && samePath(x.path, p) ? { ...x, dirty: false } : x)) }));
+          set((s) => ({ tabs: s.tabs.map((x) => (x.kind === "file" && x.path && samePath(x.path, p) ? { ...x, dirty: false } : x)) }));
           if (isJava) javaIndex.set(p, file.text);
         }
       } catch {
@@ -1154,6 +1169,12 @@ export async function init() {
   void import("../lsp/clients").then((m) => {
     m.setLanguageRefresher(refreshLanguages as never);
     m.startWebServers();
+  });
+  void import("./git").then((m) => m.initGit());
+  void import("./build").then((m) => m.initBuild());
+  // A project that installs or removes Stylelint is asked again.
+  void events.onFsChanged((paths) => {
+    if (paths.some((p) => /[\\/](package\.json|node_modules)$/i.test(p))) void import("../editor/stylelint").then((m) => m.forgetStylelint());
   });
   await events.onRunOutput((e) => {
     const run = get().run;

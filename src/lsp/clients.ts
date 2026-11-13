@@ -396,7 +396,7 @@ async function runAction(client: LSPClient, a: CodeAction) {
 }
 
 /** Asks the server what it can fix or do at the cursor, and offers it as a menu. */
-export async function quickFix(view: EditorView, path: string, only?: string[]) {
+export async function quickFix(view: EditorView, path: string, only?: string[], opts: { menu?: boolean; heading?: string; empty?: string } = {}) {
   const plugin = LSPPlugin.get(view);
   if (!plugin) {
     toast("info", t("No quick fixes here"), t("Quick fixes come from a language server; for Java, install it in Settings."));
@@ -425,12 +425,22 @@ export async function quickFix(view: EditorView, path: string, only?: string[]) 
     return;
   }
   actions = actions.filter((a) => typeof a === "object" && a.title);
-  if (only && actions.length === 1) return runAction(client, actions[0]);
+  if (only && !opts.menu && actions.length === 1) return runAction(client, actions[0]);
   const coords = view.coordsAtPos(sel.head) ?? { left: 200, bottom: 200 };
   const items: MenuItem[] = actions.length
     ? [...actions.filter((a) => a.isPreferred), ...actions.filter((a) => !a.isPreferred)].map((a) => ({ label: a.title, onSelect: () => void runAction(client, a) }))
-    : [{ label: t("No quick fixes here"), disabled: true, onSelect: () => {} }];
+    : [{ label: opts.empty ?? t("No quick fixes here"), disabled: true, onSelect: () => {} }];
+  if (opts.heading) items.unshift({ type: "heading", label: opts.heading });
   openMenu({ items, x: coords.left, y: coords.bottom + 4 });
+}
+
+/** Refactorings for the selection: extract to a variable, constant or method, inline, convert… */
+export function refactor(view: EditorView, path: string) {
+  if (!LSPPlugin.get(view)) {
+    toast("info", t("No refactorings here"), t("Refactorings come from a language server; for Java, install it in Settings."));
+    return;
+  }
+  return quickFix(view, path, ["refactor"], { menu: true, heading: t("Refactor"), empty: t("Select an expression or some lines to extract them.") });
 }
 
 export function organizeImports(view: EditorView, path: string) {

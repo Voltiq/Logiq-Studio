@@ -10,7 +10,9 @@ import { TEMPLATES, type TemplateId } from "../lib/templates";
 import { COMMANDS } from "../lib/commands";
 import { UmlDialogs } from "../uml/ClassDialogs";
 import { ToolDialogs } from "./ToolDialogs";
+import { CloneDialog } from "./CloneDialog";
 import { installJavaServer, startJavaServer, useLsp } from "../lsp/clients";
+import { loadShells, useTerminals } from "../lib/terminals";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { Checkbox, RadioList, Segmented, Select, TextField, Toggle } from "./ui/Field";
@@ -334,6 +336,8 @@ function SettingsDialog() {
       />
       <Toggle label={t("Save all files before running")} checked={s.saveBeforeRun} onChange={(v) => setSettings({ saveBeforeRun: v })} />
       <Toggle label={t("Reload the web preview on save")} checked={s.livePreview} onChange={(v) => setSettings({ livePreview: v })} />
+      <h3 className="settings-heading">{t("Terminal")}</h3>
+      <TerminalShellSetting />
       <h3 className="settings-heading">{t("Java")}</h3>
       <JavaServerSetting />
       <div className="settings-row is-end">
@@ -350,6 +354,20 @@ function SettingsDialog() {
       )}
       <p className="dialog-text">JavaScript files run with {node ? `Node.js ${node.version}` : "Node.js, which wasn't found on this computer"}.</p>
     </Modal>
+  );
+}
+
+function TerminalShellSetting() {
+  const shells = useTerminals((s) => s.shells);
+  const value = useStore((st) => st.settings.terminalShell);
+  useEffect(() => void loadShells(), []);
+  return (
+    <Select
+      label={t("Shell for new terminals")}
+      value={shells.some((x) => x.id === value) ? value : ""}
+      onChange={(v) => setSettings({ terminalShell: v })}
+      options={[{ value: "", label: shells[0] ? t("First found ({0})", shells[0].name) : t("None found") }, ...shells.map((x) => ({ value: x.id, label: x.name }))]}
+    />
   );
 }
 
@@ -400,7 +418,7 @@ function AboutDialog() {
       <div className="about">
         <img src="/app-icon.svg" alt="" width={64} height={64} />
         <div>
-          <p className="about-name">Logiq Studio 0.5.0</p>
+          <p className="about-name">Logiq Studio 0.6.0</p>
           <p className="dialog-text">{t("An IDE for Java, HTML, CSS and JavaScript that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.")}</p>
         </div>
       </div>
@@ -460,6 +478,8 @@ export function Dialogs() {
     case "libraries":
     case "installJdk":
       return <ToolDialogs d={d} />;
+    case "clone":
+      return <CloneDialog />;
     default:
       return <UmlDialogs d={d} />;
   }

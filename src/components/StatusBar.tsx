@@ -1,4 +1,8 @@
-import { CircleAlert, Coffee, Hexagon, TriangleAlert } from "lucide-react";
+import { CircleAlert, Coffee, GitBranch, Hammer, Hexagon, TriangleAlert } from "lucide-react";
+import { toolName, useBuild } from "../lib/build";
+import { buildMenu } from "../lib/commands";
+import { useGit } from "../lib/git";
+import { branchMenu } from "./SourceControl";
 import { activeTab, openDialog, set, useStore } from "../lib/store";
 import { languageFor } from "../editor/languages";
 import { getDoc } from "../editor/docs";
@@ -12,6 +16,8 @@ export function StatusBar() {
   const jdks = useStore((s) => s.jdks);
   const node = useStore((s) => s.node);
   const javaServer = useLsp((s) => s.java);
+  const gitStatus = useGit((s) => s.status);
+  const build = useBuild((s) => s.info);
   const problems = useStore((s) => s.problems);
   const errors = problems.filter((p) => p.severity === "error").length;
   const warnings = problems.length - errors;
@@ -28,6 +34,20 @@ export function StatusBar() {
         <TriangleAlert size={13} className={warnings ? "is-warning" : undefined} aria-hidden="true" />
         <span className="is-mono">{warnings}</span>
       </button>
+      {gitStatus && (
+        <button type="button" className="status-item" onClick={(e) => void branchMenu(e.currentTarget)} data-tooltip={t("Switch branch")}>
+          <GitBranch size={13} aria-hidden="true" />
+          {gitStatus.detached ? t("(detached)") : gitStatus.branch}
+          {gitStatus.unborn ? "" : gitStatus.upstream ? (gitStatus.ahead || gitStatus.behind ? ` ${gitStatus.behind}↓ ${gitStatus.ahead}↑` : "") : ""}
+          {gitStatus.files.length > 0 && "*"}
+        </button>
+      )}
+      {build && (
+        <button type="button" className="status-item" onClick={(e) => buildMenu(e.currentTarget)} data-tooltip={build.program ? t("{0} tasks", toolName(build)) : t("{0} wasn't found", toolName(build))}>
+          <Hammer size={13} className={build.program ? undefined : "is-warning"} aria-hidden="true" />
+          {toolName(build)}
+        </button>
+      )}
       <span className="spacer" />
       {isFile && (
         <>

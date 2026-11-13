@@ -127,6 +127,14 @@ async function launcher(): Promise<string | null> {
 export async function runTests(select?: string) {
   const root = get().root;
   if (!root || useTests.getState().status === "running") return;
+  const { useBuild, runBuildTask } = await import("./build");
+  const build = useBuild.getState().info;
+  if (build) {
+    // The build tool brings its own JUnit; its test task runs them (one class or method with a filter).
+    const filter = select ? (build.tool === "maven" ? [`-Dtest=${select.replace(/^.*\./, "")}`] : ["--tests", select.replace("#", ".")]) : [];
+    await runBuildTask(["test", ...filter]);
+    return;
+  }
   const jar = await launcher();
   if (!jar) return;
   if (!(await compileJava(true))) return;

@@ -293,7 +293,7 @@ mod tests {
         let uri = format!("file:///{}", file.to_string_lossy().replace('\\', "/"));
         let root = format!("file:///{}", project.to_string_lossy().replace('\\', "/"));
         let t = Instant::now();
-        send(json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"processId": null, "rootUri": root, "capabilities": {"textDocument": {"publishDiagnostics": {}, "completion": {"completionItem": {"snippetSupport": true}}, "codeAction": {"codeActionLiteralSupport": {"codeActionKind": {"valueSet": ["quickfix", "source.organizeImports"]}}}}}, "workspaceFolders": [{"uri": root, "name": "test"}], "initializationOptions": {"settings": {"java": {"completion": {"filteredTypes": ["java.awt.List", "com.sun.*", "sun.*", "jdk.*"]}}}}}}));
+        send(json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"processId": null, "rootUri": root, "capabilities": {"textDocument": {"publishDiagnostics": {}, "completion": {"completionItem": {"snippetSupport": true}}, "codeAction": {"codeActionLiteralSupport": {"codeActionKind": {"valueSet": ["quickfix", "refactor", "source", "source.organizeImports"]}}, "resolveSupport": {"properties": ["edit"]}}}}, "workspaceFolders": [{"uri": root, "name": "test"}], "initializationOptions": {"settings": {"java": {"completion": {"filteredTypes": ["java.awt.List", "com.sun.*", "sun.*", "jdk.*"]}}}}}}));
         wait(&mut send, &|m| m["id"] == 1, 120);
         send(json!({"jsonrpc": "2.0", "method": "initialized", "params": {}}));
         send(json!({"jsonrpc": "2.0", "method": "textDocument/didOpen", "params": {"textDocument": {"uri": uri, "languageId": "java", "version": 1, "text": text}}}));
@@ -320,6 +320,25 @@ mod tests {
         eprintln!("quick fixes: {titles:?}");
         assert!(titles.iter().any(|t| t == "Import 'List' (java.util)"));
         assert!(!titles.iter().any(|t| t.contains("com.sun") || t.contains("(java.awt)")), "internal packages are filtered");
+
+        // Refactorings for a selected expression: `"x"` on line 3 (`        String s = "x";`).
+        send(json!({"jsonrpc": "2.0", "id": 5, "method": "textDocument/codeAction", "params": {"textDocument": {"uri": uri}, "range": {"start": {"line": 3, "character": 19}, "end": {"line": 3, "character": 22}}, "context": {"diagnostics": [], "only": ["refactor"]}}}));
+        let a = wait(&mut send, &|m| m["id"] == 5, 60);
+        let actions = a["result"].as_array().cloned().unwrap_or_default();
+        let titles: Vec<String> = actions.iter().map(|x| x["title"].as_str().unwrap_or("").to_string()).collect();
+        eprintln!("refactorings: {titles:?}");
+        let extract = actions.iter().find(|x| x["title"].as_str().unwrap_or("").starts_with("Extract to local variable")).expect("no extract to variable");
+        // Without the advanced client support, JDT LS hands over the edit itself (or a command that carries it).
+        let edit = extract.get("edit").cloned().or_else(|| extract["command"]["arguments"].as_array().and_then(|a| a.iter().find(|x| x.get("changes").is_some() || x.get("documentChanges").is_some()).cloned()));
+        let edit = match edit {
+            Some(e) => e,
+            None => {
+                send(json!({"jsonrpc": "2.0", "id": 6, "method": "codeAction/resolve", "params": extract}));
+                wait(&mut send, &|m| m["id"] == 6, 60)["result"]["edit"].clone()
+            }
+        };
+        let text = edit.to_string();
+        assert!(text.contains("String string = \\\"x\\\"") || text.contains("= \\\"x\\\""), "{text}");
 
         send(json!({"jsonrpc": "2.0", "id": 4, "method": "shutdown"}));
         let _ = wait(&mut send, &|m| m["id"] == 4, 30);

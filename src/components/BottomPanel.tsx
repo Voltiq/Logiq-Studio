@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CircleAlert, CornerDownLeft, Eraser, TriangleAlert, X } from "lucide-react";
-import { clearOutput, set, useStore } from "../lib/store";
+import { ChevronDown, CircleAlert, CornerDownLeft, Eraser, Plus, Trash2, TriangleAlert, X } from "lucide-react";
+import { clearOutput, openMenu, set, useStore } from "../lib/store";
+import { TerminalPanel } from "./TerminalPanel";
+import { clearTerminal, closeTerminal, loadShells, newTerminal, useTerminals } from "../lib/terminals";
 import { openFile, sendInput } from "../lib/actions";
 import { basename, relative } from "../lib/paths";
 import { IconButton } from "./ui/Button";
@@ -129,6 +131,8 @@ export function BottomPanel() {
   const errors = problems.filter((p) => p.severity === "error").length;
   const warnings = problems.length - errors;
   const failedTests = useTests((s) => s.cases.filter((c) => c.status === "failed" || c.status === "error").length);
+  const terminals = useTerminals((s) => s.tabs.length);
+  const activeTerminal = useTerminals((s) => s.active);
 
   return (
     <section className="bottom panel" aria-label={t("Output and problems")}>
@@ -149,12 +153,39 @@ export function BottomPanel() {
           <button type="button" role="tab" aria-selected={tab === "jshell"} className={cx("segment", tab === "jshell" && "is-selected")} onClick={() => set({ panelTab: "jshell" })}>
             JShell
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "terminal"}
+            className={cx("segment", tab === "terminal" && "is-selected")}
+            onClick={() => (useTerminals.getState().tabs.length ? set({ panelTab: "terminal" }) : void newTerminal())}
+          >
+            {t("Terminal")}
+            {terminals > 1 && <Badge>{terminals}</Badge>}
+          </button>
         </div>
         <span className="spacer" />
         {tab === "output" && <IconButton icon={Eraser} label={t("Clear output")} spacing="compact" onClick={clearOutput} />}
+        {tab === "terminal" && (
+          <>
+            <IconButton icon={Plus} label={t("New terminal")} shortcut="Ctrl+Shift+`" spacing="compact" onClick={() => void newTerminal()} />
+            <IconButton
+              icon={ChevronDown}
+              label={t("New terminal with…")}
+              spacing="compact"
+              onClick={async (e) => {
+                const anchor = e.currentTarget;
+                const shells = await loadShells();
+                openMenu({ anchor, align: "end", items: shells.map((sh) => ({ label: sh.name, onSelect: () => void newTerminal(sh.id) })) });
+              }}
+            />
+            <IconButton icon={Eraser} label={t("Clear terminal")} spacing="compact" disabled={activeTerminal === null} onClick={clearTerminal} />
+            <IconButton icon={Trash2} label={t("Close terminal")} spacing="compact" disabled={activeTerminal === null} onClick={() => activeTerminal !== null && closeTerminal(activeTerminal)} />
+          </>
+        )}
         <IconButton icon={X} label={t("Close panel")} shortcut="Ctrl+J" spacing="compact" onClick={() => set({ panelOpen: false })} />
       </div>
-      <div className="bottom-body">{tab === "output" ? <Output /> : tab === "problems" ? <Problems /> : tab === "tests" ? <TestsPanel /> : <ShellPanel />}</div>
+      <div className="bottom-body">{tab === "output" ? <Output /> : tab === "problems" ? <Problems /> : tab === "tests" ? <TestsPanel /> : tab === "terminal" ? <TerminalPanel /> : <ShellPanel />}</div>
     </section>
   );
 }

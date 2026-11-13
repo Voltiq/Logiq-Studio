@@ -160,7 +160,11 @@ pub(crate) fn java_bin(jdk_home: &Option<String>, tool: &str) -> PathBuf {
 /// The folder itself plus every jar in its `lib` folder.
 pub(crate) fn class_path(root: &Path, out: &Path) -> String {
     let sep = if cfg!(windows) { ";" } else { ":" };
-    let mut parts = vec![out.to_string_lossy().to_string()];
+    // A Maven or Gradle project: the class path of its last build.
+    let mut parts = match crate::build::saved_class_path(root) {
+        Some(cp) => vec![cp],
+        None => vec![out.to_string_lossy().to_string()],
+    };
     if root.join("lib").is_dir() {
         parts.push(root.join("lib").join("*").to_string_lossy().to_string());
     }
@@ -180,6 +184,22 @@ pub struct Diagnostic {
     message: String,
 }
 
+impl Diagnostic {
+    pub(crate) fn new(path: String, line: u32, column: u32, severity: &str, message: &str) -> Self {
+        Diagnostic { path, line, column, severity: severity.into(), message: message.into() }
+    }
+
+    pub(crate) fn add_detail(&mut self, detail: &str) {
+        self.message.push('\n');
+        self.message.push_str(detail);
+    }
+
+    pub(crate) fn key(&self) -> String {
+        // The first line only: the same problem can come with more or fewer details.
+        format!("{}:{}:{}:{}", self.path, self.line, self.column, self.message.lines().next().unwrap_or(""))
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompileResult {
@@ -188,6 +208,12 @@ pub struct CompileResult {
     output: String,
     files: usize,
     duration_ms: u64,
+}
+
+impl CompileResult {
+    pub(crate) fn new(ok: bool, diagnostics: Vec<Diagnostic>, output: String, files: usize, duration_ms: u64) -> Self {
+        CompileResult { ok, diagnostics, output, files, duration_ms }
+    }
 }
 
 /// Reads javac's report: `File.java:12: error: message`, the source line, a
@@ -263,6 +289,9 @@ pub async fn java_compile(root: String, jdk_home: Option<String>) -> Result<Comp
     tauri::async_runtime::spawn_blocking(move || {
         let started = Instant::now();
         let root = PathBuf::from(&root);
+        if crate::build::tool_of(&root).is_some() {
+            return crate::build::compile(&root, &jdk_home);
+        }
         let out_dir = root.join("out");
         let files = java_sources(&root);
         if files.is_empty() {

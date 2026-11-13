@@ -274,8 +274,8 @@ UML class diagram draws itself from your Java code while you type, like in the R
       opens from the explorer
 
 ### Still open, moved on
-- [ ] Stylelint: the CSS language service's validation covers the common mistakes; a full Stylelint needs Node → v0.6
-- [ ] Java refactorings beyond rename (extract method / variable) through the language server → v0.6
+- [x] Stylelint: the CSS language service's validation covers the common mistakes; a full Stylelint needs Node (done in v0.6)
+- [x] Java refactorings beyond rename (extract method / variable) through the language server (done in v0.6)
 
 ### Known limits of v0.5
 - JDT LS needs Java 21 or newer to run itself (projects can target older versions); its first start in a project
@@ -284,12 +284,61 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - The language servers were tested in the browser stand-in (TypeScript, HTML, CSS, ESLint) and natively (JDT LS
   framing, install and a whole session); the Java server inside the installed app isn't checked yet
 
-## v0.6 — Terminal, Git and build tools
-- [ ] Maven and Gradle projects: open, build, run, dependencies on the class path
-- [ ] Integrated terminal (PTY + xterm.js) with several tabs
-- [ ] Git: status colours in the explorer and gutter, diff view, stage / commit / push / pull, branches,
-      history
-- [ ] Clone a repository from the welcome screen
+## v0.6 — Terminal, Git and build tools (2026-11-13)
+
+### Terminal
+- [x] **Integrated terminal** in the bottom panel: real shells in a pseudo console (ConPTY), drawn with xterm.js;
+      several terminals with a list beside them; PowerShell, Windows PowerShell, the Command Prompt or Git Bash
+      (Settings → Terminal, or *New terminal with…*); opens in the project folder with the IDE's JDK first on the
+      `PATH` and as `JAVA_HOME`
+- [x] ``Ctrl+` `` shows and hides it, ``Ctrl+Shift+` `` opens another; keys like `Ctrl+R`, `Ctrl+B` or `Ctrl+W` go to
+      the shell, `Ctrl+C` copies when text is selected, `Ctrl+V` pastes; links open in the browser; colours follow
+      Graphite and Porcelain; a shell that ends starts again with Enter
+- [x] Native test against a real PowerShell: output comes back (umlauts too, split between reads), the exit is seen
+
+### Git
+- [x] **Source control** view (`Ctrl+Shift+G`): branch, ahead and behind, staged changes and changes (stage,
+      unstage, discard with Recycle Bin for new files, all at once), commit message with `Ctrl+Enter`, commit
+      everything when nothing is staged (after asking), amend; asks for name and e-mail when git doesn't know them
+- [x] **Explorer colours** and letters (M, U, A, D, !) for changed, new, deleted and conflicting files, a dot on
+      folders that hold changes, ignored files dimmed
+- [x] **Change bar** in the editor: added, changed and deleted lines since the last commit; a click opens the diff
+- [x] **Diff view**: side by side, unchanged stretches folded, previous and next change; the working copy's diff
+      follows edits
+- [x] **Branches**: switch (remote branches become tracking branches), new branch; in the status bar too
+- [x] **Push, pull, fetch, sync** with progress; publishing a branch sets its upstream; *Add a remote…* when there
+      is none; git never waits for a password in the background (the Windows credential manager asks)
+- [x] **History**: the last 200 commits with refs and dates; a commit's files and what changed in each
+- [x] **Clone a repository** from the welcome screen or the File menu, with git's progress, then open it
+- [x] Native tests against real repositories: status with umlaut paths, staging, commit, log, branches, clone
+      through the streaming runner and push back
+
+### Maven and Gradle
+- [x] A folder with `pom.xml` or a Gradle build compiles with its build tool (the project's wrapper when it has
+      one, else Maven or Gradle from the `PATH`); Run, Debug, the object bench, JUnit and JShell use the class
+      path the tool works out, dependencies included (`.logiq/build-classpath.txt`)
+- [x] Maven's compiler errors and Gradle's are listed under Problems and underlined like javac's
+- [x] **Build tool tasks** in the Run menu and the status bar (compile, test, package, install, clean,
+      dependencies; any goal or task) run in the terminal; *Run all tests* runs the tool's test task
+- [x] New project templates: **Maven project** and **Gradle project** (Kotlin DSL) with a JUnit 5 test
+- [x] Native test with a real Maven 3.9: build with JUnit on the class path, run, a compile error at the right line
+
+### Language intelligence
+- [x] **Refactor…** (`Ctrl+Shift+R`) through JDT LS: extract to local variable, constant, field or method, surround
+      with try/catch and the rest JDT LS offers for the selection (checked against the real JDT LS)
+- [x] **Stylelint** for CSS, SCSS and Less with the project's own Stylelint (from `node_modules`, its configuration
+      applies), run with Node.js
+
+### Still open, moved on
+- [ ] Merge conflicts: a view to pick ours / theirs per conflict (conflicting files are marked and block a commit) → v0.7
+- [ ] Stash, tags, rebase and blame in the interface (they work in the terminal) → v0.7
+
+### Known limits of v0.6
+- Gradle was tested with unit tests only (no Gradle on this machine); its class path comes from an init script
+  that reads `sourceSets.test.runtimeClasspath`
+- Stylelint was tested with unit tests (the report format) only, not with a real Stylelint install
+- The terminal, Git and the build tools were tried in the browser stand-in and tested natively in parts; not
+  yet in the installed app
 
 ## v0.7 — More languages
 - [ ] Python (run, virtual environments, class diagrams from Python classes)

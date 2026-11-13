@@ -24,6 +24,8 @@ export interface Settings {
   /** Empty: the newest JDK found. */
   jdkHome: string;
   nodePath: string;
+  /** The shell new terminals start; empty: the first one found. */
+  terminalShell: string;
   uml: UmlOptions;
   recent: string[];
   sidebarWidth: number;
@@ -49,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   saveBeforeRun: true,
   jdkHome: "",
   nodePath: "",
+  terminalShell: "",
   uml: DEFAULT_UML_OPTIONS,
   recent: [],
   sidebarWidth: 272,

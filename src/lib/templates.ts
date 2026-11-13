@@ -1,6 +1,6 @@
 /* Starting points for a new project. */
 
-export type TemplateId = "java-console" | "java-classes" | "web";
+export type TemplateId = "java-console" | "java-classes" | "web" | "maven" | "gradle";
 
 export interface Template {
   id: TemplateId;
@@ -210,6 +210,119 @@ button.addEventListener("click", () => {
 `,
 };
 
+const app = `package app;
+
+/** Starts the program. */
+public class App {
+    public static void main(String[] args) {
+        System.out.println(greeting("World"));
+    }
+
+    static String greeting(String name) {
+        return "Hello, " + name + "!";
+    }
+}
+`;
+
+const appTest = `package app;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class AppTest {
+    @Test
+    void greets() {
+        assertEquals("Hello, Ada!", App.greeting("Ada"));
+    }
+}
+`;
+
+const buildIgnore = `# Build output
+target/
+build/
+.gradle/
+out/
+# Worked out by Logiq Studio on each build
+.logiq/build-classpath.txt
+`;
+
+const maven: Record<string, string> = {
+  "pom.xml": `<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>app</groupId>
+  <artifactId>{{artifact}}</artifactId>
+  <version>1.0-SNAPSHOT</version>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.12.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.3</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+`,
+  "src/main/java/app/App.java": app,
+  "src/test/java/app/AppTest.java": appTest,
+  ".gitignore": buildIgnore,
+};
+
+const gradle: Record<string, string> = {
+  "settings.gradle.kts": `rootProject.name = "{{artifact}}"
+`,
+  "build.gradle.kts": `plugins {
+    application
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation(platform("org.junit:junit-bom:5.12.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.withType<JavaCompile> {
+    options.release = 21
+    options.encoding = "UTF-8"
+}
+
+application {
+    mainClass = "app.App"
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+`,
+  "src/main/java/app/App.java": app,
+  "src/test/java/app/AppTest.java": appTest,
+  ".gitignore": buildIgnore,
+};
+
 export const TEMPLATES: Template[] = [
   {
     id: "java-classes",
@@ -224,6 +337,20 @@ export const TEMPLATES: Template[] = [
     description: "A main class that reads from the keyboard and prints an answer.",
     open: "Main.java",
     files: { "Main.java": consoleMain },
+  },
+  {
+    id: "maven",
+    title: "Maven project",
+    description: "Java with Maven: src/main/java, a JUnit 5 test and a pom.xml for dependencies. Needs Maven or a Maven Wrapper.",
+    open: "src/main/java/app/App.java",
+    files: maven,
+  },
+  {
+    id: "gradle",
+    title: "Gradle project",
+    description: "Java with Gradle (Kotlin DSL): the application plugin, a JUnit 5 test and build.gradle.kts. Needs Gradle or a Gradle Wrapper.",
+    open: "src/main/java/app/App.java",
+    files: gradle,
   },
   {
     id: "web",

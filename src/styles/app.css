@@ -2882,3 +2882,102 @@ button.status-item:hover {
 .pick-classes-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow: auto; padding: 4px 2px; border-top: 1px solid var(--line); }
 .pick-classes-item { display: inline-flex; gap: 8px; align-items: baseline; }
 .pick-classes-detail { color: var(--text-subtle); font: 400 11px var(--font-code); }
+
+/* ----- Terminal ----- */
+.terminal { display: flex; height: 100%; min-height: 0; }
+.terminal-host { flex: 1; min-width: 0; height: 100%; padding: 6px 0 0 12px; overflow: hidden; }
+.terminal-screen { width: 100%; height: 100%; }
+.terminal-screen .xterm { height: 100%; }
+.terminal-screen .xterm-viewport { background: transparent !important; }
+.terminal-list { width: 180px; flex: none; border-left: 1px solid var(--line); padding: 6px; display: flex; flex-direction: column; gap: 2px; overflow: auto; }
+.terminal-item { display: flex; align-items: center; border-radius: 6px; color: var(--text-subtle); }
+.terminal-item:hover { background: var(--wash); }
+.terminal-item.is-active { background: var(--wash-2); color: var(--text); }
+.terminal-item.is-exited .terminal-item-name span { text-decoration: line-through; opacity: 0.7; }
+.terminal-item-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: none; border: 0; color: inherit; font: inherit; font-size: var(--font-size-small); text-align: left; cursor: pointer; }
+.terminal-item-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-item-close { display: grid; place-items: center; width: 20px; height: 20px; margin-right: 2px; border: 0; border-radius: 4px; background: none; color: inherit; opacity: 0; cursor: pointer; }
+.terminal-item:hover .terminal-item-close, .terminal-item.is-active .terminal-item-close { opacity: 1; }
+.terminal-item-close:hover { background: var(--wash-2); }
+.terminal-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 16px; }
+
+/* ----- Git: explorer, gutter, source control, diff ----- */
+.tree-row.git-modified .tree-name, .tree-row.git-renamed .tree-name { color: var(--git-modified); }
+.tree-row.git-added .tree-name, .tree-row.git-untracked .tree-name { color: var(--git-added); }
+.tree-row.git-deleted .tree-name { color: var(--git-deleted); text-decoration: line-through; }
+.tree-row.git-conflict .tree-name { color: var(--git-deleted); font-weight: var(--font-weight-semibold); }
+.tree-row.git-ignored .tree-name { opacity: 0.5; }
+.tree-git { margin-left: auto; padding: 0 6px 0 4px; font: 600 11px var(--font-code); }
+.git-modified .tree-git, .git-renamed .tree-git { color: var(--git-modified); }
+.git-added .tree-git, .git-untracked .tree-git { color: var(--git-added); }
+.git-deleted .tree-git, .git-conflict .tree-git { color: var(--git-deleted); }
+.tree-git-dot { margin-left: auto; margin-right: 8px; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.6; flex: none; }
+.git-modified .tree-git-dot { color: var(--git-modified); }
+.git-added .tree-git-dot { color: var(--git-added); }
+.git-deleted .tree-git-dot, .git-conflict .tree-git-dot { color: var(--git-deleted); }
+:root { --git-added: #4cc38a; --git-modified: #e5b54a; --git-deleted: #f0616d; }
+:root[data-theme="light"] { --git-added: #1f8a57; --git-modified: #a86f00; --git-deleted: #c9283a; }
+
+.cm-git-gutter { width: 5px; }
+.cm-git-gutter .cm-gutterElement { padding: 0 !important; }
+.cm-git-mark { width: 3px; height: 100%; margin-left: 1px; border-radius: 1px; cursor: pointer; }
+.cm-git-mark.is-added { background: var(--git-added); }
+.cm-git-mark.is-modified { background: var(--git-modified); }
+.cm-git-mark.is-deleted { height: 0; border-left: 4px solid var(--git-deleted); border-top: 4px solid transparent; border-bottom: 4px solid transparent; background: none; transform: translateY(-4px); }
+
+.scm { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.scm-bar { display: flex; align-items: center; gap: 6px; padding: 2px 10px 8px; }
+.scm-branch, .scm-sync { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: var(--font-size-small); cursor: pointer; }
+.scm-branch:hover, .scm-sync:hover:not(:disabled) { background: var(--wash); }
+.scm-branch span { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scm-sync:disabled { opacity: 0.6; cursor: default; }
+.is-spinning { animation: scm-spin 1s linear infinite; }
+@keyframes scm-spin { to { transform: rotate(360deg); } }
+.scm-commit-box { display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px; }
+.scm-message { width: 100%; resize: none; padding: 7px 9px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--bg-input, var(--surface-2)); color: var(--text); font: inherit; font-size: var(--font-size-small); line-height: 1.4; }
+.scm-message:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.scm-scroll { flex: 1; overflow: auto; min-height: 0; padding-bottom: 12px; }
+.scm-section-head { display: flex; align-items: center; padding: 2px 6px 2px 4px; }
+.scm-section-head:hover .scm-section-actions { opacity: 1; }
+.scm-section-toggle { flex: 1; display: flex; align-items: center; gap: 4px; padding: 4px 2px; border: 0; background: none; color: var(--text-subtle); font: inherit; font-size: 11px; font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; text-align: left; }
+.scm-count { margin-left: 4px; padding: 0 6px; border-radius: 8px; background: var(--wash-2); font-size: 10.5px; letter-spacing: 0; }
+.scm-section-actions { display: flex; opacity: 0.7; }
+.scm-file { display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 8px 3px 22px; border: 0; background: none; color: var(--text); font: inherit; font-size: var(--font-size-small); text-align: left; cursor: pointer; }
+.scm-file:hover { background: var(--wash); }
+.scm-file:hover .scm-file-actions { display: flex; }
+.scm-file-name { white-space: nowrap; }
+.scm-file-name.is-deleted { text-decoration: line-through; opacity: 0.75; }
+.scm-file-dir { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-subtlest); font-size: 11px; }
+.scm-file-actions { display: none; }
+.scm-file-actions .icon-button { width: 22px; height: 22px; }
+.scm-letter { width: 14px; flex: none; text-align: center; font: 600 11px var(--font-code); }
+.scm-letter.is-modified, .scm-letter.is-renamed { color: var(--git-modified); }
+.scm-letter.is-added, .scm-letter.is-untracked { color: var(--git-added); }
+.scm-letter.is-deleted, .scm-letter.is-conflict { color: var(--git-deleted); }
+.scm-note { margin: 2px 0 6px; padding: 0 12px 0 24px; color: var(--text-subtlest); font-size: var(--font-size-small); }
+.scm-muted { color: var(--text-subtlest); margin-right: 4px; }
+.scm-commit-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 8px 4px 20px; border: 0; background: none; color: var(--text); font: inherit; font-size: var(--font-size-small); text-align: left; cursor: pointer; }
+.scm-commit-head:hover { background: var(--wash); }
+.scm-commit-icon { flex: none; color: var(--text-subtlest); }
+.scm-commit-subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scm-commit-when { flex: none; color: var(--text-subtlest); font-size: 11px; }
+.scm-ref { flex: none; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 5px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent-text); font: 500 10.5px var(--font-code); }
+.scm-commit-files .scm-file { padding-left: 40px; }
+
+.diff { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.diff-head { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: 8px; padding: 4px 8px 4px 12px; border-bottom: 1px solid var(--line); }
+.diff-label { color: var(--text-subtle); font: 500 11.5px var(--font-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.diff-tools { display: flex; align-items: center; gap: 2px; }
+.diff-count { margin-right: 6px; color: var(--text-subtlest); font-size: var(--font-size-small); }
+.diff-body { flex: 1; min-height: 0; overflow: auto; }
+.diff-body .cm-mergeView { height: 100%; }
+.diff-body .cm-mergeViewEditors { min-height: 100%; }
+.diff-body .cm-editor { height: auto; }
+.diff-body .cm-changedLine, .diff-body .cm-merge-b .cm-changedLine { background: color-mix(in srgb, var(--git-added) 12%, transparent); }
+.diff-body .cm-merge-a .cm-changedLine { background: color-mix(in srgb, var(--git-deleted) 12%, transparent); }
+.diff-body .cm-merge-b .cm-changedText { background: color-mix(in srgb, var(--git-added) 30%, transparent); }
+.diff-body .cm-merge-a .cm-changedText { background: color-mix(in srgb, var(--git-deleted) 30%, transparent); }
+.diff-body .cm-collapsedLines { background: var(--wash); color: var(--text-subtle); font-size: var(--font-size-small); }
+.diff-empty { padding: 24px; color: var(--text-subtle); }
+
+.clone-progress { margin: 4px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--wash); color: var(--text-subtle); font: 400 12px var(--font-code); white-space: pre-wrap; overflow-wrap: anywhere; }
