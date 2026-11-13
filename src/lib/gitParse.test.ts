@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cloneFolderName, isStaged, isUnstaged, kindOf, LOG_FORMAT, parseBranches, parseLog, parseNameStatus, parseStatus } from "./gitParse";
+import { cloneFolderName, isStaged, isUnstaged, kindOf, LOG_FORMAT, parseBlame, parseBranches, parseConflicts, parseLog, parseNameStatus, parseStashes, parseStatus, parseTags, resolveConflict } from "./gitParse";
 
 describe("parseStatus", () => {
   it("reads the branch, tracking and files", () => {
@@ -76,5 +76,48 @@ describe("cloneFolderName", () => {
     expect(cloneFolderName("https://github.com/acme/shapes.git")).toBe("shapes");
     expect(cloneFolderName("git@github.com:acme/shapes.git")).toBe("shapes");
     expect(cloneFolderName("https://example.org/repo/")).toBe("repo");
+  });
+});
+
+describe("stashes, tags, blame and conflicts", () => {
+  it("reads the stash list", () => {
+    const out = "stash@{0}\x1fOn main: half a feature\x1f2026-11-13T10:00:00+01:00\x1e\nstash@{1}\x1fWIP on main: abc123 Add a class\x1f2026-11-12T09:00:00+01:00\x1e\n";
+    expect(parseStashes(out)).toEqual([
+      { ref: "stash@{0}", message: "half a feature", date: "2026-11-13T10:00:00+01:00" },
+      { ref: "stash@{1}", message: "abc123 Add a class", date: "2026-11-12T09:00:00+01:00" },
+    ]);
+  });
+
+  it("reads tags, annotated or not", () => {
+    const c = "a".repeat(40);
+    const tagObj = "b".repeat(40);
+    const out = `v1.0\x1ftag\x1f${c}${tagObj}\x1fFirst release\x1f2026-11-13T10:00:00+01:00\x1e\nwip\x1fcommit\x1f${c}\x1fAdd a class\x1f2026-11-12T09:00:00+01:00\x1e\n`;
+    expect(parseTags(out)).toEqual([
+      { name: "v1.0", annotated: true, commit: c, subject: "First release", date: "2026-11-13T10:00:00+01:00" },
+      { name: "wip", annotated: false, commit: c, subject: "Add a class", date: "2026-11-12T09:00:00+01:00" },
+    ]);
+  });
+
+  it("reads porcelain blame", () => {
+    const a = "1".repeat(40);
+    const z = "0".repeat(40);
+    const out = `${a} 1 1 2\nauthor Ada Lovelace\nauthor-mail <ada@example.com>\nauthor-time 1700000000\nsummary Add Main\nfilename Main.java\n\tline one\n${a} 2 2\n\tline two\n${z} 3 3 1\nauthor Not Committed Yet\nauthor-time 1800000000\nsummary Version of Main.java from Main.java\nfilename Main.java\n\tnew line\n`;
+    const b = parseBlame(out);
+    expect(b.lines).toEqual([a, a, z]);
+    expect(b.commits.get(a)).toEqual({ hash: a, author: "Ada Lovelace", time: 1700000000, summary: "Add Main", uncommitted: false });
+    expect(b.commits.get(z)?.uncommitted).toBe(true);
+  });
+
+  it("finds conflict blocks and resolves them", () => {
+    const text = "a\n<<<<<<< HEAD\nmine\n=======\ntheirs\n>>>>>>> feature\nb\n<<<<<<< HEAD\nx\n||||||| base\no\n=======\ny\n>>>>>>> feature\n";
+    const blocks = parseConflicts(text);
+    expect(blocks).toEqual([
+      { start: 2, base: null, middle: 4, end: 6, current: "HEAD", incoming: "feature" },
+      { start: 8, base: 10, middle: 12, end: 14, current: "HEAD", incoming: "feature" },
+    ]);
+    const lines = text.split("\n");
+    expect(resolveConflict(lines, blocks[0], "current")).toEqual(["mine"]);
+    expect(resolveConflict(lines, blocks[0], "incoming")).toEqual(["theirs"]);
+    expect(resolveConflict(lines, blocks[1], "both")).toEqual(["x", "y"]);
   });
 });

@@ -330,8 +330,8 @@ UML class diagram draws itself from your Java code while you type, like in the R
       applies), run with Node.js
 
 ### Still open, moved on
-- [ ] Merge conflicts: a view to pick ours / theirs per conflict (conflicting files are marked and block a commit) → v0.7
-- [ ] Stash, tags, rebase and blame in the interface (they work in the terminal) → v0.7
+- [x] Merge conflicts: a view to pick ours / theirs per conflict (conflicting files are marked and block a commit) (done in v0.7)
+- [x] Stash, tags, rebase and blame in the interface (they work in the terminal) (done in v0.7)
 
 ### Known limits of v0.6
 - Gradle was tested with unit tests only (no Gradle on this machine); its class path comes from an init script
@@ -340,11 +340,73 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - The terminal, Git and the build tools were tried in the browser stand-in and tested natively in parts; not
   yet in the installed app
 
-## v0.7 — More languages
-- [ ] Python (run, virtual environments, class diagrams from Python classes)
-- [ ] C and C++ (gcc / clang, run with input)
-- [ ] Kotlin, SQL (with Atomiq Studio's grid), PHP
-- [ ] Language support as plug-ins: grammar, runner, outline and diagram extractor per language
+## v0.7 — More languages (2026-11-13)
+
+### Language plug-ins
+- [x] **Language support as plug-ins** (`src/languages`): each language has its grammar (`editor/languages.ts`),
+      and a plug-in with its runner, compile or check step (`Ctrl+F9`), tests, language server, check after
+      saving, outside formatter, status bar item, commands, terminal environment and editor keys; a structure
+      parser (`uml/javaIndex.ts`) gives the outline and the class diagram
+- [x] Tools found where their installers put them (PATH, LLVM, MSYS2, MinGW, python.org, C:\php, XAMPP, Scoop,
+      npm), never Windows' Store aliases; chosen in the status bar or **Settings → Languages** (Python per project)
+- [x] Language servers start with a language's first file when installed, and stop with the folder: clangd,
+      Pyright / basedpyright / pylsp / jedi, Intelephense / phpactor, kotlin-language-server
+- [x] File icons, templates and German texts for every new language
+
+### Python
+- [x] **Run** with the project's interpreter (a `.venv`, `venv` or any folder with `pyvenv.cfg` comes first),
+      unbuffered UTF-8 output as it is printed, input from the panel, program arguments from the run configuration
+- [x] An **exception becomes a problem** at the line in your own code where it happened (the last frame inside
+      the project), opened and underlined; `Ctrl+F9` checks the syntax with `py_compile`
+- [x] **Virtual environments**: create `.venv` (and install `requirements.txt` into it), install packages; new
+      terminals start with the environment active
+- [x] **Class diagrams from Python classes**: base classes, class attributes, annotated fields, every
+      `self.x = …` in a method (its type from the annotation, the value or the parameter), methods with
+      `@staticmethod` / `@classmethod` / `@abstractmethod` / `@property`, `_protected` and `__private`, enums,
+      protocols, nested classes, `list[X]` as 0..*, `X | None` as 0..1; shown, not edited, in the diagram
+- [x] Outline with classes and module-level functions; **tests** with pytest when installed, else unittest
+- [x] Tested: the parser and the traceback reader (with Python 3.14's own output), the run in the browser stand-in
+
+### C and C++
+- [x] Compiled with **clang or gcc** (`-std=c17` / `-std=c++20 -Wall -Wextra -g`, more flags in Settings): the
+      file's folder makes one program, leaving out other files with a `main`; output in `build/`
+- [x] Errors and warnings from gcc, clang (and MSVC's form) as problems with their column; `note:` lines added
+- [x] **Run with input** from the panel; clangd for completion, hover and errors as you type; **clang-format**
+      (the project's `.clang-format`, else the editor's indent)
+- [x] Tested natively: clang 23 compiles and runs a program with umlauts and keyboard input, a compile error at
+      the right line and column; clangd with the app's flags reports errors and completes struct members
+
+### PHP, Kotlin, SQL
+- [x] **PHP**: scripts run with the command line; pages (HTML, `$_GET`…) open in the preview, served by
+      `php -S` from the project folder and reloaded on save; every save is checked with `php -l`
+- [x] **Kotlin**: the project's `.kt` files compile with kotlinc into a jar (with the runtime) and the file's
+      `main` runs on the IDE's JDK; `.kts` scripts run with `kotlinc -script`; kotlinc's errors are problems
+- [x] **SQL with SQLite** (compiled in): the database is named in the file (`-- database: shop.db`) or a fresh
+      one is used in memory; F5 runs the file or the selection, `Ctrl+Enter` the statement at the cursor;
+      statements split where SQLite says a statement ends (triggers stay whole); stops at the first error, which
+      becomes a problem; **Results** panel with each statement and **Atomiq Studio's grid** (virtual rows,
+      sorting, column widths, copy as TSV); tables and columns complete as you type
+- [x] Tested natively: PHP's web server serves a page; SQL scripts, offsets, triggers, errors, file databases,
+      schema and row limits
+
+### Git
+- [x] **Merge** a branch and **rebase** onto one; a stopped merge, rebase, cherry-pick or revert shows a banner
+      with Continue (no editor opens), Skip (rebase) and Abort
+- [x] **Merge conflicts in the editor**: blocks coloured, and above each: accept current, incoming or both, or
+      compare; per file: take one side, compare the two sides, mark as resolved (warns when markers are left)
+- [x] **Stashes** (with new files): stash with a message, apply, pop, drop, see their files and diffs
+- [x] **Tags**: annotated or light, on HEAD or a commit from the history; delete (here, or on origin too); push
+- [x] **Blame** (`Ctrl+Alt+B`): commit, author and age beside each run of lines, for the text as it is in the
+      editor; a click opens what that commit changed in the file
+- [x] Tested against real git: merge with a conflict resolved and committed, rebase continued without an editor,
+      stash with new files, tags and blame of unsaved text (umlaut file names included)
+
+### Known limits of v0.7
+- Kotlin was tested with unit tests only (no kotlinc on this machine); Python, PHP and Kotlin language servers
+  weren't tried (none installed here) — clangd was
+- C and C++ build the file's folder as one program; projects with CMake or make run in the terminal
+- The PHP preview needs PHP's web server; pages that need a database server or Apache's rewrite rules don't run
+- Not yet tried in the installed app; checked in the browser stand-in and with native tests
 
 ## v0.8 — GUI designer
 - [ ] Design Swing (and later JavaFX) windows by dragging components; the code is generated and stays editable

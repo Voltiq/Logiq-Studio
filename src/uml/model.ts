@@ -62,6 +62,8 @@ export interface JType {
   line: number;
   endLine: number;
   hasMain: boolean;
+  /** The language when it isn't Java ("python"…); such classes are shown, not edited. */
+  language?: string;
 }
 
 export interface JFile {
@@ -69,6 +71,10 @@ export interface JFile {
   package: string;
   imports: string[];
   types: JType[];
+  /** Functions outside any class (Python's module-level functions). */
+  functions?: JMethod[];
+  /** Runs as a program (Python's `if __name__ == "__main__":`). */
+  isMain?: boolean;
 }
 
 export const VISIBILITY_SYMBOL: Record<Visibility, string> = {

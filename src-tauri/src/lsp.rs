@@ -106,6 +106,17 @@ pub fn lsp_stop(state: State<Servers>, id: String) {
     stop_one(&state, &id);
 }
 
+/// Starts a language server that speaks LSP over standard input and output (clangd, pylsp, …).
+#[tauri::command]
+pub fn lsp_start_program(app: AppHandle, id: String, program: String, args: Vec<String>, cwd: Option<String>) -> Result<(), String> {
+    let mut cmd = Command::new(&program);
+    cmd.args(&args);
+    if let Some(dir) = cwd.as_deref().filter(|d| Path::new(d).is_dir()) {
+        cmd.current_dir(dir);
+    }
+    start(app, id, cmd)
+}
+
 // ----- Eclipse JDT Language Server ------------------------------------------------------------
 
 const JDTLS_URL: &str = "https://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz";
@@ -344,5 +355,85 @@ mod tests {
         let _ = wait(&mut send, &|m| m["id"] == 4, 30);
         send(json!({"jsonrpc": "2.0", "method": "exit"}));
         let _ = child.wait();
+    }
+
+    /// Starts clangd (when LLVM is installed) the way the app does and checks that a C
+    /// file gets its errors and completion: `cargo test clangd_end_to_end -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn clangd_end_to_end() {
+        use serde_json::{json, Value};
+        use std::sync::mpsc;
+        use std::time::{Duration, Instant};
+
+        let Some(clangd) = tauri::async_runtime::block_on(crate::toolchain::tools_find("clangd".into(), None)).into_iter().next() else {
+            eprintln!("clangd isn't installed; skipped");
+            return;
+        };
+        let project = std::env::temp_dir().join("logiq-clangd-test");
+        let _ = std::fs::remove_dir_all(&project);
+        std::fs::create_dir_all(&project).unwrap();
+        let file = project.join("main.c");
+        let text = "#include <stdio.h>\n\nstruct Point { int x; int y; };\n\nint main(void) {\n    struct Point p = { 1, 2 };\n    printf(\"%d\\n\", p.);\n    return undefined_name;\n}\n";
+        std::fs::write(&file, text).unwrap();
+
+        let mut cmd = Command::new(&clangd.path);
+        cmd.args(["--header-insertion=never", "--background-index=false", "--log=error"]).current_dir(&project).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+        let mut child = no_window(&mut cmd).spawn().unwrap();
+        let mut stdin = child.stdin.take().unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let (tx, rx) = mpsc::channel::<Value>();
+        std::thread::spawn(move || {
+            let mut r = BufReader::new(stdout);
+            while let Some(m) = read_message(&mut r) {
+                if tx.send(serde_json::from_str(&m).unwrap()).is_err() {
+                    break;
+                }
+            }
+        });
+        let mut send = |v: Value| {
+            stdin.write_all(&frame(&v.to_string())).unwrap();
+            stdin.flush().unwrap();
+        };
+        let wait = |send: &mut dyn FnMut(Value), pred: &dyn Fn(&Value) -> bool, secs: u64| -> Value {
+            let end = Instant::now() + Duration::from_secs(secs);
+            loop {
+                let m = rx.recv_timeout(end.saturating_duration_since(Instant::now())).expect("timed out");
+                if m.get("method").is_some() && m.get("id").is_some() {
+                    send(json!({"jsonrpc": "2.0", "id": m["id"], "result": Value::Null}));
+                    continue;
+                }
+                if pred(&m) {
+                    return m;
+                }
+            }
+        };
+        let uri = format!("file:///{}", file.to_string_lossy().replace('\\', "/"));
+        let root = format!("file:///{}", project.to_string_lossy().replace('\\', "/"));
+        let t = Instant::now();
+        send(json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"processId": null, "rootUri": root, "capabilities": {"textDocument": {"publishDiagnostics": {}, "completion": {"completionItem": {"snippetSupport": true}}}}, "initializationOptions": {"fallbackFlags": ["-Wall", "-Wextra", "-D_CRT_SECURE_NO_WARNINGS"]}}}));
+        wait(&mut send, &|m| m["id"] == 1, 30);
+        send(json!({"jsonrpc": "2.0", "method": "initialized", "params": {}}));
+        send(json!({"jsonrpc": "2.0", "method": "textDocument/didOpen", "params": {"textDocument": {"uri": uri, "languageId": "c", "version": 1, "text": text}}}));
+        let diags = wait(&mut send, &|m| m["method"] == "textDocument/publishDiagnostics" && m["params"]["diagnostics"].as_array().is_some_and(|d| !d.is_empty()), 60);
+        let list = diags["params"]["diagnostics"].as_array().unwrap().clone();
+        eprintln!("diagnostics after {:?}:", t.elapsed());
+        for d in &list {
+            eprintln!("  {}:{} {}", d["range"]["start"]["line"], d["range"]["start"]["character"], d["message"]);
+        }
+        assert!(list.iter().any(|d| d["message"].as_str().unwrap().contains("undefined_name")), "an undeclared name is an error");
+
+        // Completion right after `p.` on line 6 (the printf call).
+        send(json!({"jsonrpc": "2.0", "id": 2, "method": "textDocument/completion", "params": {"textDocument": {"uri": uri}, "position": {"line": 6, "character": 21}}}));
+        let c = wait(&mut send, &|m| m["id"] == 2, 30);
+        let items = c["result"]["items"].as_array().cloned().or_else(|| c["result"].as_array().cloned()).unwrap_or_default();
+        let labels: Vec<String> = items.iter().map(|i| i["label"].as_str().unwrap_or("").trim().to_string()).collect();
+        eprintln!("completions: {labels:?}");
+        assert!(labels.iter().any(|l| l == "x") && labels.iter().any(|l| l == "y"));
+        send(json!({"jsonrpc": "2.0", "id": 3, "method": "shutdown"}));
+        let _ = wait(&mut send, &|m| m["id"] == 3, 10);
+        send(json!({"jsonrpc": "2.0", "method": "exit"}));
+        let _ = child.wait();
+        let _ = std::fs::remove_dir_all(&project);
     }
 }

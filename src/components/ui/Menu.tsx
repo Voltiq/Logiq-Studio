@@ -9,6 +9,8 @@ export type MenuItem =
       label: string;
       icon?: LucideIcon;
       shortcut?: string;
+      /** A second, quieter line (a tool's path). */
+      detail?: string;
       danger?: boolean;
       disabled?: boolean;
       checked?: boolean;
@@ -195,7 +197,14 @@ export function Menu({ request, onClose }: { request: MenuRequest; onClose: () =
                 Icon && <Icon size={16} aria-hidden="true" />
               )}
             </span>
-            <span className="menu-item-label">{item.label}</span>
+            {item.detail ? (
+              <span className="menu-item-label menu-item-two">
+                <span>{item.label}</span>
+                <span className="menu-item-detail">{item.detail}</span>
+              </span>
+            ) : (
+              <span className="menu-item-label">{item.label}</span>
+            )}
             {item.shortcut && <span className="menu-item-shortcut">{item.shortcut}</span>}
           </div>
         );

@@ -7,6 +7,7 @@ import "./styles/tokens.css";
 import "./styles/components.css";
 import "./styles/forms.css";
 import "./styles/app.css";
+import "./styles/languages-git.css";
 
 // Colour the page before the first render, so it never flashes the wrong theme.
 setPageTheme(resolveTheme(loadSettings().theme));

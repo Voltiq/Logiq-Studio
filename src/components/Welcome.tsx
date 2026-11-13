@@ -1,4 +1,4 @@
-import { Boxes, Braces, Clock, Coffee, FileCode, FolderOpen, FolderPlus, GitBranch, Globe, Network, Package, X } from "lucide-react";
+import { Boxes, Braces, Clock, Coffee, Cpu, Database, FileCode, FileCode2, FolderOpen, FolderPlus, GitBranch, Globe, Network, Package, Server, X } from "lucide-react";
 import { openDialog, setSettings, useStore } from "../lib/store";
 import { chooseFolder, openFolder } from "../lib/actions";
 import { basename, dirname } from "../lib/paths";
@@ -7,7 +7,19 @@ import { Button, IconButton } from "./ui/Button";
 import { Shortcut } from "./ui/Feedback";
 import { t } from "../lib/i18n";
 
-const TEMPLATE_ICON = { "java-classes": Network, "java-console": Coffee, web: Globe, maven: Package, gradle: Boxes } as const;
+const TEMPLATE_ICON = {
+  "java-classes": Network,
+  "java-console": Coffee,
+  web: Globe,
+  maven: Package,
+  gradle: Boxes,
+  python: FileCode2,
+  c: Cpu,
+  cpp: Cpu,
+  php: Server,
+  kotlin: Braces,
+  sql: Database,
+} as const;
 
 /* The start screen: open or create a project, or pick up a recent one. */
 export function Welcome() {
@@ -23,7 +35,7 @@ export function Welcome() {
             <h1 className="welcome-title">
               Logiq <span>{t("Studio")}</span>
             </h1>
-            <p className="welcome-sub">{t("Write Java, HTML, CSS and JavaScript. See your classes as a UML diagram while you type.")}</p>
+            <p className="welcome-sub">{t("Write Java, Python, C, C++, Kotlin, PHP, SQL, HTML, CSS and JavaScript. See your classes as a UML diagram while you type.")}</p>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import { CircleAlert, Coffee, GitBranch, Hammer, Hexagon, TriangleAlert } from "lucide-react";
+import { CircleAlert, Coffee, GitBranch, Hammer, Hexagon, TriangleAlert, Wrench } from "lucide-react";
 import { toolName, useBuild } from "../lib/build";
 import { buildMenu } from "../lib/commands";
 import { useGit } from "../lib/git";
@@ -8,6 +8,9 @@ import { languageFor } from "../editor/languages";
 import { getDoc } from "../editor/docs";
 import { t } from "../lib/i18n";
 import { useLsp } from "../lsp/clients";
+import { pluginFor } from "../languages";
+import { useToolchain } from "../languages/toolchain";
+import { useSql } from "../languages/sql";
 
 export function StatusBar() {
   const tab = useStore((s) => activeTab(s));
@@ -16,6 +19,11 @@ export function StatusBar() {
   const jdks = useStore((s) => s.jdks);
   const node = useStore((s) => s.node);
   const javaServer = useLsp((s) => s.java);
+  const pluginServers = useLsp((s) => s.plugins);
+  // The plug-in items read the toolchain and the SQL file's database.
+  useToolchain((s) => s.version);
+  useSql((s) => s.ranAt);
+  useStore((s) => s.problemsVersion);
   const gitStatus = useGit((s) => s.status);
   const build = useBuild((s) => s.info);
   const problems = useStore((s) => s.problems);
@@ -25,6 +33,10 @@ export function StatusBar() {
   const isFile = tab?.kind === "file" && tab.path;
   const lang = isFile ? languageFor(tab.path!) : null;
   const doc = isFile ? getDoc(tab.path!) : undefined;
+  const plugin = isFile ? pluginFor(tab.path!) : undefined;
+  const item = isFile && plugin?.status ? plugin.status(tab.path!) : null;
+  const server = plugin?.server ? pluginServers[plugin.server.id] : undefined;
+  const isJava = !lang || lang.id === "java";
 
   return (
     <footer className="statusbar">
@@ -63,17 +75,31 @@ export function StatusBar() {
           <span className="status-item">{lang?.name}</span>
         </>
       )}
-      <button type="button" className="status-item" onClick={() => openDialog(jdk ? { kind: "settings" } : { kind: "installJdk" })} data-tooltip={jdk ? jdk.home : t("No JDK found")}>
-        <Coffee size={13} aria-hidden="true" />
-        {jdk ? `Java ${jdk.version}` : t("No JDK")}
-      </button>
-      {javaServer !== "off" && javaServer !== "missing" && (
+      {item && (
+        <button type="button" className="status-item" onClick={(e) => item.onClick(e.currentTarget)} data-tooltip={item.tooltip}>
+          <Wrench size={13} className={item.warn ? "is-warning" : undefined} aria-hidden="true" />
+          {item.label}
+        </button>
+      )}
+      {server && server.state !== "missing" && (
+        <button type="button" className="status-item" onClick={() => openDialog({ kind: "settings" })} data-tooltip={t("Language server")}>
+          <span className={`status-dot ${server.state === "ready" ? "status-dot-online" : server.state === "failed" ? "status-dot-warning" : "status-dot-busy"}`} aria-hidden="true" />
+          {server.state === "ready" ? server.name : server.state === "failed" ? t("{0} stopped", server.name) : t("{0} starting…", server.name)}
+        </button>
+      )}
+      {(isJava || !item) && (
+        <button type="button" className="status-item" onClick={() => openDialog(jdk ? { kind: "settings" } : { kind: "installJdk" })} data-tooltip={jdk ? jdk.home : t("No JDK found")}>
+          <Coffee size={13} aria-hidden="true" />
+          {jdk ? `Java ${jdk.version}` : t("No JDK")}
+        </button>
+      )}
+      {isJava && javaServer !== "off" && javaServer !== "missing" && (
         <button type="button" className="status-item" onClick={() => openDialog({ kind: "settings" })} data-tooltip={t("Java language server")}>
           <span className={`status-dot ${javaServer === "ready" ? "status-dot-online" : javaServer === "failed" ? "status-dot-warning" : "status-dot-busy"}`} aria-hidden="true" />
           {javaServer === "ready" ? "JDT LS" : javaServer === "failed" ? t("JDT LS stopped") : t("JDT LS starting…")}
         </button>
       )}
-      {node && (
+      {node && (!lang || lang.id === "javascript" || lang.id === "typescript" || lang.id === "html") && (
         <span className="status-item" data-tooltip={node.path}>
           <Hexagon size={13} aria-hidden="true" />
           Node {node.version.replace(/^v/, "")}

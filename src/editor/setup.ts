@@ -29,10 +29,14 @@ import { graphiqHighlight, graphiqTheme } from "./theme";
 import { languageFor } from "./languages";
 import { javaCompletions } from "./javaComplete";
 import { gitGutter } from "./gitGutter";
+import { conflictMarkers } from "./conflicts";
+import { blameGutter, toggleBlame } from "./blame";
+import type { BlameCommit } from "../lib/gitParse";
 import { stylelintDiagnostics } from "./stylelint";
 import { eslintDiagnostics } from "./eslint";
 import { jumpToDefinition } from "@codemirror/lsp-client";
 import { hasServer, lspExtension, organizeImports, quickFix, refactor, serverDiagnosticsFor } from "../lsp/clients";
+import { pluginById } from "../languages";
 import type { Settings } from "../lib/settings";
 import { get } from "../lib/store";
 import { samePath } from "../lib/paths";
@@ -51,10 +55,13 @@ export const compartments = {
 
 function languageExtension(path: string): Extension {
   const lang = languageFor(path);
-  const ext: Extension[] = [lang.support(), lspExtension(path)];
+  const ext: Extension[] = [lang.support(path), lspExtension(path)];
   const server = hasServer(path);
   const here = () => currentPath(path);
   ext.push(Prec.high(keymap.of([{ key: "Mod-.", run: (v) => (void quickFix(v, here()), true) }])));
+  ext.push(pluginById(lang.id)?.editor?.(here) ?? []);
+  // Rename and find usages through a plug-in's language server (Java has its own keys below).
+  if (server && lang.id !== "java") ext.push(Prec.high(keymap.of([{ key: "Mod-Shift-r", run: (v: EditorView) => (void refactor(v, here()), true) }])));
   if (lang.id === "java") {
     ext.push(
       // With the Java language server its completion, F12, F2 and Shift+F12 take over.
@@ -136,7 +143,8 @@ function lintSource(path: () => string) {
       const to = Math.max(from, at(d.range.end));
       out.push({ from, to: to === from ? Math.min(doc.length, from + 1) : to, severity: d.severity === 1 ? "error" : d.severity === 2 ? "warning" : "info", source: d.source ?? "server", message: d.message });
     }
-    if (!hasServer(path()) && lang.id !== "text" && lang.id !== "markdown" && lang.id !== "html" && lang.id !== "xml") {
+    const conflicted = /^<{7} /m.test(doc.sliceString(0, Math.min(doc.length, 2_000_000)));
+    if (!conflicted && !hasServer(path()) && lang.id !== "text" && lang.id !== "markdown" && lang.id !== "html" && lang.id !== "xml") {
       const tree = ensureSyntaxTree(view.state, doc.length, 300);
       let count = 0;
       tree?.iterate({
@@ -156,10 +164,17 @@ function lintSource(path: () => string) {
         },
       });
     }
+    const source = lang.id === "java" ? "javac" : lang.name;
     for (const d of get().problems) {
       if (!samePath(d.path, path())) continue;
       if (d.line < 1 || d.line > doc.lines) continue;
       const line = doc.line(d.line);
+      if (!d.column) {
+        // No column (Python, PHP, SQL): the line's code.
+        const start = line.from + (line.text.length - line.text.trimStart().length);
+        out.push({ from: start, to: Math.max(start + 1, line.to), severity: d.severity, source, message: d.message });
+        continue;
+      }
       let from = line.from + Math.max(0, Math.min(line.length, d.column - 1));
       const word = /[\w$]+/y;
       word.lastIndex = from - line.from;
@@ -169,7 +184,7 @@ function lintSource(path: () => string) {
         from = line.from + (line.text.length - line.text.trimStart().length);
         to = line.to;
       }
-      out.push({ from, to, severity: d.severity, source: "javac", message: d.message });
+      out.push({ from, to, severity: d.severity, source, message: d.message });
     }
     return out;
   };
@@ -202,6 +217,11 @@ export function createState(path: string, text: string, s: Settings, onUpdate: E
         (p) => void import("../lib/diffTabs").then((m) => m.openWorkingDiff(p)),
       ),
       debugLineField,
+      conflictMarkers(() => void import("../lib/diffTabs").then((m) => m.openConflictDiff(currentPath(path)))),
+      blameGutter(
+        (text) => loadBlame(currentPath(path), text),
+        (c) => openBlameCommit(currentPath(path), c),
+      ),
       linter(lintSource(() => currentPath(path)), {
         delay: 450,
         // New problems from the compiler or a language server re-run the check.
@@ -222,6 +242,24 @@ export function createState(path: string, text: string, s: Settings, onUpdate: E
       onUpdate,
     ],
   });
+}
+
+async function loadBlame(path: string, text: string): Promise<(BlameCommit | null)[] | null> {
+  const { blame } = await import("../lib/gitMore");
+  return (await blame(path, text))?.lines ?? null;
+}
+
+async function openBlameCommit(path: string, c: BlameCommit) {
+  const { relPath } = await import("../lib/git");
+  const { openCommitDiff } = await import("../lib/diffTabs");
+  const rel = relPath(path);
+  if (!rel) return;
+  openCommitDiff({ hash: c.hash, short: c.hash.slice(0, 7), author: c.author, email: "", date: new Date(c.time * 1000).toISOString(), subject: c.summary, refs: [], parents: [`${c.hash}^`] }, { path: rel, status: "M" } as never);
+}
+
+/** Shows or hides who last changed each line (Ctrl+Alt+B). */
+export function toggleBlameIn(view: EditorView, path: string) {
+  return toggleBlame(view, (text) => loadBlame(path, text));
 }
 
 export function languageEffect(path: string) {

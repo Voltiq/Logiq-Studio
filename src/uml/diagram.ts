@@ -154,6 +154,20 @@ const MANY = new Set([
   "SortedMap",
   "Stream",
   "Iterator",
+  // Python
+  "list",
+  "set",
+  "frozenset",
+  "dict",
+  "tuple",
+  "deque",
+  "Sequence",
+  "MutableSequence",
+  "Mapping",
+  "MutableMapping",
+  "Dict",
+  "Tuple",
+  "FrozenSet",
 ]);
 
 function vis(v: Visibility, opts: UmlOptions): string {
@@ -201,7 +215,7 @@ export class TypeIndex {
 
 function memberParams(params: { name: string; type: string }[], opts: UmlOptions) {
   if (!opts.showParams) return params.length ? "…" : "";
-  return params.map((p) => (opts.showTypes ? `${p.name}: ${simpleType(p.type)}` : p.name)).join(", ");
+  return params.map((p) => (opts.showTypes && p.type ? `${p.name}: ${simpleType(p.type)}` : p.name)).join(", ");
 }
 
 export function buildNode(t: JType, opts: UmlOptions, measure: Measure): UmlNode {
@@ -222,7 +236,7 @@ export function buildNode(t: JType, opts: UmlOptions, measure: Measure): UmlNode
     ? t.fields
         .filter((f) => shown(f.visibility, opts))
         .map((f) => ({
-          text: `${vis(f.visibility, opts)}${f.name}${opts.showTypes ? `: ${simpleType(f.type)}` : ""}`,
+          text: `${vis(f.visibility, opts)}${f.name}${opts.showTypes && f.type ? `: ${simpleType(f.type)}` : ""}`,
           line: f.line,
           isStatic: f.isStatic,
           isAbstract: false,
@@ -274,9 +288,10 @@ export function buildNode(t: JType, opts: UmlOptions, measure: Measure): UmlNode
 /** How many of `target` a field of type `type` holds: `Shape` 1, `Shape[]` or `List<Shape>` 0..*, `Optional<Shape>` 0..1. */
 export function multiplicity(type: string, target: string): string {
   if (/(\[\]|\.\.\.)$/.test(type)) return "0..*";
-  const outer = baseName(type);
+  // Python writes type arguments in square brackets: list[Shape], Optional[Shape], Shape | None.
+  const outer = baseName(type.replace(/\[.*$/, ""));
   if (MANY.has(outer)) return "0..*";
-  if (outer === "Optional" && target !== outer) return "0..1";
+  if ((outer === "Optional" && target !== outer) || /\|\s*None\b|\bNone\s*\|/.test(type)) return "0..1";
   return "1";
 }
 
@@ -300,6 +315,19 @@ const NOT_LIBRARY = new Set([
   "StringBuilder",
   "Exception",
   "RuntimeException",
+  // Python's typing names
+  "Any",
+  "Callable",
+  "None",
+  "Self",
+  "ClassVar",
+  "Literal",
+  "Union",
+  "Type",
+  "TypeVar",
+  "Generator",
+  "ValueError",
+  "TypeError",
   ...MANY,
 ]);
 

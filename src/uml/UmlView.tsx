@@ -36,7 +36,7 @@ import { Button, IconButton } from "../components/ui/Button";
 import { EmptyState } from "../components/ui/Feedback";
 import { Select } from "../components/ui/Select";
 import type { MenuItem } from "../components/ui/Menu";
-import { javaIndex, useJavaIndexVersion } from "./javaIndex";
+import { allTypes as everyType, useStructureVersion } from "./javaIndex";
 import { autoLayout, BOX, buildDiagram, placeNew, route, type Diagram, type Point, type Positions, type UmlEdge, type UmlNode, type UmlOptions } from "./diagram";
 import { exportPng, exportSvgString } from "./exportDiagram";
 import { simpleType } from "./javaParser";
@@ -321,7 +321,7 @@ function EdgeLine({ edge, points, hot, dim, selected, labelOffset, onMenu, onSel
 /* ----- The view -------------------------------------------------------------------- */
 
 export function UmlView({ visible }: { visible: boolean }) {
-  const version = useJavaIndexVersion();
+  const version = useStructureVersion();
   const root = useStore((s) => s.root);
   const opts = useStore((s) => s.settings.uml);
   const layoutNonce = useStore((s) => s.umlLayoutNonce);
@@ -391,7 +391,7 @@ export function UmlView({ visible }: { visible: boolean }) {
     [root, diagramPath],
   );
 
-  const allTypes = useMemo(() => javaIndex.types(), [version]);
+  const allTypes = useMemo(() => everyType(), [version]);
   const folders = useMemo(() => {
     const set = new Set<string>();
     for (const x of allTypes) set.add(dirname(x.path));
@@ -616,7 +616,7 @@ export function UmlView({ visible }: { visible: boolean }) {
       setLink(null);
       const target = nodeAt(toDiagram(e));
       const from = nodesById.get(d.from);
-      if (from && target && !target.library && target.id !== d.from) {
+      if (from && target && !target.library && target.id !== d.from && !from.type.language && !target.type.language) {
         if (tool === "inherit") void addInheritance(from.type, target.type);
         else askAssociation(from.type, target.type);
       }
@@ -711,6 +711,19 @@ export function UmlView({ visible }: { visible: boolean }) {
     }
     const type = node.type;
     const q = type.qualifiedName;
+    if (type.language) {
+      // Classes of other languages (Python) are shown from their code; the diagram edits Java only.
+      openMenu({
+        x: e.clientX,
+        y: e.clientY,
+        items: [
+          { label: t("Go to source"), icon: FileCode, onSelect: () => openAt(node, type.line) },
+          layout?.classes ? { label: t("Remove from diagram"), icon: EyeOff, onSelect: () => hide(node.id) } : { label: t("Hide from diagram"), icon: EyeOff, onSelect: () => hide(node.id) },
+          { label: t("Copy name"), icon: ClipboardCopy, onSelect: () => void navigator.clipboard.writeText(q) },
+        ],
+      });
+      return;
+    }
     const ctors = type.methods.filter((m) => m.isConstructor);
     const canCreate = (type.kind === "class" && !type.isAbstract) || type.kind === "record";
     const statics = type.methods.filter((m) => m.isStatic && !m.isConstructor);
@@ -767,6 +780,10 @@ export function UmlView({ visible }: { visible: boolean }) {
     const member = field ?? method;
     if (!member) return;
     const label = field ? field.name : method!.isConstructor ? t("constructor") : method!.name;
+    if (type.language) {
+      openMenu({ x: e.clientX, y: e.clientY, items: [{ type: "heading", label }, { label: t("Go to code"), icon: FileCode, onSelect: () => openAt(node, line) }] });
+      return;
+    }
     openMenu({
       x: e.clientX,
       y: e.clientY,
@@ -797,7 +814,7 @@ export function UmlView({ visible }: { visible: boolean }) {
     const a = nodesById.get(edge.from);
     const b = nodesById.get(edge.to);
     if (!a || !b) return;
-    const removable = (edge.kind === "extends" || edge.kind === "implements" || edge.kind === "association") && !a.library;
+    const removable = (edge.kind === "extends" || edge.kind === "implements" || edge.kind === "association") && !a.library && !a.type.language;
     const what = edge.kind === "association" ? t("association") : edge.kind === "dependency" ? t("dependency") : edge.kind === "nesting" ? t("nesting") : t("inheritance");
     openMenu({
       x: e.clientX,

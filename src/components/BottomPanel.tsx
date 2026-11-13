@@ -10,6 +10,8 @@ import { Badge } from "./ui/Feedback";
 import { cx } from "../lib/utils";
 import { ShellPanel, TestsPanel } from "./ToolPanels";
 import { useTests } from "../lib/tools";
+import { SqlResults } from "./SqlResults";
+import { useSql } from "../languages/sql";
 import { t } from "../lib/i18n";
 
 function Output() {
@@ -133,6 +135,8 @@ export function BottomPanel() {
   const failedTests = useTests((s) => s.cases.filter((c) => c.status === "failed" || c.status === "error").length);
   const terminals = useTerminals((s) => s.tabs.length);
   const activeTerminal = useTerminals((s) => s.active);
+  const sqlUsed = useSql((s) => s.path !== null);
+  const sqlError = useSql((s) => s.results.some((r) => r.error));
 
   return (
     <section className="bottom panel" aria-label={t("Output and problems")}>
@@ -150,6 +154,12 @@ export function BottomPanel() {
             {t("Tests")}
             {failedTests > 0 && <Badge appearance="danger">{failedTests}</Badge>}
           </button>
+          {(sqlUsed || tab === "results") && (
+            <button type="button" role="tab" aria-selected={tab === "results"} className={cx("segment", tab === "results" && "is-selected")} onClick={() => set({ panelTab: "results" })}>
+              {t("Results")}
+              {sqlError && <Badge appearance="danger">!</Badge>}
+            </button>
+          )}
           <button type="button" role="tab" aria-selected={tab === "jshell"} className={cx("segment", tab === "jshell" && "is-selected")} onClick={() => set({ panelTab: "jshell" })}>
             JShell
           </button>
@@ -185,7 +195,7 @@ export function BottomPanel() {
         )}
         <IconButton icon={X} label={t("Close panel")} shortcut="Ctrl+J" spacing="compact" onClick={() => set({ panelOpen: false })} />
       </div>
-      <div className="bottom-body">{tab === "output" ? <Output /> : tab === "problems" ? <Problems /> : tab === "tests" ? <TestsPanel /> : tab === "terminal" ? <TerminalPanel /> : <ShellPanel />}</div>
+      <div className="bottom-body">{tab === "output" ? <Output /> : tab === "problems" ? <Problems /> : tab === "tests" ? <TestsPanel /> : tab === "terminal" ? <TerminalPanel /> : tab === "results" ? <SqlResults /> : <ShellPanel />}</div>
     </section>
   );
 }

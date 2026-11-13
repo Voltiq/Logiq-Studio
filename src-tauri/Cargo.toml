@@ -1,7 +1,7 @@
 [package]
 name = "logiq-studio"
-version = "0.6.0"
-description = "Logiq Studio: an IDE for Java, HTML, CSS and JavaScript with live UML class diagrams"
+version = "0.7.0"
+description = "Logiq Studio: an IDE for Java, Python, C, C++, Kotlin, PHP, SQL and the web with live UML class diagrams"
 license = "MIT"
 authors = ["Voltiq"]
 edition = "2021"
@@ -33,6 +33,8 @@ ureq = "2"
 flate2 = "1"
 tar = "0.4"
 portable-pty = "0.9"
+# SQL scripts run against SQLite, compiled in
+rusqlite = { version = "0.40", features = ["bundled", "column_decltype"] }
 
 [profile.release]
 lto = true

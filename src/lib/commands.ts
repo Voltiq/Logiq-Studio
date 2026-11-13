@@ -41,6 +41,10 @@ import {
   GitBranch,
   Download,
   Upload,
+  GitMerge,
+  Archive,
+  Tag,
+  UserRound,
 } from "lucide-react";
 import { expandAbbreviation } from "@emmetio/codemirror6-plugin";
 import { findUsages, goToDefinition, renameSymbol } from "../editor/javaNav";
@@ -57,6 +61,7 @@ import { hasServer, organizeImports, quickFix, refactor, useLsp } from "../lsp/c
 import * as A from "./actions";
 import { activeIdOf, activeTab, get, openDialog, openMenu, set } from "./store";
 import { t } from "./i18n";
+import { PLUGINS } from "../languages";
 
 export interface Command {
   id: string;
@@ -168,6 +173,22 @@ export const COMMANDS: Command[] = [
   { id: "git.fetch", label: "Fetch", category: "Git", enabled: inRepo, run: () => void G.fetchAll() },
   { id: "git.newBranch", label: "New branch…", category: "Git", icon: GitBranch, enabled: inRepo, run: () => G.newBranch() },
   { id: "git.addRemote", label: "Add a remote…", category: "Git", enabled: inRepo, run: () => G.addRemote() },
+  { id: "git.merge", label: "Merge a branch…", category: "Git", icon: GitMerge, enabled: () => inRepo() && !G.useGit.getState().operation, run: () => void import("./gitMore").then((m) => m.mergeBranch()) },
+  { id: "git.rebase", label: "Rebase onto a branch…", category: "Git", enabled: () => inRepo() && !G.useGit.getState().operation, run: () => void import("./gitMore").then((m) => m.rebaseOnto()) },
+  { id: "git.continue", label: "Continue merge or rebase", category: "Git", enabled: () => !!G.useGit.getState().operation, run: () => void import("./gitMore").then((m) => m.continueOperation()) },
+  { id: "git.abort", label: "Abort merge or rebase…", category: "Git", enabled: () => !!G.useGit.getState().operation, run: () => void import("./gitMore").then((m) => m.abortOperation()) },
+  { id: "git.stash", label: "Stash changes…", category: "Git", icon: Archive, enabled: inRepo, run: () => void import("./gitMore").then((m) => m.stashChanges()) },
+  { id: "git.tag", label: "New tag…", category: "Git", icon: Tag, enabled: () => inRepo() && !!G.useGit.getState().head, run: () => void import("./gitMore").then((m) => m.createTag()) },
+  { id: "git.pushTags", label: "Push tags", category: "Git", enabled: () => inRepo() && G.useGit.getState().tags.length > 0, run: () => void import("./gitMore").then((m) => m.pushTags()) },
+  {
+    id: "git.blame",
+    label: "Toggle blame",
+    category: "Git",
+    icon: UserRound,
+    shortcut: "Ctrl+Alt+B",
+    enabled: () => inRepo() && hasEditor(),
+    run: editor((v) => void import("../editor/setup").then((m) => m.toggleBlameIn(v, shownPath()!))),
+  },
   { id: "git.clone", label: "Clone a repository…", category: "Git", icon: GitBranch, run: () => openDialog({ kind: "clone" }) },
   { id: "git.init", label: "Create a Git repository", category: "Git", enabled: () => hasFolder() && !G.useGit.getState().repo && G.useGit.getState().info !== false, run: () => void G.initRepo() },
   { id: "git.identity", label: "Set your name and e-mail for commits…", category: "Git", enabled: () => !!G.useGit.getState().info, run: () => G.askIdentity() },
@@ -200,7 +221,7 @@ export const COMMANDS: Command[] = [
   { id: "build.jar", label: "Export runnable JAR…", category: "Run", icon: Package, enabled: hasFolder, run: () => T.exportJar() },
   { id: "build.javadoc", label: "Generate Javadoc", category: "Run", icon: BookOpen, enabled: hasFolder, run: () => T.generateJavadoc() },
   { id: "project.libraries", label: "Libraries…", category: "Run", icon: FileArchive, enabled: hasFolder, run: () => openDialog({ kind: "libraries" }) },
-  { id: "run.compile", label: "Compile Java", category: "Run", icon: Hammer, shortcut: "Ctrl+F9", enabled: hasFolder, run: () => void A.compileJava() },
+  { id: "run.compile", label: "Compile", category: "Run", icon: Hammer, shortcut: "Ctrl+F9", enabled: hasFolder, run: () => void A.buildActive() },
   { id: "run.stop", label: "Stop", category: "Run", icon: CircleStop, shortcut: "Shift+F5", enabled: () => get().run.status === "running", run: () => A.stopRun() },
   { id: "run.output", label: "Show output", category: "Run", icon: SquareTerminal, run: () => set({ panelOpen: true, panelTab: "output" }) },
 
@@ -209,6 +230,8 @@ export const COMMANDS: Command[] = [
   { id: "view.debug", label: "Show debugger", category: "View", icon: Bug, shortcut: "Ctrl+Shift+D", run: () => set({ sidebar: "debug" }) },
   { id: "uml.sequence", label: "Show sequence diagram", category: "UML", icon: ListVideo, enabled: hasFolder, run: () => A.openSequence() },
   { id: "help.about", label: "About Logiq Studio", category: "Help", run: () => openDialog({ kind: "about" }) },
+  // The language plug-ins' own commands (Python's virtual environments…).
+  ...PLUGINS.flatMap((p) => (p.commands ?? []).map((c): Command => ({ id: c.id, label: c.label, category: "Run", icon: Play, enabled: hasFolder, run: c.run }))),
 ];
 
 export function command(id: string): Command {

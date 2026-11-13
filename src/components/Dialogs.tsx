@@ -7,6 +7,7 @@ import { errorText } from "../lib/api";
 import { applyTheme } from "../lib/theme";
 import { invalidName, join, relative } from "../lib/paths";
 import { TEMPLATES, type TemplateId } from "../lib/templates";
+import { LanguageSettings } from "./LanguageSettings";
 import { COMMANDS } from "../lib/commands";
 import { UmlDialogs } from "../uml/ClassDialogs";
 import { ToolDialogs } from "./ToolDialogs";
@@ -327,7 +328,7 @@ function SettingsDialog() {
       <Checkbox label={t("Close brackets and quotes automatically")} checked={s.autoCloseBrackets} onChange={(v) => setSettings({ autoCloseBrackets: v })} />
       <h3 className="settings-heading">{t("Saving and running")}</h3>
       <Toggle label={t("Save automatically")} description={t("A second after you stop typing.")} checked={s.autoSave} onChange={(v) => setSettings({ autoSave: v })} />
-      <Toggle label={t("Format when saving")} description={t("Java, HTML, CSS, JavaScript, JSON and Markdown, with Prettier.")} checked={s.formatOnSave} onChange={(v) => setSettings({ formatOnSave: v })} />
+      <Toggle label={t("Format when saving")} description={t("Java, HTML, CSS, JavaScript, JSON and Markdown with Prettier; C and C++ with clang-format.")} checked={s.formatOnSave} onChange={(v) => setSettings({ formatOnSave: v })} />
       <Toggle
         label={t("Keep unsaved changes when closing")}
         description={t("Open files and unsaved text come back on the next start, without asking.")}
@@ -338,6 +339,8 @@ function SettingsDialog() {
       <Toggle label={t("Reload the web preview on save")} checked={s.livePreview} onChange={(v) => setSettings({ livePreview: v })} />
       <h3 className="settings-heading">{t("Terminal")}</h3>
       <TerminalShellSetting />
+      <h3 className="settings-heading">{t("Languages")}</h3>
+      <LanguageSettings />
       <h3 className="settings-heading">{t("Java")}</h3>
       <JavaServerSetting />
       <div className="settings-row is-end">
@@ -418,8 +421,8 @@ function AboutDialog() {
       <div className="about">
         <img src="/app-icon.svg" alt="" width={64} height={64} />
         <div>
-          <p className="about-name">Logiq Studio 0.6.0</p>
-          <p className="dialog-text">{t("An IDE for Java, HTML, CSS and JavaScript that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.")}</p>
+          <p className="about-name">Logiq Studio 0.7.0</p>
+          <p className="dialog-text">{t("An IDE for Java, Python, C, C++, Kotlin, PHP, SQL and the web that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.")}</p>
         </div>
       </div>
     </Modal>

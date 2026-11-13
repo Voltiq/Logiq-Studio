@@ -1,6 +1,6 @@
 # Logiq Studio
 
-An IDE for Java, HTML, CSS and JavaScript for Windows, built with Tauri 2, Rust and React in the Graphiq design
+An IDE for Java, Python, C, C++, Kotlin, PHP, SQL, HTML, CSS and JavaScript for Windows, built with Tauri 2, Rust and React in the Graphiq design
 language shared with Graphiq, Inq, Magiq, Disq and Uplinq Studio. *Logiq* as in logic: write the code, and see
 its structure as a UML class diagram that redraws itself while you type, as the Röhner Java-Editor does.
 
@@ -8,7 +8,8 @@ its structure as a UML class diagram that redraws itself while you type, as the 
 
 ## What it does
 
-- **Editor**: CodeMirror 6 with syntax colouring for Java, HTML, CSS, JavaScript, TypeScript, JSON and Markdown,
+- **Editor**: CodeMirror 6 with syntax colouring for Java, Python, C, C++, Kotlin, PHP, SQL, HTML, CSS,
+  JavaScript, TypeScript, JSON and Markdown,
   bracket matching, folding, multiple cursors, find and replace, go to line, comment toggling, re-indenting,
   live syntax errors, Java completion (keywords, snippets such as `sout`/`main`/`fori`, your own classes and
   their members, common library classes), go to definition (`F12`), find usages, rename symbol (`F2`),
@@ -36,13 +37,28 @@ its structure as a UML class diagram that redraws itself while you type, as the 
 - **Java tools**: run configurations (main class, arguments, JVM options), JShell, JUnit 5 tests with a results
   tree, runnable JAR export, Javadoc, a library manager for `lib/`.
 - **Workspace**: explorer with create, rename, delete (to the Recycle Bin), find in files (text, whole word,
-  case, regex), outline of the active Java file, quick open (`Ctrl+P`), command palette (`Ctrl+Shift+P`), and the
+  case, regex), outline of the active Java or Python file, quick open (`Ctrl+P`), command palette (`Ctrl+Shift+P`), and the
   folder is watched so changes made elsewhere show up at once. Drag files to move them, cut, copy, paste and
   duplicate them; unsaved changes and open tabs survive a restart. Live Markdown preview.
 - **Terminal**: PowerShell, the Command Prompt or Git Bash in the bottom panel, several at once, with the
   project's JDK on the path.
+- **More languages** (plug-ins: grammar, runner, outline, diagram, language server):
+  - **Python**: runs with the project's interpreter (its `.venv` first) with input from the panel; an exception
+    becomes a problem at its line; virtual environments, `requirements.txt` and packages; pytest or unittest;
+    classes in the outline and the **class diagram**; Pyright, basedpyright, pylsp or jedi when installed.
+  - **C and C++**: compiled with clang or gcc (found where LLVM, MSYS2 or MinGW put them), errors as problems,
+    run with input; clangd (comes with LLVM) for completion and errors as you type; clang-format.
+  - **PHP**: scripts run with the PHP command line; pages show in the preview, served by PHP's web server;
+    every save is checked with `php -l`.
+  - **Kotlin**: compiled with kotlinc into a jar and run on the IDE's JDK; `.kts` scripts.
+  - **SQL**: scripts run against SQLite (compiled in) — the database is named in the file
+    (`-- database: shop.db`) or a fresh one in memory; `Ctrl+Enter` runs the statement at the cursor; results in
+    Atomiq Studio's grid; tables and columns complete as you type.
+  - Templates for each, and Settings → Languages to choose the interpreter or compiler.
 - **Git**: a source control view (stage, commit, branches, push, pull, history), changed files coloured in the
-  explorer, a change bar in the editor, side-by-side diffs, and cloning from the welcome screen.
+  explorer, a change bar in the editor, side-by-side diffs, and cloning from the welcome screen. Merging and
+  rebasing with **conflict resolution** in the editor (accept current, incoming or both), stashes, tags, and
+  blame (`Ctrl+Alt+B`).
 - **Maven and Gradle**: projects compile with their build tool (wrapper or installed), and Run, Debug, the
   object bench and tests use its class path; build tasks run in the terminal; templates for both.
 - **Languages**: English and German.

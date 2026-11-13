@@ -17,6 +17,65 @@ const dirs = new Set<string>([ROOT, ROOT + "\\web"]);
 for (const [name, text] of Object.entries(TEMPLATES.find((x) => x.id === "java-classes")!.files)) files.set(`${ROOT}\\${name}`, text);
 for (const [name, text] of Object.entries(TEMPLATES.find((x) => x.id === "web")!.files)) files.set(`${ROOT}\\web\\${name}`, text);
 files.set(`${ROOT}\\README.md`, "# Shapes\n\nA sample project for Logiq Studio.\n");
+// Other languages, to try their plug-ins.
+for (const [id, dir] of [["python", "py"], ["sql", "db"], ["c", "c"], ["php", "php"]] as const) {
+  dirs.add(`${ROOT}\\${dir}`);
+  for (const [name, text] of Object.entries(TEMPLATES.find((x) => x.id === id)!.files)) if (!name.startsWith(".")) files.set(`${ROOT}\\${dir}\\${name}`, text);
+}
+
+const TOOLS: Record<string, { path: string; version: string; source: string }[]> = {
+  python: [
+    { path: `${ROOT}\\.venv\\Scripts\\python.exe`, version: "3.14.7", source: ".venv" },
+    { path: "C:\\Users\\Demo\\AppData\\Local\\Programs\\Python\\Python314\\python.exe", version: "3.14.7", source: "Python" },
+  ],
+  cc: [{ path: "C:\\Program Files\\LLVM\\bin\\clang.exe", version: "23.1.3", source: "LLVM" }],
+  cxx: [{ path: "C:\\Program Files\\LLVM\\bin\\clang++.exe", version: "23.1.3", source: "LLVM" }],
+  php: [{ path: "C:\\php\\php.exe", version: "8.5.11", source: "PHP" }],
+  "clang-format": [{ path: "C:\\Program Files\\LLVM\\bin\\clang-format.exe", version: "", source: "LLVM" }],
+};
+
+/** A pretend SQLite: CREATE/INSERT change rows, SELECT gives the shop's customers. */
+function mockSql(script: string, at: number | null) {
+  const parts: { from: number; to: number; sql: string }[] = [];
+  let start = 0;
+  for (let i = 0; i <= script.length; i++) {
+    if (i === script.length || script[i] === ";") {
+      const raw = script.slice(start, i + 1);
+      const body = raw.replace(/--[^\n]*/g, "").trim();
+      if (body && body !== ";") {
+        const lead = raw.length - raw.trimStart().length;
+        parts.push({ from: start + lead, to: Math.min(script.length, i + 1), sql: raw.trim() });
+      }
+      start = i + 1;
+    }
+  }
+  const chosen = at === null ? parts : [parts.find((p) => p.from <= at && at <= p.to + 1) ?? parts.filter((p) => p.from <= at).pop() ?? parts[0]].filter(Boolean);
+  const results = [];
+  for (const p of chosen) {
+    const sql = p.sql.replace(/--[^\n]*/g, "").trim();
+    if (/^select/i.test(sql)) {
+      if (/nope/i.test(sql)) {
+        results.push({ ...p, columns: [], rows: [], truncated: false, changes: 0, durationMs: 1, error: "no such column: nope" });
+        break;
+      }
+      const grouped = /group by/i.test(sql);
+      results.push({
+        ...p,
+        columns: grouped
+          ? [{ name: "city", declType: "TEXT" }, { name: "orders", declType: "" }, { name: "revenue", declType: "" }]
+          : [{ name: "id", declType: "INTEGER" }, { name: "name", declType: "TEXT" }, { name: "city", declType: "TEXT" }],
+        rows: grouped
+          ? [["London", 2, 10.6], ["Köln", 1, 0.9], ["Taipei", 1, 17.5]]
+          : [[1, "Ada", "London"], [2, "Jürgen", "Köln"], [3, "Mei", null]],
+        truncated: false,
+        changes: 0,
+        durationMs: 2,
+        error: null,
+      });
+    } else results.push({ ...p, columns: [], rows: [], truncated: false, changes: /^insert/i.test(sql) ? 3 : 0, durationMs: 1, error: null });
+  }
+  return { results, sqliteVersion: "3.50.4" };
+}
 
 const parent = (p: string) => p.slice(0, p.lastIndexOf("\\"));
 const name = (p: string) => p.slice(p.lastIndexOf("\\") + 1);
@@ -323,6 +382,52 @@ export function installMock() {
             output: "",
             report: '<testsuite><testcase name="area()" classname="CircleTest" time="0.012"/><testcase name="moveBy()" classname="CircleTest" time="0.003"><failure message="expected: &lt;2.0&gt; but was: &lt;1.0&gt;" type="org.opentest4j.AssertionFailedError">stack</failure></testcase></testsuite>',
           };
+        case "tools_find":
+          return TOOLS[a.kind as string] ?? [];
+        case "tool_exec": {
+          const x = a as { program: string; args: string[]; input: string | null };
+          // clang-format: tidies the braces of the pretend C file.
+          if (/clang-format/.test(x.program)) return { code: 0, stdout: (x.input ?? "").replace(/\)\s*\{/g, ") {").replace(/[ \t]+\n/g, "\n"), stderr: "" };
+          if (x.args.includes("-l")) return { code: 0, stdout: "No syntax errors detected\n", stderr: "" };
+          return { code: 0, stdout: "", stderr: "" };
+        }
+        case "native_compile":
+          await new Promise((r) => setTimeout(r, 300));
+          return { ok: true, diagnostics: [], output: "", files: a.files as number, durationMs: 287 };
+        case "run_program": {
+          const id = ++runId;
+          const py = /python/i.test(a.program as string);
+          const out = py ? ["What's your name? "] : ["First number: "];
+          out.forEach((text, i) => setTimeout(() => emit("run-output", { runId: id, stream: "stdout", text }), 120 + i * 100));
+          if (py) {
+            const shop = `${ROOT}\\py\\shop.py`;
+            setTimeout(
+              () =>
+                emit("run-output", {
+                  runId: id,
+                  stream: "stderr",
+                  text: `Traceback (most recent call last):\n  File "${ROOT}\\py\\main.py", line 19, in <module>\n    main()\n  File "${shop}", line 33, in total\n    return sum(line.total() for line in self.lines)\nTypeError: unsupported operand type(s) for +: 'int' and 'str'\n`,
+                }),
+              500,
+            );
+            setTimeout(() => emit("run-exit", { runId: id, code: 1, durationMs: 610 }), 650);
+          } else setTimeout(() => emit("run-exit", { runId: id, code: 0, durationMs: 420 }), 700);
+          return id;
+        }
+        case "sql_run": {
+          await new Promise((r) => setTimeout(r, 120));
+          return mockSql(a.script as string, (a.at as number | null) ?? null);
+        }
+        case "sql_schema":
+          return [
+            { name: "customer", kind: "table", columns: [{ name: "id", declType: "INTEGER" }, { name: "name", declType: "TEXT" }, { name: "city", declType: "TEXT" }] },
+            { name: "product", kind: "table", columns: [{ name: "id", declType: "INTEGER" }, { name: "title", declType: "TEXT" }, { name: "price", declType: "REAL" }] },
+          ];
+        case "php_serve":
+          return 8123;
+        case "php_serve_stop":
+        case "lsp_start_program":
+          return null;
         case "jar_export":
         case "javadoc_generate":
           return { ok: true, output: "", path: "C:\\out.jar" };

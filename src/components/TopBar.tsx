@@ -14,7 +14,7 @@ const MENUS: Record<string, string[]> = {
   Edit: ["edit.undo", "edit.redo", "-", "edit.find", "edit.findInFiles", "edit.gotoLine", "-", "edit.definition", "edit.usages", "edit.rename", "edit.quickfix", "edit.refactor", "edit.organizeImports", "-", "edit.comment", "edit.format", "edit.emmet"],
   View: ["view.palette", "-", "view.explorer", "view.outline", "view.sidebar", "view.panel", "view.terminal", "view.newTerminal", "view.problems", "view.preview", "-", "view.split", "view.focusOther", "-", "uml.open", "uml.side", "uml.layout", "-", "view.zoomIn", "view.zoomOut", "view.zoomReset"],
   Run: ["run.run", "run.debug", "run.trace", "run.compile", "run.stop", "-", "debug.continue", "debug.over", "debug.into", "debug.out", "debug.breakpoint", "-", "run.tests", "run.jshell", "-", "run.config", "project.libraries", "-", "build.tasks", "build.task", "build.jar", "build.javadoc", "-", "run.output"],
-  Git: ["view.git", "-", "git.commit", "git.amend", "git.stageAll", "git.openChanges", "-", "git.pull", "git.push", "git.sync", "git.fetch", "-", "git.newBranch", "git.addRemote", "-", "git.clone", "git.init", "git.identity"],
+  Git: ["view.git", "-", "git.commit", "git.amend", "git.stageAll", "git.openChanges", "-", "git.pull", "git.push", "git.sync", "git.fetch", "-", "git.newBranch", "git.merge", "git.rebase", "git.continue", "git.abort", "-", "git.stash", "git.tag", "git.pushTags", "git.blame", "-", "git.addRemote", "git.clone", "git.init", "git.identity"],
   Help: ["help.shortcuts", "help.jdk", "help.about"],
 };
 

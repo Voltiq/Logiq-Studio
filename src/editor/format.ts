@@ -7,6 +7,7 @@ import type { EditorView } from "@codemirror/view";
 import { indentRange } from "@codemirror/language";
 import { languageFor, type LanguageId } from "./languages";
 import type { Settings } from "../lib/settings";
+import { pluginById } from "../languages";
 
 const PARSER: Partial<Record<LanguageId, string>> = {
   java: "java",
@@ -37,7 +38,7 @@ async function plugins(lang: LanguageId) {
 }
 
 export function canFormat(path: string): boolean {
-  return !!PARSER[languageFor(path).id];
+  return !!PARSER[languageFor(path).id] || !!pluginById(languageFor(path).id)?.canFormat?.(path);
 }
 
 export class FormatError extends Error {
@@ -49,6 +50,15 @@ export class FormatError extends Error {
 export async function formatText(path: string, text: string, cursor: number, s: Settings): Promise<{ text: string; cursor: number }> {
   const lang = languageFor(path).id;
   const parser = PARSER[lang];
+  const plugin = pluginById(lang);
+  if (!parser && plugin?.format) {
+    // An outside formatter (clang-format); the cursor stays on its line.
+    const out = await plugin.format(path, text);
+    if (out === null) throw new FormatError("No formatter for this kind of file was found.");
+    const line = text.slice(0, cursor).split("\n").length;
+    const lines = out.split("\n");
+    return { text: out, cursor: Math.min(out.length, lines.slice(0, line - 1).join("\n").length + (line > 1 ? 1 : 0)) };
+  }
   if (!parser) throw new FormatError("This kind of file can't be formatted.");
   const prettier = await import("prettier/standalone");
   try {

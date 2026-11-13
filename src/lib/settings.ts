@@ -26,6 +26,12 @@ export interface Settings {
   nodePath: string;
   /** The shell new terminals start; empty: the first one found. */
   terminalShell: string;
+  /** Start installed language servers for Python, C, C++, PHP and Kotlin (clangd, Pyright…). */
+  languageServers: boolean;
+  /** More compiler flags for C and C++ (after -std=c17 / -std=c++20 -Wall -Wextra -g). */
+  cFlags: string;
+  /** Rows a SQL result shows at most. */
+  sqlMaxRows: number;
   uml: UmlOptions;
   recent: string[];
   sidebarWidth: number;
@@ -52,6 +58,9 @@ export const DEFAULT_SETTINGS: Settings = {
   jdkHome: "",
   nodePath: "",
   terminalShell: "",
+  languageServers: true,
+  cFlags: "",
+  sqlMaxRows: 10000,
   uml: DEFAULT_UML_OPTIONS,
   recent: [],
   sidebarWidth: 272,

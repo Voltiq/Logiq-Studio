@@ -102,7 +102,7 @@ pub fn decode(pending: &mut Vec<u8>, bytes: &[u8]) -> String {
 
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
-pub fn term_open(app: AppHandle, state: State<Terminals>, id: u32, shell: String, args: Vec<String>, cwd: String, cols: u16, rows: u16, jdk_home: Option<String>) -> Result<(), String> {
+pub fn term_open(app: AppHandle, state: State<Terminals>, id: u32, shell: String, args: Vec<String>, cwd: String, cols: u16, rows: u16, jdk_home: Option<String>, env: Option<std::collections::HashMap<String, String>>, path_prepend: Option<Vec<String>>) -> Result<(), String> {
     let pty = native_pty_system().openpty(PtySize { rows: rows.max(2), cols: cols.max(10), pixel_width: 0, pixel_height: 0 }).map_err(err)?;
     let mut cmd = CommandBuilder::new(&shell);
     cmd.args(&args);
@@ -113,14 +113,22 @@ pub fn term_open(app: AppHandle, state: State<Terminals>, id: u32, shell: String
     cmd.env("COLORTERM", "truecolor");
     cmd.env("TERM_PROGRAM", "LogiqStudio");
     // The JDK the IDE uses comes first, so `java` and `javac` in the terminal are the same ones.
+    // A project's Python environment comes before that (`python` and `pip` are its own).
+    let mut first: Vec<std::path::PathBuf> = path_prepend.unwrap_or_default().into_iter().map(std::path::PathBuf::from).filter(|d| d.is_dir()).collect();
     let java = java_bin(&jdk_home, "java");
     if let Some(bin) = java.parent().filter(|b| b.is_dir()) {
         if let Some(home) = bin.parent() {
             cmd.env("JAVA_HOME", home);
         }
+        first.push(bin.to_path_buf());
+    }
+    if !first.is_empty() {
         let path = std::env::var_os("PATH").unwrap_or_default();
-        let joined = std::env::join_paths(std::iter::once(bin.to_path_buf()).chain(std::env::split_paths(&path))).map_err(err)?;
+        let joined = std::env::join_paths(first.into_iter().chain(std::env::split_paths(&path))).map_err(err)?;
         cmd.env("PATH", joined);
+    }
+    for (k, v) in env.unwrap_or_default() {
+        cmd.env(k, v);
     }
     let mut child = pty.slave.spawn_command(cmd).map_err(|e| format!("The shell couldn't be started: {e}"))?;
     drop(pty.slave);

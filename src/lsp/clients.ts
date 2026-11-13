@@ -33,8 +33,11 @@ import { javaIndex } from "../uml/javaIndex";
 import { AppWorkspace } from "./workspace";
 import { pathToUri, uriToPath } from "./uri";
 import type { MenuItem } from "../components/ui/Menu";
+import { PLUGINS, pluginById } from "../languages";
+import type { ServerSpec } from "../languages/plugin";
 
-export type ServerId = "java" | "ts" | "web";
+/** "java", "ts", "web", or a plug-in's server ("clangd", "python", "php", "kotlin"). */
+export type ServerId = string;
 
 export interface LspDiagnostic {
   range: { start: { line: number; character: number }; end: { line: number; character: number } };
@@ -44,13 +47,17 @@ export interface LspDiagnostic {
   code?: string | number;
 }
 
+export type PluginServerState = "missing" | "starting" | "ready" | "failed";
+
 interface LspState {
   java: "off" | "missing" | "installing" | "starting" | "ready" | "failed";
   ts: "off" | "starting" | "ready";
   web: "off" | "starting" | "ready";
+  /** The plug-ins' servers, by id, with the program's name. */
+  plugins: Record<string, { state: PluginServerState; name: string }>;
 }
 
-export const useLsp = create<LspState>(() => ({ java: "off", ts: "off", web: "off" }));
+export const useLsp = create<LspState>(() => ({ java: "off", ts: "off", web: "off", plugins: {} }));
 
 const clients: Partial<Record<ServerId, LSPClient>> = {};
 const diagnostics = new Map<string, LspDiagnostic[]>();
@@ -64,10 +71,21 @@ function serverFor(lang: LanguageId): ServerId | null {
   if (lang === "java") return "java";
   if (lang === "javascript" || lang === "typescript") return "ts";
   if (lang === "html" || lang === "css") return "web";
-  return null;
+  return pluginById(lang)?.server?.id ?? null;
 }
 
-const LANGUAGE_ID: Partial<Record<LanguageId, string>> = { java: "java", javascript: "javascript", typescript: "typescript", html: "html", css: "css" };
+const LANGUAGE_ID: Partial<Record<LanguageId, string>> = {
+  java: "java",
+  javascript: "javascript",
+  typescript: "typescript",
+  html: "html",
+  css: "css",
+  python: "python",
+  c: "c",
+  cpp: "cpp",
+  php: "php",
+  kotlin: "kotlin",
+};
 
 /** Whether a file's editor gets the language server's features. */
 export function hasServer(path: string): boolean {
@@ -135,12 +153,12 @@ export async function applyWorkspaceEdit(edit: { changes?: Record<string, TextEd
 // ----- Transports --------------------------------------------------------------------------------
 
 /** Requests the server makes of the client, answered here (the client library leaves them unanswered). */
-async function answerServerRequest(method: string, params: any): Promise<unknown> {
+async function answerServerRequest(method: string, params: any, spec?: ServerSpec): Promise<unknown> {
   switch (method) {
     case "workspace/applyEdit":
       return { applied: await applyWorkspaceEdit(params.edit) };
     case "workspace/configuration":
-      return (params.items ?? []).map(() => null);
+      return (params.items ?? []).map((item: { section?: string }) => (item.section && spec?.configuration ? (spec.configuration(item.section) ?? null) : null));
     case "client/registerCapability":
     case "client/unregisterCapability":
     case "window/workDoneProgress/create":
@@ -152,7 +170,7 @@ async function answerServerRequest(method: string, params: any): Promise<unknown
   }
 }
 
-function makeTransport(send: (msg: string) => void, onMessage: (deliver: (msg: string) => void) => void): Transport {
+function makeTransport(send: (msg: string) => void, onMessage: (deliver: (msg: string) => void) => void, spec?: ServerSpec): Transport {
   const handlers = new Set<(msg: string) => void>();
   onMessage((msg) => {
     let value: any;
@@ -162,7 +180,7 @@ function makeTransport(send: (msg: string) => void, onMessage: (deliver: (msg: s
       return;
     }
     if (value && "id" in value && "method" in value) {
-      answerServerRequest(value.method, value.params).then(
+      answerServerRequest(value.method, value.params, spec).then(
         (result) => send(JSON.stringify({ jsonrpc: "2.0", id: value.id, result })),
         (error) => send(JSON.stringify({ jsonrpc: "2.0", id: value.id, error })),
       );
@@ -187,7 +205,7 @@ function workerTransport(worker: Worker): Transport {
 let nativeListening = false;
 const nativeDeliver: Partial<Record<string, (msg: string) => void>> = {};
 
-async function nativeTransport(id: string): Promise<Transport> {
+async function nativeTransport(id: string, spec?: ServerSpec): Promise<Transport> {
   if (!nativeListening) {
     nativeListening = true;
     await listen<{ id: string; message: string }>("lsp-message", (e) => nativeDeliver[e.payload.id]?.(e.payload.message));
@@ -196,6 +214,11 @@ async function nativeTransport(id: string): Promise<Transport> {
         useLsp.setState({ java: "failed" });
         stopServer("java");
       }
+      const plugin = useLsp.getState().plugins[e.payload];
+      if (plugin && plugin.state !== "missing") {
+        setPluginServer(e.payload, { ...plugin, state: "failed" });
+        stopServer(e.payload);
+      }
     });
   }
   return makeTransport(
@@ -203,7 +226,17 @@ async function nativeTransport(id: string): Promise<Transport> {
     (deliver) => {
       nativeDeliver[id] = deliver;
     },
+    spec,
   );
+}
+
+function setPluginServer(id: string, v: { state: PluginServerState; name: string } | null) {
+  useLsp.setState((s) => {
+    const plugins = { ...s.plugins };
+    if (v) plugins[id] = v;
+    else delete plugins[id];
+    return { plugins };
+  });
 }
 
 // ----- Clients -----------------------------------------------------------------------------------
@@ -272,6 +305,46 @@ function stopServer(id: ServerId) {
 }
 
 const LANGS: Record<ServerId, LanguageId[]> = { java: ["java"], ts: ["javascript", "typescript"], web: ["html", "css"] };
+for (const p of PLUGINS) if (p.server) LANGS[p.server.id] = [...(LANGS[p.server.id] ?? []), ...p.languages];
+
+/** Starts the language server of a plug-in's language when it is installed (once per folder). */
+export async function ensureLanguageServer(lang: LanguageId) {
+  const spec = pluginById(lang)?.server;
+  if (!spec || !get().settings.languageServers || clients[spec.id] || useLsp.getState().plugins[spec.id]) return;
+  setPluginServer(spec.id, { state: "starting", name: spec.name() });
+  const found = await spec.find().catch(() => null);
+  if (!found) {
+    setPluginServer(spec.id, { state: "missing", name: spec.name() });
+    return;
+  }
+  const root = get().root;
+  try {
+    await invoke("lsp_start_program", { id: spec.id, program: found.program, args: found.args, cwd: root });
+  } catch (e) {
+    setPluginServer(spec.id, { state: "failed", name: found.name });
+    toast("error", t("{0} didn't start", found.name), errorText(e));
+    return;
+  }
+  setPluginServer(spec.id, { state: "starting", name: found.name });
+  const client = newClient(root ? pathToUri(root) : undefined, spec.initializationOptions?.(), 30000);
+  clients[spec.id] = client;
+  client.connect(await nativeTransport(spec.id, spec));
+  refreshLanguages?.(LANGS[spec.id]);
+  client.initializing.then(
+    () => setPluginServer(spec.id, { state: "ready", name: found.name }),
+    () => setPluginServer(spec.id, { state: "failed", name: found.name }),
+  );
+}
+
+/** Stops the plug-ins' servers (another folder opens; they start again with its files). */
+export function stopPluginServers() {
+  for (const p of PLUGINS) {
+    if (!p.server) continue;
+    stopServer(p.server.id);
+    void invoke("lsp_stop", { id: p.server.id }).catch(() => {});
+  }
+  useLsp.setState({ plugins: {} });
+}
 
 let workers: Partial<Record<ServerId, Worker>> = {};
 
@@ -448,6 +521,7 @@ export function organizeImports(view: EditorView, path: string) {
 }
 
 export function restartServersForFolder() {
+  stopPluginServers();
   stopServer("ts");
   stopServer("web");
   workers.ts?.terminate();

@@ -10,7 +10,30 @@ import { api, errorText } from "./api";
 import { closeDialog, get as getApp, openDialog, toast, useStore } from "./store";
 import { basename, join, samePath } from "./paths";
 import { t } from "./i18n";
-import { BRANCH_FORMAT, isConflict, isStaged, isUnstaged, kindOf, LOG_FORMAT, parseBranches, parseLog, parseNameStatus, parseStatus, type Branch, type ChangedFile, type Commit, type GitFile, type GitKind, type GitStatus } from "./gitParse";
+import {
+  BRANCH_FORMAT,
+  isConflict,
+  isStaged,
+  isUnstaged,
+  kindOf,
+  LOG_FORMAT,
+  parseBranches,
+  parseLog,
+  parseNameStatus,
+  parseStashes,
+  parseStatus,
+  parseTags,
+  STASH_FORMAT,
+  TAG_FORMAT,
+  type Branch,
+  type ChangedFile,
+  type Commit,
+  type GitFile,
+  type GitKind,
+  type GitStatus,
+  type Stash,
+  type Tag,
+} from "./gitParse";
 
 export interface GitInfo {
   version: string;
@@ -34,9 +57,32 @@ interface GitState {
   busy: string | null;
   /** Bumped whenever the status was read again (the editor gutters follow it). */
   version: number;
+  /** A merge, rebase, cherry-pick or revert that stopped (for conflicts) and waits to go on. */
+  operation: GitOperation | null;
+  stashes: Stash[];
+  tags: Tag[];
 }
 
-export const useGit = create<GitState>(() => ({ info: null, repo: null, status: null, kinds: new Map(), head: null, log: [], message: "", busy: null, version: 0 }));
+export interface GitOperation {
+  kind: "merge" | "rebase" | "cherry-pick" | "revert";
+  /** What is merged in or rebased: "feature", "main"… */
+  label: string;
+}
+
+export const useGit = create<GitState>(() => ({
+  info: null,
+  repo: null,
+  status: null,
+  kinds: new Map(),
+  head: null,
+  log: [],
+  message: "",
+  busy: null,
+  version: 0,
+  operation: null,
+  stashes: [],
+  tags: [],
+}));
 const setG = useGit.setState;
 const getG = useGit.getState;
 
@@ -149,10 +195,54 @@ async function readStatus() {
     const head = status.unborn ? null : (await git(["rev-parse", "HEAD"], { cwd: repo }).catch(() => "")).trim() || null;
     const headChanged = head !== getG().head;
     setG((s) => ({ repo, status: { ...status, files: changes }, kinds: kindsFor(repo!, status.files), head, version: s.version + 1 }));
-    if (headChanged || !getG().log.length) void loadLog();
+    if (headChanged || !getG().log.length) {
+      void loadLog();
+      void loadTags();
+    }
+    // Awaited, so whoever refreshed after a merge or rebase knows whether it stopped.
+    await readOperation(repo).catch(() => {});
+    void git(["stash", "list", STASH_FORMAT], { cwd: repo })
+      .then((out) => {
+        const stashes = parseStashes(out);
+        if (JSON.stringify(stashes) !== JSON.stringify(getG().stashes)) setG({ stashes });
+      })
+      .catch(() => setG({ stashes: [] }));
   } catch {
     setG({ repo: null, status: null, kinds: new Map(), head: null });
   }
+}
+
+const gitDirs = new Map<string, string>();
+
+/** Whether a merge, rebase, cherry-pick or revert is waiting (git leaves its files in .git). */
+async function readOperation(repo: string) {
+  let dir = gitDirs.get(repo);
+  if (!dir) {
+    dir = winPath((await git(["rev-parse", "--absolute-git-dir"], { cwd: repo }).catch(() => "")).trim());
+    if (!dir) return;
+    gitDirs.set(repo, dir);
+  }
+  const has = (name: string) => api.exists(join(dir!, name)).catch(() => false);
+  const [merge, rebaseMerge, rebaseApply, pick, revert] = await Promise.all([has("MERGE_HEAD"), has("rebase-merge"), has("rebase-apply"), has("CHERRY_PICK_HEAD"), has("REVERT_HEAD")]);
+  let operation: GitOperation | null = null;
+  const firstLine = async (name: string) => ((await api.readText(join(dir!, name)).catch(() => ({ text: "" }))).text.split("\n")[0] ?? "").trim();
+  if (rebaseMerge || rebaseApply) {
+    const sub = rebaseMerge ? "rebase-merge" : "rebase-apply";
+    const onto = await firstLine(`${sub}\\onto`);
+    const name = onto ? (await git(["name-rev", "--name-only", "--exclude=refs/tags/*", onto], { cwd: repo }).catch(() => onto.slice(0, 7))).trim() : "";
+    operation = { kind: "rebase", label: name.replace(/~\d+$|\^\d*$/, "") || onto.slice(0, 7) };
+  } else if (merge) {
+    const msg = await firstLine("MERGE_MSG");
+    operation = { kind: "merge", label: /'([^']+)'/.exec(msg)?.[1] ?? msg.replace(/^Merge (branch |remote-tracking branch )?/, "") };
+  } else if (pick) operation = { kind: "cherry-pick", label: (await firstLine("CHERRY_PICK_HEAD")).slice(0, 7) };
+  else if (revert) operation = { kind: "revert", label: (await firstLine("REVERT_HEAD")).slice(0, 7) };
+  if (JSON.stringify(operation) !== JSON.stringify(getG().operation)) setG({ operation });
+}
+
+export async function loadTags() {
+  if (!getG().repo) return setG({ tags: [] });
+  const out = await git(["for-each-ref", "--sort=-creatordate", TAG_FORMAT, "refs/tags"]).catch(() => "");
+  setG({ tags: parseTags(out) });
 }
 
 export async function loadLog(limit = 200) {
@@ -202,7 +292,7 @@ export function showFile(spec: string): Promise<string | null> {
 
 // ----- Changing things ----------------------------------------------------------------------
 
-async function op(name: string, f: () => Promise<unknown>, failTitle: string): Promise<boolean> {
+export async function op(name: string, f: () => Promise<unknown>, failTitle: string): Promise<boolean> {
   setG({ busy: name });
   try {
     await f();
@@ -550,4 +640,4 @@ export async function initGit() {
 }
 
 export { kindOf, isStaged, isUnstaged, isConflict };
-export type { GitFile, GitKind, Commit, Branch, ChangedFile };
+export type { GitFile, GitKind, Commit, Branch, ChangedFile, Stash, Tag };

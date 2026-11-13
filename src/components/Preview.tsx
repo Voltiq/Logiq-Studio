@@ -19,12 +19,15 @@ export function Preview() {
   const root = useStore((s) => s.root);
   const path = useStore((s) => s.previewPath);
   const nonce = useStore((s) => s.previewNonce);
+  const php = useStore((s) => s.phpServer);
   const [device, setDevice] = useState<keyof typeof WIDTHS>("full");
   const frame = useRef<HTMLIFrameElement>(null);
 
   const rel = root && path ? relative(root, path) : "";
   const markdown = !!path && /\.(md|markdown)$/i.test(path);
-  const src = rel && !markdown ? previewUrl(rel) : "about:blank";
+  // PHP pages come from PHP's web server, which serves the same folder.
+  const phpRel = php && path && /\.(php|phtml)$/i.test(path) ? relative(php.root, path) : null;
+  const src = phpRel !== null ? `http://127.0.0.1:${php!.port}/${phpRel.split("/").map(encodeURIComponent).join("/")}` : rel && !markdown ? previewUrl(rel) : "about:blank";
   const [md, setMd] = useState<string | null>(null);
 
   // Markdown renders from the editor's text as you type (or from disk when not open).

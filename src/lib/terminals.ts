@@ -114,7 +114,10 @@ async function spawn(id: number) {
   inst.started = true;
   setT((s) => ({ tabs: s.tabs.map((x) => (x.id === id ? { ...x, exited: false } : x)) }));
   try {
-    await invoke("term_open", { id, shell: inst.shell.path, args: inst.shell.args, cwd: inst.cwd, cols: inst.term.cols, rows: inst.term.rows, jdkHome: getApp().settings.jdkHome || null });
+    // A project's Python environment is active in its terminals.
+    const { terminalEnvironment } = await import("../languages");
+    const extra = await terminalEnvironment().catch(() => ({ env: {}, pathPrepend: [] as string[] }));
+    await invoke("term_open", { id, shell: inst.shell.path, args: inst.shell.args, cwd: inst.cwd, cols: inst.term.cols, rows: inst.term.rows, jdkHome: getApp().settings.jdkHome || null, env: extra.env, pathPrepend: extra.pathPrepend });
     for (const text of inst.queued.splice(0)) void invoke("term_write", { id, data: text }).catch(() => {});
   } catch (e) {
     inst.term.write(`\x1b[31m${errorText(e)}\x1b[0m\r\n`);

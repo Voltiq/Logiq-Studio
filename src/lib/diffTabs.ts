@@ -73,6 +73,19 @@ export function openWorkingDiff(abs: string, staged = false) {
   }
 }
 
+/** A conflicted file's two sides as git keeps them in the index: current (stage 2) and incoming (stage 3). */
+export function openConflictDiff(abs: string) {
+  const rel = relPath(abs);
+  if (!rel) return;
+  open(`diff:conflict:${abs}`, t("{0} (current ↔ incoming)", basename(abs)), {
+    path: abs,
+    leftLabel: t("Current"),
+    rightLabel: t("Incoming"),
+    live: false,
+    load: async () => ({ left: (await showFile(`:2:${rel}`)) ?? "", right: (await showFile(`:3:${rel}`)) ?? "" }),
+  });
+}
+
 /** What a commit changed in one file, against its first parent. */
 export function openCommitDiff(c: Commit, f: ChangedFile) {
   const name = basename(f.path);

@@ -127,6 +127,12 @@ async function launcher(): Promise<string | null> {
 export async function runTests(select?: string) {
   const root = get().root;
   if (!root || useTests.getState().status === "running") return;
+  // A Python project (no Java in it) runs pytest or unittest in the terminal.
+  const { javaIndex, otherIndex } = await import("../uml/javaIndex");
+  if (!select && javaIndex.size === 0 && otherIndex.size > 0) {
+    const { pythonPlugin } = await import("../languages/python");
+    if (await pythonPlugin.test!()) return;
+  }
   const { useBuild, runBuildTask } = await import("./build");
   const build = useBuild.getState().info;
   if (build) {

@@ -203,9 +203,9 @@ impl Diagnostic {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompileResult {
-    ok: bool,
+    pub(crate) ok: bool,
     diagnostics: Vec<Diagnostic>,
-    output: String,
+    pub(crate) output: String,
     files: usize,
     duration_ms: u64,
 }
@@ -422,7 +422,7 @@ fn pump(app: AppHandle, run_id: u32, stream: &'static str, mut source: impl Read
     })
 }
 
-fn start(app: AppHandle, runner: &Runner, mut cmd: Command) -> Result<u32, String> {
+pub(crate) fn start(app: AppHandle, runner: &Runner, mut cmd: Command) -> Result<u32, String> {
     stop_current(runner);
     let id = runner.next.fetch_add(1, Ordering::SeqCst) + 1;
     no_window(&mut cmd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());

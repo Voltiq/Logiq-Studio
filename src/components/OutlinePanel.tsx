@@ -1,22 +1,21 @@
 import { Box, Braces, CircleDot, Component, Diamond, Layers, ListTree, Play, SquareFunction, Variable } from "lucide-react";
 import { activeTab, useStore } from "../lib/store";
 import { goTo } from "../lib/actions";
-import { javaIndex, useJavaIndexVersion } from "../uml/javaIndex";
+import { structureOf, useStructureVersion } from "../uml/javaIndex";
 import { simpleType } from "../uml/javaParser";
 import { VISIBILITY_SYMBOL, type JType } from "../uml/model";
 import { EmptyState } from "./ui/Feedback";
-import { languageFor } from "../editor/languages";
 import { basename } from "../lib/paths";
 import { t } from "../lib/i18n";
 
 const KIND_ICON = { class: Box, interface: Component, enum: Layers, record: Braces, annotation: CircleDot };
 
-/* The structure of the active Java file: its types and their members. */
+/* The structure of the active file (Java or Python): its types and their members, and its functions. */
 export function OutlinePanel() {
-  useJavaIndexVersion();
+  useStructureVersion();
   const path = useStore((s) => activeTab(s)?.path ?? null);
   const line = useStore((s) => s.cursor.line);
-  const file = path && languageFor(path).id === "java" ? javaIndex.file(path) : null;
+  const file = path ? structureOf(path) : null;
 
   if (!file) {
     return (
@@ -26,7 +25,7 @@ export function OutlinePanel() {
         </div>
         <div className="side-empty">
           <EmptyState icon={ListTree} title={t("No outline")} compact>
-            {t("Open a Java file to see its classes, fields and methods here.")}
+            {t("Open a Java or Python file to see its classes, fields and methods here.")}
           </EmptyState>
         </div>
       </div>
@@ -39,7 +38,7 @@ export function OutlinePanel() {
     return d;
   };
   // The innermost member whose declaration starts at or before the cursor.
-  const members = file.types.flatMap((x) => [...x.fields.map((f) => f.line), ...x.methods.map((m) => m.line), x.line]);
+  const members = [...file.types.flatMap((x) => [...x.fields.map((f) => f.line), ...x.methods.map((m) => m.line), x.line]), ...(file.functions ?? []).map((f) => f.line)];
   const current = Math.max(...members.filter((l) => l <= line), -1);
 
   return (
@@ -70,7 +69,7 @@ export function OutlinePanel() {
                   <Variable size={13} className="outline-icon is-field" aria-hidden="true" />
                   <span className="outline-vis">{VISIBILITY_SYMBOL[f.visibility]}</span>
                   <span className={f.isStatic ? "is-static" : undefined}>{f.name}</span>
-                  <span className="outline-detail">{simpleType(f.type)}</span>
+                  {f.type && <span className="outline-detail">{simpleType(f.type)}</span>}
                 </button>
               ))}
               {x.methods.map((m, i) => (
@@ -79,13 +78,23 @@ export function OutlinePanel() {
                   <span className="outline-vis">{VISIBILITY_SYMBOL[m.visibility]}</span>
                   <span className={[m.isStatic && "is-static", m.isAbstract && "is-italic"].filter(Boolean).join(" ") || undefined}>{m.name}</span>
                   <span className="outline-detail">
-                    ({m.params.map((p) => simpleType(p.type)).join(", ")}){m.returnType && m.returnType !== "void" ? `: ${simpleType(m.returnType)}` : ""}
+                    ({m.params.map((p) => (x.language ? (p.type ? `${p.name}: ${simpleType(p.type)}` : p.name) : simpleType(p.type))).join(", ")}){m.returnType && m.returnType !== "void" ? `: ${simpleType(m.returnType)}` : ""}
                   </span>
                 </button>
               ))}
             </div>
           );
         })}
+        {(file.functions ?? []).map((m, i) => (
+          <button key={`fn${i}`} type="button" role="treeitem" className={`outline-row${current === m.line ? " is-current" : ""}`} style={{ paddingLeft: 8 }} onClick={() => goTo(m.line)}>
+            <SquareFunction size={13} className="outline-icon is-method" aria-hidden="true" />
+            <span>{m.name}</span>
+            <span className="outline-detail">
+              ({m.params.map((p) => (p.type ? `${p.name}: ${simpleType(p.type)}` : p.name)).join(", ")}){m.returnType && m.returnType !== "void" ? `: ${simpleType(m.returnType)}` : ""}
+            </span>
+          </button>
+        ))}
+        {file.types.length === 0 && !file.functions?.length && <p className="side-empty-note">{t("No classes or functions in this file.")}</p>}
       </div>
     </div>
   );

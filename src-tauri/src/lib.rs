@@ -15,8 +15,10 @@ mod lsp;
 mod preview;
 mod runner;
 mod search;
+mod sql;
 mod stylelint;
 mod terminal;
+mod toolchain;
 mod tools;
 mod watch;
 
@@ -67,6 +69,7 @@ pub fn run() {
         .manage(lsp::Servers::default())
         .manage(terminal::Terminals::default())
         .manage(git::GitJobs::default())
+        .manage(toolchain::PhpServer::default())
         .manage(watch::Watcher::default())
         .manage(preview::PreviewRoot::default())
         .register_uri_scheme_protocol("logiq-preview", |ctx, request| preview::serve(ctx.app_handle(), &request))
@@ -140,6 +143,15 @@ pub fn run() {
             git::git_cancel,
             stylelint::stylelint_available,
             stylelint::stylelint_run,
+            toolchain::tools_find,
+            toolchain::tool_exec,
+            toolchain::run_program,
+            toolchain::native_compile,
+            toolchain::php_serve,
+            toolchain::php_serve_stop,
+            lsp::lsp_start_program,
+            sql::sql_run,
+            sql::sql_schema,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Logiq Studio");

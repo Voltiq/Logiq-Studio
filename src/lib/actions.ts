@@ -34,7 +34,7 @@ import { IMAGE_EXTENSIONS, languageFor } from "../editor/languages";
 import { canFormat, formatText, formatView } from "../editor/format";
 import { breakpointField } from "../editor/breakpoints";
 import { loadRunConfig, splitArgs, useRunConfig } from "./runConfig";
-import { javaIndex } from "../uml/javaIndex";
+import { indexFor, indexText, javaIndex, otherIndex, STRUCTURE_EXTENSIONS, unindex } from "../uml/javaIndex";
 import { HTML_SKELETON, javaSkeleton, TEMPLATES, type TemplateId } from "./templates";
 import type { Diagnostic } from "./types";
 import { t } from "./i18n";
@@ -106,11 +106,11 @@ function onDocChanged(doc: Doc) {
   if (tab && tab.dirty !== dirty) {
     set((s) => ({ tabs: s.tabs.map((t) => (t === tab ? { ...t, dirty } : t)) }));
   }
-  if (extname(doc.path) === "java") {
+  if (indexFor(doc.path)) {
     window.clearTimeout(javaTimers.get(doc.path));
     javaTimers.set(
       doc.path,
-      window.setTimeout(() => javaIndex.set(doc.path, doc.state.doc.toString()), 220),
+      window.setTimeout(() => indexText(doc.path, doc.state.doc.toString()), 220),
     );
   }
   if (get().settings.autoSave && dirty) {
@@ -179,6 +179,7 @@ export async function openFolder(path: string) {
   addRecent(path);
   loadRunConfig(path);
   debugHooks?.folder(path);
+  void folderChanged(path);
   void import("../lsp/clients").then((m) => m.startJavaServer());
   void api.watch(path).catch(() => {});
   void api.setPreviewRoot(path).catch(() => {});
@@ -192,9 +193,20 @@ export async function closeFolder() {
   if (!(await closeAllTabs(true))) return;
   set({ root: null, tree: {}, expanded: {}, selected: null, selection: [], problems: [], previewOpen: false });
   javaIndex.replaceAll([]);
+  otherIndex.replaceAll([]);
+  void folderChanged(null);
   void api.watch(null).catch(() => {});
   getCurrentWindow().setTitle("Logiq Studio").catch(() => {});
   scheduleSession();
+}
+
+/** The language tools follow the folder: its Python environment, a new PHP server, servers for its languages. */
+async function folderChanged(root: string | null) {
+  const { toolchainFolder } = await import("../languages/toolchain");
+  toolchainFolder(root);
+  set({ phpServer: null });
+  void import("@tauri-apps/api/core").then(({ invoke }) => invoke("php_serve_stop").catch(() => {}));
+  void import("../lsp/clients").then((m) => m.stopPluginServers());
 }
 
 export async function reloadJavaIndex() {
@@ -207,6 +219,14 @@ export async function reloadJavaIndex() {
     return doc ? { path: s.path, text: doc.state.doc.toString() } : s;
   });
   javaIndex.replaceAll(merged);
+  // Python and the other languages with classes, for the outline and the diagram.
+  const others = (await Promise.all(STRUCTURE_EXTENSIONS.map((ext) => api.readSources(root, ext).catch(() => [])))).flat();
+  otherIndex.replaceAll(
+    others.map((s) => {
+      const doc = getDoc(s.path);
+      return doc ? { path: s.path, text: doc.state.doc.toString() } : s;
+    }),
+  );
 }
 
 export async function loadDir(dir: string) {
@@ -346,6 +366,10 @@ export async function openFile(path: string, at?: { line: number; col?: number; 
     const tab: Tab = { id: path, kind: "file", path, title: basename(path), dirty: false, group: group ?? targetGroup() };
     insertTab(tab);
     activate(tab.id);
+    // The language's server starts with its first file; a SQL file reads its database's tables.
+    const lang = languageFor(path).id;
+    void import("../lsp/clients").then((m) => m.ensureLanguageServer(lang));
+    if (lang === "sql") void import("../languages/sql").then((m) => m.loadSchema(path));
   }
   void revealInTree(path);
   if (at) goTo(at.line, at.col ?? 1, at.length ?? 0);
@@ -454,12 +478,12 @@ export async function closeTabs(ids: string[]): Promise<boolean> {
       const g = groupShowing(t.path);
       if (g !== null) setShownPath(g, null);
       dropDoc(t.path);
-      // A closed Java file's structure comes from disk again.
-      if (extname(t.path) === "java") {
+      // A closed file's structure comes from disk again.
+      if (indexFor(t.path)) {
         api
           .readText(t.path)
-          .then((f) => javaIndex.set(t.path!, f.text))
-          .catch(() => javaIndex.remove(t.path!));
+          .then((f) => indexText(t.path!, f.text))
+          .catch(() => unindex(t.path!));
       }
     }
   }
@@ -504,11 +528,12 @@ export async function saveDoc(path: string): Promise<boolean> {
   }
   doc.saved = doc.state.doc;
   set((s) => ({ tabs: s.tabs.map((t) => (t.kind === "file" && t.path && samePath(t.path, path) ? { ...t, dirty: false } : t)) }));
-  if (extname(path) === "java") javaIndex.set(path, text);
+  indexText(path, text);
   const lang = languageFor(path).id;
-  if (get().settings.livePreview && (lang === "html" || lang === "css" || lang === "javascript")) {
+  if (get().settings.livePreview && (lang === "html" || lang === "css" || lang === "javascript" || (lang === "php" && get().phpServer))) {
     set((s) => ({ previewNonce: s.previewNonce + 1 }));
   }
+  void import("../languages").then(({ pluginFor }) => pluginFor(path)?.afterSave?.(path, text));
   scheduleSession();
   return true;
 }
@@ -719,7 +744,7 @@ export function deletePaths(paths: string[]) {
         // The files are gone: close their tabs without asking to save.
         set((s) => ({ tabs: s.tabs.map((t) => (ids.includes(t.id) ? { ...t, dirty: false } : t)) }));
         await closeTabs(ids);
-        javaIndex.remove(path);
+        unindex(path);
         await loadDir(dirname(path));
       }
       set({ selection: [], selected: null });
@@ -802,7 +827,8 @@ export async function createProject(parent: string, name: string, template: Temp
   await openFolder(root);
   await openFile(join(root, tpl.open));
   if (template === "web") openPreview();
-  if (template === "java-classes") openUml(1);
+  if (template === "java-classes" || template === "python") openUml(1);
+  if (template === "php") openPreview(join(root, "index.php"));
 }
 
 // ----- Views ---------------------------------------------------------------------------------------
@@ -842,12 +868,17 @@ export function openSequence() {
 
 export function isPreviewable(path: string) {
   const id = languageFor(path).id;
-  return id === "html" || id === "markdown";
+  return id === "html" || id === "markdown" || id === "php";
 }
 
 export function openPreview(path?: string) {
   const active = activeTab();
   let target = path ?? (active?.path && isPreviewable(active.path) ? active.path : null);
+  // PHP pages need PHP's web server.
+  if (target && languageFor(target).id === "php") {
+    void import("../languages/php").then((m) => m.previewPhp(target!));
+    return;
+  }
   if (!target) {
     const root = get().root;
     const index = root ? (get().tree[root] ?? []).find((e) => /^index\.html?$/i.test(e.name)) : null;
@@ -893,8 +924,21 @@ function normalizeDiagnostics(list: Diagnostic[]): Diagnostic[] {
   return list.map((d) => ({ ...d, path: windows ? d.path.replace(/\//g, "\\") : d.path }));
 }
 
-function setProblems(problems: Diagnostic[]) {
-  set((s) => ({ problems, problemsVersion: s.problemsVersion + 1 }));
+export function setProblems(problems: Diagnostic[]) {
+  set((s) => ({ problems: normalizeDiagnostics(problems), problemsVersion: s.problemsVersion + 1 }));
+}
+
+/** Replaces the problems of some files, keeping the others' (a check after saving). */
+export function setFileProblems(paths: string[], problems: Diagnostic[]) {
+  const keep = get().problems.filter((p) => !paths.some((x) => samePath(x, p.path)));
+  setProblems([...keep, ...problems]);
+}
+
+const runEndHooks = new Map<number, (code: number | null, stderr: string) => void>();
+
+/** Called when the run ends, with its exit code and what it wrote to standard error. */
+export function onRunEnd(runId: number, f: (code: number | null, stderr: string) => void) {
+  runEndHooks.set(runId, f);
 }
 
 /** The class whose main method runs: the chosen one, the active file's, else the only one (or one called Main). */
@@ -952,12 +996,38 @@ export async function compileJava(quiet = false): Promise<boolean> {
   }
 }
 
+/** Ctrl+F9: compiles Java, or what the active file's plug-in builds (C, C++, Kotlin; checks Python and PHP). */
+export async function buildActive(): Promise<boolean> {
+  const tab = activeTab();
+  const path = tab?.kind === "file" ? tab.path : null;
+  if (path) {
+    const { pluginFor } = await import("../languages");
+    const plugin = pluginFor(path);
+    if (plugin?.build) return plugin.build(path);
+  }
+  return compileJava();
+}
+
 export async function runActive() {
   const s = get();
   if (s.run.status !== "idle") return;
   const tab = activeTab();
   const path = tab?.path ?? null;
   const lang = path ? languageFor(path).id : tab?.kind === "uml" ? "java" : null;
+
+  if (path && tab?.kind === "file") {
+    const { pluginFor } = await import("../languages");
+    const plugin = pluginFor(path);
+    if (plugin?.run) {
+      const text = getDoc(path)?.state.doc.toString() ?? "";
+      if (plugin.previews?.(path, text)) {
+        await saveDoc(path);
+        const { previewPhp } = await import("../languages/php");
+        return previewPhp(path);
+      }
+      return plugin.run(path);
+    }
+  }
 
   if (lang === "html" || lang === "markdown") {
     if (path) await saveDoc(path);
@@ -996,7 +1066,7 @@ export async function runActive() {
     }
     return;
   }
-  toast("info", t("Nothing to run here"), t("Open a Java class with a main method, an HTML page or a JavaScript file."));
+  toast("info", t("Nothing to run here"), t("Open a program (Java, Python, C, C++, Kotlin, PHP, JavaScript), an HTML page or a SQL script."));
 }
 
 export async function stopRun() {
@@ -1129,7 +1199,7 @@ async function applyFsChanges() {
   for (const d of dirs) await loadDir(d);
   for (const p of paths) {
     const doc = getDoc(p);
-    const isJava = extname(p) === "java";
+    const isJava = !!indexFor(p);
     if (doc) {
       if (isDirty(doc)) continue;
       try {
@@ -1142,7 +1212,7 @@ async function applyFsChanges() {
           else doc.state = doc.state.update({ changes }).state;
           doc.saved = doc.state.doc;
           set((s) => ({ tabs: s.tabs.map((x) => (x.kind === "file" && x.path && samePath(x.path, p) ? { ...x, dirty: false } : x)) }));
-          if (isJava) javaIndex.set(p, file.text);
+          if (isJava) indexText(p, file.text);
         }
       } catch {
         // Deleted or unreadable: keep the editor's text so nothing is lost.
@@ -1150,11 +1220,11 @@ async function applyFsChanges() {
     } else if (isJava) {
       api
         .readText(p)
-        .then((f) => javaIndex.set(p, f.text))
-        .catch(() => javaIndex.remove(p));
+        .then((f) => indexText(p, f.text))
+        .catch(() => unindex(p));
     } else if (!extname(p)) {
-      // A folder that vanished takes its Java files with it.
-      api.exists(p).then((there) => !there && javaIndex.remove(p));
+      // A folder that vanished takes its files with it.
+      api.exists(p).then((there) => !there && unindex(p));
     }
   }
 }
@@ -1188,6 +1258,15 @@ export async function init() {
     else if (e.code === null) appendOutput("system", "\n" + t("Program stopped after {0} s.", secs) + "\n");
     else appendOutput("error", "\n" + t("Program ended with exit code {0} after {1} s.", e.code, secs) + "\n");
     set({ run: { status: "idle" } });
+    const hook = runEndHooks.get(e.runId);
+    runEndHooks.delete(e.runId);
+    if (hook) {
+      const stderr = get()
+        .output.filter((c) => c.kind === "stderr")
+        .map((c) => c.text)
+        .join("");
+      hook(e.code, stderr);
+    }
   });
   await events.onFsChanged((paths) => {
     paths.forEach((p) => fsPending.add(p));

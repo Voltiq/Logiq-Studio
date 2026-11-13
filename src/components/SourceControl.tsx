@@ -18,6 +18,16 @@ import {
   RefreshCw,
   Undo2,
   Upload,
+  Archive,
+  ArchiveRestore,
+  GitMerge,
+  Columns2,
+  Tag as TagIcon,
+  Trash2,
+  TriangleAlert,
+  Play,
+  SkipForward,
+  X,
 } from "lucide-react";
 import { openMenu, useStore } from "../lib/store";
 import { openFile } from "../lib/actions";
@@ -55,15 +65,36 @@ import {
   type GitFile,
 } from "../lib/git";
 import { letterOf, relativeTime } from "../lib/gitParse";
-import { openCommitDiff, openWorkingDiff } from "../lib/diffTabs";
+import { openCommitDiff, openConflictDiff, openWorkingDiff } from "../lib/diffTabs";
+import {
+  abortOperation,
+  acceptSide,
+  applyStash,
+  continueOperation,
+  createTag,
+  deleteTag,
+  dropStash,
+  markResolved,
+  mergeBranch,
+  openStashDiff,
+  pushTags,
+  rebaseOnto,
+  skipRebaseCommit,
+  stashChanges,
+  stashFiles,
+} from "../lib/gitMore";
+import type { Stash, Tag } from "../lib/git";
 
 /** The branch menu: switch to a branch, or make a new one. */
 export async function branchMenu(anchor: HTMLElement) {
   const list = await branches();
   const local = list.filter((b) => !b.remote);
   const remote = list.filter((b) => b.remote && !local.some((l) => l.upstream === b.name));
+  const busy = !!useGit.getState().operation;
   const items: MenuItem[] = [
     { label: t("New branch…"), icon: Plus, onSelect: newBranch },
+    { label: t("Merge a branch into this one…"), icon: GitMerge, disabled: busy, onSelect: () => mergeBranch(anchor) },
+    { label: t("Rebase this branch onto…"), disabled: busy, onSelect: () => rebaseOnto(anchor) },
     { type: "separator" },
     { type: "heading", label: t("Branches") },
     ...local.map((b) => ({ label: b.name, checked: b.current, onSelect: () => !b.current && void switchBranch(b.name) })),
@@ -118,6 +149,133 @@ function FileRow({ f, staged }: { f: GitFile; staged: boolean }) {
   );
 }
 
+/** A file with conflicts: open it to choose per block, or take one side for the whole file. */
+function ConflictRow({ f }: { f: GitFile }) {
+  const abs = absPath(f.path);
+  const name = basename(f.path);
+  const dir = f.path.includes("/") ? f.path.slice(0, f.path.lastIndexOf("/")) : "";
+  const menu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    openMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        { label: t("Open file"), icon: FileCode, onSelect: () => void openFile(abs) },
+        { label: t("Compare current and incoming"), icon: Columns2, onSelect: () => openConflictDiff(abs) },
+        { type: "separator" },
+        { label: t("Accept current for the whole file"), onSelect: () => void acceptSide(f.path, "current") },
+        { label: t("Accept incoming for the whole file"), onSelect: () => void acceptSide(f.path, "incoming") },
+        { type: "separator" },
+        { label: t("Mark as resolved (stage)"), icon: Check, onSelect: () => void markResolved(f.path) },
+      ],
+    });
+  };
+  return (
+    <div className="scm-file" role="listitem" onClick={() => void openFile(abs)} onContextMenu={menu} data-tooltip={f.path}>
+      <FileIcon name={name} />
+      <span className="scm-file-name">{name}</span>
+      <span className="scm-file-dir">{dir}</span>
+      <span className="scm-file-actions">
+        <IconButton icon={Columns2} label={t("Compare current and incoming")} spacing="compact" onClick={(e) => (e.stopPropagation(), openConflictDiff(abs))} />
+        <IconButton icon={Check} label={t("Mark as resolved (stage)")} spacing="compact" onClick={(e) => (e.stopPropagation(), void markResolved(f.path))} />
+      </span>
+      <span className="scm-letter is-conflict" aria-label="conflict">
+        !
+      </span>
+    </div>
+  );
+}
+
+function StashRow({ s }: { s: Stash }) {
+  const [files, setFiles] = useState<ChangedFile[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const lang = useStore((st) => st.settings.language);
+  return (
+    <div className="scm-commit">
+      <div className="scm-commit-head is-row" role="button" tabIndex={0} aria-expanded={open} onClick={() => (setOpen(!open), !files && void stashFiles(s).then(setFiles, () => setFiles([])))} data-tooltip={s.ref}>
+        <Archive size={14} className="scm-commit-icon" aria-hidden="true" />
+        <span className="scm-commit-subject">{s.message || s.ref}</span>
+        <span className="scm-commit-when">{s.date ? relativeTime(s.date, Date.now(), lang === "system" ? undefined : lang) : ""}</span>
+        <span className="scm-file-actions">
+          <IconButton icon={ArchiveRestore} label={t("Apply and drop (pop)")} spacing="compact" onClick={(e) => (e.stopPropagation(), void applyStash(s, true))} />
+          <IconButton icon={Download} label={t("Apply, keep the stash")} spacing="compact" onClick={(e) => (e.stopPropagation(), void applyStash(s, false))} />
+          <IconButton icon={Trash2} label={t("Drop…")} spacing="compact" onClick={(e) => (e.stopPropagation(), dropStash(s))} />
+        </span>
+      </div>
+      {open && (
+        <div className="scm-commit-files" role="list">
+          {files === null ? (
+            <p className="scm-note">{t("Loading…")}</p>
+          ) : files.length === 0 ? (
+            <p className="scm-note">{t("Only new files (they come back when applied).")}</p>
+          ) : (
+            files.map((f) => (
+              <button key={f.path} type="button" role="listitem" className="scm-file is-commit" onClick={() => openStashDiff(s, f)}>
+                <FileIcon name={basename(f.path)} />
+                <span className={cx("scm-file-name", f.status === "D" && "is-deleted")}>{basename(f.path)}</span>
+                <span className="scm-file-dir">{f.path.includes("/") ? f.path.slice(0, f.path.lastIndexOf("/")) : ""}</span>
+                <span className={cx("scm-letter", `is-${f.status === "A" ? "added" : f.status === "D" ? "deleted" : "modified"}`)}>{f.status}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TagRow({ tag }: { tag: Tag }) {
+  const lang = useStore((st) => st.settings.language);
+  return (
+    <div className="scm-commit">
+      <div className="scm-commit-head is-row" data-tooltip={`${tag.commit.slice(0, 7)}${tag.annotated ? "" : " · " + t("lightweight tag")}`}>
+        <TagIcon size={14} className="scm-commit-icon" aria-hidden="true" />
+        <span className="scm-commit-subject">
+          <strong className="scm-tag-name">{tag.name}</strong> {tag.subject}
+        </span>
+        <span className="scm-commit-when">{tag.date ? relativeTime(tag.date, Date.now(), lang === "system" ? undefined : lang) : ""}</span>
+        <span className="scm-file-actions">
+          <IconButton icon={Trash2} label={t("Delete tag…")} spacing="compact" onClick={() => deleteTag(tag)} />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** A merge or rebase that stopped for conflicts: what's going on, and how to go on or give up. */
+function OperationBanner({ conflicts }: { conflicts: number }) {
+  const o = useGit((s) => s.operation);
+  const busy = useGit((s) => s.busy);
+  if (!o) return null;
+  const what =
+    o.kind === "merge" ? t("Merging {0}", o.label) : o.kind === "rebase" ? t("Rebasing onto {0}", o.label) : o.kind === "cherry-pick" ? t("Cherry-picking {0}", o.label) : t("Reverting {0}", o.label);
+  return (
+    <div className={cx("scm-operation", conflicts > 0 && "is-conflict")} role="status">
+      <div className="scm-operation-text">
+        {conflicts ? <TriangleAlert size={14} aria-hidden="true" /> : <GitMerge size={14} aria-hidden="true" />}
+        <span>
+          <strong>{what}</strong>
+          <br />
+          {conflicts ? (conflicts === 1 ? t("1 file has conflicts.") : t("{0} files have conflicts.", conflicts)) : t("Conflicts resolved: continue when you are ready.")}
+        </span>
+      </div>
+      <div className="scm-operation-actions">
+        <Button spacing="compact" appearance="primary" iconBefore={Play} disabled={conflicts > 0 || !!busy} onClick={() => void continueOperation()}>
+          {o.kind === "merge" ? t("Commit merge") : t("Continue")}
+        </Button>
+        {o.kind === "rebase" && (
+          <Button spacing="compact" iconBefore={SkipForward} disabled={!!busy} onClick={() => void skipRebaseCommit()}>
+            {t("Skip commit")}
+          </Button>
+        )}
+        <Button spacing="compact" appearance="subtle" iconBefore={X} disabled={!!busy} onClick={abortOperation}>
+          {t("Abort")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function Section({ title, count, open, onToggle, actions, children }: { title: string; count: number; open: boolean; onToggle: () => void; actions?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="scm-section">
@@ -144,6 +302,17 @@ function CommitRow({ c }: { c: Commit }) {
         type="button"
         className="scm-commit-head"
         aria-expanded={open}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          openMenu({
+            x: e.clientX,
+            y: e.clientY,
+            items: [
+              { label: t("Tag this commit…"), icon: TagIcon, onSelect: () => createTag(c.hash) },
+              { label: t("Copy commit id"), onSelect: () => void navigator.clipboard.writeText(c.hash) },
+            ],
+          });
+        }}
         onClick={() => {
           setOpen(!open);
           if (!files) void commitFiles(c.hash).then(setFiles, () => setFiles([]));
@@ -189,6 +358,12 @@ export function SourceControl() {
   const message = useGit((s) => s.message);
   const busy = useGit((s) => s.busy);
   const log = useGit((s) => s.log);
+  const stashes = useGit((s) => s.stashes);
+  const tags = useGit((s) => s.tags);
+  const operation = useGit((s) => s.operation);
+  const [openConflicts, setOpenConflicts] = useState(true);
+  const [openStashes, setOpenStashes] = useState(true);
+  const [openTags, setOpenTags] = useState(false);
   const [openStaged, setOpenStaged] = useState(true);
   const [openChanges, setOpenChanges] = useState(true);
   const [openHistory, setOpenHistory] = useState(true);
@@ -196,8 +371,9 @@ export function SourceControl() {
   useEffect(() => void refreshNow(), []);
 
   const files = status?.files ?? [];
-  const staged = useMemo(() => files.filter(isStaged), [files]);
-  const changes = useMemo(() => files.filter(isUnstaged), [files]);
+  const conflicts = useMemo(() => files.filter(isConflict), [files]);
+  const staged = useMemo(() => files.filter((f) => isStaged(f) && !isConflict(f)), [files]);
+  const changes = useMemo(() => files.filter((f) => isUnstaged(f) && !isConflict(f)), [files]);
 
   if (info === false) {
     return (
@@ -248,6 +424,13 @@ export function SourceControl() {
         { label: t("Unstage all"), disabled: !staged.length, onSelect: () => void unstage(staged.map((f) => f.path)) },
         { type: "separator" },
         { label: t("New branch…"), icon: GitBranch, onSelect: newBranch },
+        { label: t("Merge a branch into this one…"), icon: GitMerge, disabled: !!operation, onSelect: () => mergeBranch() },
+        { label: t("Rebase this branch onto…"), disabled: !!operation, onSelect: () => rebaseOnto() },
+        { type: "separator" },
+        { label: t("Stash changes…"), icon: Archive, disabled: !files.length, onSelect: stashChanges },
+        { label: t("New tag…"), icon: TagIcon, disabled: status.unborn, onSelect: () => createTag() },
+        { label: t("Push tags"), disabled: !tags.length, onSelect: () => void pushTags() },
+        { type: "separator" },
         { label: t("Add a remote…"), icon: Cloud, onSelect: () => addRemote() },
       ],
     });
@@ -307,7 +490,18 @@ export function SourceControl() {
           {staged.length ? t("Commit {0} staged", staged.length) : t("Commit")}
         </Button>
       </div>
+      <OperationBanner conflicts={conflicts.length} />
       <div className="scm-scroll">
+        {conflicts.length > 0 && (
+          <Section title={t("Merge conflicts")} count={conflicts.length} open={openConflicts} onToggle={() => setOpenConflicts(!openConflicts)}>
+            <div role="list">
+              {conflicts.map((f) => (
+                <ConflictRow key={"x" + f.path} f={f} />
+              ))}
+            </div>
+            <p className="scm-note">{t("Open a file and choose a side above each conflict, then mark it as resolved.")}</p>
+          </Section>
+        )}
         {staged.length > 0 && (
           <Section
             title={t("Staged changes")}
@@ -346,6 +540,27 @@ export function SourceControl() {
           ) : (
             <p className="scm-note">{staged.length ? t("Everything is staged.") : t("No changes since the last commit.")}</p>
           )}
+        </Section>
+        {stashes.length > 0 && (
+          <Section title={t("Stashes")} count={stashes.length} open={openStashes} onToggle={() => setOpenStashes(!openStashes)} actions={<IconButton icon={Archive} label={t("Stash changes…")} spacing="compact" onClick={stashChanges} />}>
+            {stashes.map((s) => (
+              <StashRow key={s.ref} s={s} />
+            ))}
+          </Section>
+        )}
+        <Section
+          title={t("Tags")}
+          count={tags.length}
+          open={openTags}
+          onToggle={() => setOpenTags(!openTags)}
+          actions={
+            <>
+              {tags.length > 0 && <IconButton icon={Upload} label={t("Push tags")} spacing="compact" onClick={() => void pushTags()} />}
+              <IconButton icon={Plus} label={t("New tag…")} spacing="compact" disabled={status.unborn} onClick={() => createTag()} />
+            </>
+          }
+        >
+          {tags.length ? tags.map((x) => <TagRow key={x.name} tag={x} />) : <p className="scm-note">{t("No tags. A tag marks a commit, such as a release (v1.0).")}</p>}
         </Section>
         <Section title={t("History")} count={log.length} open={openHistory} onToggle={() => setOpenHistory(!openHistory)} actions={<History size={14} className="scm-muted" aria-hidden="true" />}>
           {status.unborn ? (

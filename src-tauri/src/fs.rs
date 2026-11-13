@@ -8,7 +8,9 @@ use std::path::{Path, PathBuf};
 
 /// Folders that never hold the user's sources: skipped by quick open,
 /// find in files and the UML scan (the explorer still shows them).
-pub const SKIPPED_DIRS: &[&str] = &[".git", "node_modules", "out", "target", "bin", "build", ".logiq", ".idea", ".vscode"];
+pub const SKIPPED_DIRS: &[&str] = &[
+    ".git", "node_modules", "out", "target", "bin", "build", ".logiq", ".idea", ".vscode", ".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", ".gradle", "vendor",
+];
 
 /// Largest file the editor opens or a search looks into.
 pub const MAX_TEXT_BYTES: u64 = 8 * 1024 * 1024;
@@ -282,7 +284,8 @@ pub fn walk(root: &Path, limit: usize, visit: &mut dyn FnMut(&Path)) {
             let Ok(ft) = e.file_type() else { continue };
             let name = e.file_name().to_string_lossy().to_string();
             if ft.is_dir() {
-                if !is_skipped_dir(&name) {
+                // Python's virtual environments hold thousands of library files, whatever they're called.
+                if !is_skipped_dir(&name) && !e.path().join("pyvenv.cfg").is_file() {
                     dirs.push(e.path());
                 }
             } else if ft.is_file() {

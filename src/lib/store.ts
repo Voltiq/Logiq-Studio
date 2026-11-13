@@ -5,7 +5,7 @@ import type { Diagnostic, Entry, Jdk, NodeInfo } from "./types";
 import type { TemplateId } from "./templates";
 
 export type SidebarView = "explorer" | "search" | "outline" | "debug" | "git";
-export type PanelTab = "output" | "problems" | "tests" | "jshell" | "terminal";
+export type PanelTab = "output" | "problems" | "tests" | "jshell" | "terminal" | "results";
 
 export type Group = 0 | 1;
 
@@ -124,6 +124,8 @@ export interface State {
   previewOpen: boolean;
   previewPath: string | null;
   previewNonce: number;
+  /** PHP's web server for the preview of PHP pages. */
+  phpServer: { port: number; root: string } | null;
   run: RunState;
   output: OutputChunk[];
   problems: Diagnostic[];
@@ -157,6 +159,7 @@ export const useStore = create<State>(() => ({
   previewOpen: false,
   previewPath: null,
   previewNonce: 0,
+  phpServer: null,
   run: { status: "idle" },
   output: [],
   problems: [],
