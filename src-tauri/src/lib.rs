@@ -6,6 +6,7 @@
 //! compiling and running programs with live output, and serving the folder
 //! to the HTML preview.
 
+mod bench;
 mod fs;
 mod preview;
 mod runner;
@@ -53,6 +54,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(runner::Runner::default())
+        .manage(bench::Bench::default())
         .manage(watch::Watcher::default())
         .manage(preview::PreviewRoot::default())
         .register_uri_scheme_protocol("logiq-preview", |ctx, request| preview::serve(ctx.app_handle(), &request))
@@ -94,6 +96,9 @@ pub fn run() {
             runner::run_node,
             runner::run_stdin,
             runner::run_stop,
+            bench::bench_start,
+            bench::bench_send,
+            bench::bench_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Logiq Studio");

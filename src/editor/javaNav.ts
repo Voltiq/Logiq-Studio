@@ -199,6 +199,12 @@ export function renameSymbol(view: EditorView, path: string) {
   });
 }
 
+/** Renames a member or class (declared at `path`:`line`) in every Java file, as the diagram's dialogs do. */
+export async function renameEverywhere(name: string, newName: string, path: string, line: number) {
+  const type = javaIndex.types().find((x) => x.name === name && samePath(x.path, path) && x.line === line);
+  await applyRename(name, newName, null, type ? { path, line, type } : null);
+}
+
 async function applyRename(name: string, newName: string, local: { path: string; lines: [number, number] } | null, target: Target | null) {
   const root = get().root;
   const paths = local ? [local.path] : [...new Set(javaIndex.types().map((x) => x.path))];

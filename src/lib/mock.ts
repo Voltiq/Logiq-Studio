@@ -6,6 +6,7 @@
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
 import { TEMPLATES } from "./templates";
+import { parseJava } from "../uml/javaParser";
 import type { Entry, SearchHit } from "./types";
 
 const ROOT = "C:\\Users\\Demo\\Projects\\Shapes";
@@ -27,6 +28,53 @@ function list(dir: string): Entry[] {
 }
 
 let runId = 0;
+
+// The bench: objects with fields taken from the classes' source, constructor arguments assigned by name.
+interface MockObject {
+  cls: string;
+  fields: { name: string; type: string; value: string; static: boolean; owner: string }[];
+}
+const bench = new Map<string, MockObject>();
+
+function typeOf(cls: string) {
+  for (const [p, text] of files) {
+    if (!p.endsWith(".java")) continue;
+    const t = parseJava(text, p).types.find((x) => x.qualifiedName === cls || x.name === cls);
+    if (t) return t;
+  }
+  return null;
+}
+
+function benchState() {
+  return [...bench].map(([name, o]) => ({ name, cls: o.cls, simple: o.cls.split(".").pop(), fields: o.fields }));
+}
+
+function benchAnswer(f: string[]): string {
+  const op = f[0];
+  if (op === "new") {
+    const t = typeOf(f[2]);
+    const fields: MockObject["fields"] = [];
+    // Inherited fields first, as the JVM reports them.
+    const chain = [];
+    for (let c = t; c; c = c.extends[0] ? typeOf(c.extends[0]) : null) chain.unshift(c);
+    const ctor = t?.methods.find((m) => m.isConstructor && m.params.map((p) => p.type).join(",") === f[3]);
+    for (const c of chain) for (const x of c.fields) fields.push({ name: x.name, type: x.type, value: x.type === "String" ? "null" : /int|double|long/.test(x.type) ? "0" : "null", static: x.isStatic, owner: c.name });
+    ctor?.params.forEach((p, i) => {
+      const fld = fields.find((x) => x.name === p.name);
+      if (fld) fld.value = f[4 + i] ?? "";
+    });
+    bench.set(f[1], { cls: f[2], fields });
+    return JSON.stringify({ ok: true, out: "", objects: benchState() });
+  }
+  if (op === "call") {
+    const o = bench.get(f[1]);
+    const ret = f[3] === "area" ? { text: "12.566370614359172", type: "double" } : f[3].startsWith("get") ? { text: o?.fields.find((x) => x.name.toLowerCase() === f[3].slice(3).toLowerCase())?.value ?? "null", type: "String" } : undefined;
+    return JSON.stringify({ ok: true, value: ret, out: f[3] === "draw" ? `${o?.cls} at (0.0, 0.0)
+` : "", objects: benchState() });
+  }
+  if (op === "remove") bench.delete(f[1]);
+  return JSON.stringify({ ok: true, out: "", objects: benchState() });
+}
 
 export function installMock() {
   mockWindows("main");
@@ -119,6 +167,14 @@ export function installMock() {
         case "run_stdin":
         case "run_stop":
           return null;
+        case "bench_start":
+          bench.clear();
+          return JSON.stringify({ ok: true, ready: true, objects: [] });
+        case "bench_stop":
+          bench.clear();
+          return null;
+        case "bench_send":
+          return benchAnswer(String(a.request).split(""));
         case "plugin:dialog|open":
           return ROOT;
         default:

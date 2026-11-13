@@ -8,6 +8,7 @@ import { applyTheme } from "../lib/theme";
 import { invalidName, join, relative } from "../lib/paths";
 import { TEMPLATES, type TemplateId } from "../lib/templates";
 import { COMMANDS } from "../lib/commands";
+import { UmlDialogs } from "../uml/ClassDialogs";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { Checkbox, RadioList, Segmented, Select, TextField, Toggle } from "./ui/Field";
@@ -31,7 +32,7 @@ function PromptDialog({ d }: { d: Extract<Dialog, { kind: "prompt" }> }) {
   }, [d]);
 
   const submit = async () => {
-    const v = value.trim();
+    const v = d.multiline ? value.replace(/\s+$/, "") : value.trim();
     const problem = d.validate?.(v) ?? null;
     if (problem) {
       setError(problem);
@@ -70,17 +71,33 @@ function PromptDialog({ d }: { d: Extract<Dialog, { kind: "prompt" }> }) {
           void submit();
         }}
       >
-        <TextField
-          ref={input}
-          label={d.label}
-          value={value}
-          spellCheck={false}
-          error={error ?? undefined}
-          onChange={(e) => {
-            setValue(e.target.value);
-            setError(null);
-          }}
-        />
+        {d.multiline ? (
+          <label className="field">
+            <span className="field-label">{d.label}</span>
+            <textarea
+              className="textarea"
+              autoFocus
+              rows={5}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.ctrlKey) void submit();
+              }}
+            />
+          </label>
+        ) : (
+          <TextField
+            ref={input}
+            label={d.label}
+            value={value}
+            spellCheck={false}
+            error={error ?? undefined}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setError(null);
+            }}
+          />
+        )}
       </form>
     </Modal>
   );
@@ -339,7 +356,7 @@ function AboutDialog() {
       <div className="about">
         <img src="/app-icon.svg" alt="" width={64} height={64} />
         <div>
-          <p className="about-name">Logiq Studio 0.2.0</p>
+          <p className="about-name">Logiq Studio 0.3.0</p>
           <p className="dialog-text">{t("An IDE for Java, HTML, CSS and JavaScript that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.")}</p>
         </div>
       </div>
@@ -396,7 +413,7 @@ export function Dialogs() {
     case "shortcuts":
       return <ShortcutsDialog />;
     default:
-      return null;
+      return <UmlDialogs d={d} />;
   }
 }
 

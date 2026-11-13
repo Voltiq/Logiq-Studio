@@ -65,6 +65,8 @@ export type Dialog =
       confirmLabel: string;
       /** Select the name without its extension. */
       selectStem?: boolean;
+      /** Several lines of text (a note). */
+      multiline?: boolean;
       validate?: (value: string) => string | null;
       onSubmit: (value: string) => Promise<void> | void;
     }
@@ -79,7 +81,14 @@ export type Dialog =
       onSecondary?: () => Promise<void> | void;
       onCancel?: () => void;
     }
-  | { kind: "palette"; mode: "commands" | "files" | "line" };
+  | { kind: "palette"; mode: "commands" | "files" | "line" }
+  | { kind: "classWizard"; dir: string }
+  | { kind: "editClass"; owner: string }
+  /** Add (no `line`) or edit (the member's line) an attribute, method or constructor. */
+  | { kind: "member"; owner: string; member: "field" | "method" | "ctor"; line?: number }
+  | { kind: "association"; from: string; to: string }
+  | { kind: "benchNew"; cls: string; ctorLine: number | null }
+  | { kind: "benchCall"; owner: string; methodLine: number; target: string | null };
 
 export interface State {
   settings: Settings;

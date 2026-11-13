@@ -20,6 +20,8 @@ export interface UmlOptions {
   showAssociations: boolean;
   showDependencies: boolean;
   showNesting: boolean;
+  /** Grey boxes for library classes the project uses (Scanner, Random…). */
+  showLibrary: boolean;
 }
 
 export const DEFAULT_UML_OPTIONS: UmlOptions = {
@@ -33,6 +35,7 @@ export const DEFAULT_UML_OPTIONS: UmlOptions = {
   showAssociations: true,
   showDependencies: false,
   showNesting: true,
+  showLibrary: false,
 };
 
 export interface Member {
@@ -43,6 +46,8 @@ export interface Member {
 }
 
 export interface UmlNode {
+  /** A class from a library: drawn grey, name only. */
+  library?: boolean;
   id: string;
   type: JType;
   stereotype: string | null;
@@ -272,10 +277,72 @@ export function multiplicity(type: string, target: string): string {
   return "1";
 }
 
+/** Types that are too common to draw as library classes. */
+const NOT_LIBRARY = new Set([
+  "String",
+  "Object",
+  "Integer",
+  "Long",
+  "Double",
+  "Float",
+  "Short",
+  "Byte",
+  "Boolean",
+  "Character",
+  "Number",
+  "Optional",
+  "Void",
+  "Math",
+  "System",
+  "StringBuilder",
+  "Exception",
+  "RuntimeException",
+  ...MANY,
+]);
+
+function libraryType(name: string): JType {
+  return {
+    name,
+    qualifiedName: `lib:${name}`,
+    kind: "class",
+    visibility: "public",
+    isAbstract: false,
+    isStatic: false,
+    isFinal: false,
+    typeParams: "",
+    extends: [],
+    implements: [],
+    fields: [],
+    methods: [],
+    constants: [],
+    creates: [],
+    outer: null,
+    path: "",
+    package: "",
+    line: 0,
+    endLine: 0,
+    hasMain: false,
+  };
+}
+
 export function buildDiagram(types: JType[], opts: UmlOptions, measure: Measure = canvasMeasure): Diagram {
   const index = new TypeIndex(types);
   const visible = new Set(types.map((t) => t.qualifiedName));
   const nodes = types.map((t) => buildNode(t, opts, measure));
+  const library = new Map<string, JType>();
+  /** A grey box for a library class, made the first time it is used. */
+  const lib = (name: string): JType | null => {
+    if (!opts.showLibrary || !/^\p{Lu}/u.test(name) || NOT_LIBRARY.has(name) || name.includes(".")) return null;
+    let t = library.get(name);
+    if (!t) {
+      t = libraryType(name);
+      library.set(name, t);
+      visible.add(t.qualifiedName);
+      const w = Math.max(96, Math.ceil(measure(name, "title") + BOX.padX * 2 + 2));
+      nodes.push({ id: t.qualifiedName, library: true, type: t, stereotype: null, title: name, italic: false, constants: [], attributes: [], operations: [], showAttributes: false, showOperations: false, w, h: BOX.headPadY * 2 + BOX.titleH });
+    }
+    return t;
+  };
   const edges = new Map<string, UmlEdge>();
   const related = new Set<string>();
 
@@ -306,7 +373,7 @@ export function buildDiagram(types: JType[], opts: UmlOptions, measure: Measure 
         if (!shown(f.visibility, opts) && !opts.showAttributes) continue;
         for (const n of typeNames(f.type)) {
           if (own.has(n)) continue;
-          const target = index.resolve(n, t);
+          const target = index.resolve(n, t) ?? lib(n);
           if (!target) continue;
           add("association", t, target, {
             role: `${opts.visibilitySymbols ? VISIBILITY_SYMBOL[f.visibility] : ""}${f.name}`,
@@ -330,7 +397,7 @@ export function buildDiagram(types: JType[], opts: UmlOptions, measure: Measure 
       }
       for (const n of names) {
         if (own.has(n)) continue;
-        const target = index.resolve(n, t);
+        const target = index.resolve(n, t) ?? lib(n);
         if (!target || target === t) continue;
         if (related.has(`${t.qualifiedName}->${target.qualifiedName}`)) continue;
         add("dependency", t, target);

@@ -137,20 +137,66 @@ UML class diagram draws itself from your Java code while you type, like in the R
 
 ---
 
-## v0.3 — UML like the Röhner editor
-- [ ] Create a class from the diagram: a class wizard with attributes (name, type, visibility), constructor,
-      getters and setters, `toString`, generating the Java file
-- [ ] Edit from the diagram: add or change an attribute or method in a dialog and have the code updated
-- [ ] Draw relations in the diagram (inheritance, implements, association) and generate the code for them
-- [ ] Object bench: create objects from a class box, call their methods with arguments, inspect fields
-      (interactive testing as in the Röhner editor and BlueJ)
-- [ ] Orthogonal line routing around boxes; manual bend points; label dragging
-- [ ] Several diagrams per project (`.uml` files) and notes / comments on the canvas
-- [ ] Package frames; optional library classes (`ArrayList`, `String`) as grey boxes
-- [ ] Print the diagram; export to PlantUML and Mermaid
-- [ ] Object and sequence diagrams generated from a run
+## v0.3 — UML like the Röhner editor (2026-11-13)
+
+### Editing the code from the diagram
+- [x] **Class wizard** (*New class* in the diagram, `File › New Java class…`, explorer): name, kind (class,
+      abstract class, interface, enum with constants, record), superclass and interfaces (project classes
+      suggested), an attribute table (visibility, name, type, static, final), and a constructor with all
+      attributes, getters, setters, `toString()` and `main` on request, with a live preview of the code;
+      imports for `List`, `ArrayList`, `Map`, `Scanner`… are added
+- [x] **Add, edit and delete members** from a class's or member's context menu: attributes (with getter and
+      setter), methods (abstract where allowed) and constructors; a changed name is renamed wherever it is used,
+      type, visibility, modifiers and parameters are rewritten in place, bodies and initial values are kept;
+      deleting takes the member's Javadoc and annotations along
+- [x] **Edit class**: rename (class, file and uses), superclass, interfaces
+- [x] **Draw relations**: the inheritance tool (subclass → superclass or interface: `extends` or `implements`
+      as fits, replacing a previous superclass with a note) and the association tool (asks for role name,
+      multiplicity 1 or 0..* and visibility; adds `private Target role;` or `List<Target> roles = new ArrayList<>()`)
+- [x] **Delete relations** from a line's context menu: removes the `extends` / `implements` entry or the fields
+- [x] **Delete classes**: the file goes to the Recycle Bin, or a nested class's declaration is removed
+- [x] Changes go into open editors as one undoable step, closed files are rewritten; the diagram follows
+- [x] `codegen.ts` with 9 tests (whole classes, fields after fields, an enum's `;`, constructors before methods,
+      interface methods without bodies, removing shared declarations, signatures, supertypes, imports)
+
+### Object bench
+- [x] **Create objects** from a class's context menu, one entry per constructor (`new Circle(double, double,
+      double)`), with named argument fields; arguments are numbers, `true`/`false`, text, `char`, enum
+      constants, arrays (`{1, 2, 3}`), `null` or the name of another object on the bench
+- [x] **Call methods** on an object by clicking its card (its own and inherited ones), and **static methods**
+      (including `main`) from the class's menu; the result shows above the bench, objects returned by a method
+      can be **put on the bench**, `System.out` output goes to the Output panel, exceptions show their message
+      and the program's own stack lines
+- [x] Objects drawn in UML object notation (`circle1 : Circle`, `radius = 3.5`); references to other bench
+      objects are links that highlight the referenced object; collections and arrays are summarised
+- [x] The bench compiles the project first; when the code changes it offers a restart; reset and stop buttons;
+      a call still running after 15 s can be stopped
+- [x] Native: a helper JVM (`bench/LogiqBench.java`, compiled once per JDK into the app cache) answering by
+      reflection, one JSON line per request; a test drives it with a real JDK
+
+### Diagram
+- [x] **Notes** on the canvas (note tool, drag, double-click to edit, saved with the layout)
+- [x] **Package frames** around the classes of each package when there is more than one
+- [x] **Library classes** as grey boxes (option): `Scanner`, `Random`… that the project's fields and methods use
+- [x] **Export as PlantUML or Mermaid** (file or clipboard) and **print** (print colours, fitted to the page)
+- [x] A renamed class keeps its box's place (also for renames done in code)
+
+### Still open, moved on
+- [ ] Orthogonal line routing around boxes, manual bend points, label dragging (v0.5)
+- [ ] Several diagrams per project (`.uml` files) (v0.5)
+- [ ] Sequence diagrams generated from a run: needs the debugger's tracing (v0.4)
+
+### Known limits of v0.3
+- The bench creates objects through constructors and calls methods with simple arguments; expressions like
+  `new Point(1, 2)` as an argument are not evaluated (create the object first, then pass its name)
+- A method that reads from the keyboard gets no input on the bench
+- The diagram editing and the bench were checked with unit tests, a real-JDK test of the helper and the
+  browser stand-in; not yet in the installed app
+
+---
 
 ## v0.4 — Java toolchain
+- [ ] Sequence diagrams generated from a run (method calls traced through the debugger)
 - [ ] Debugger over JDWP: breakpoints, step over / into / out, variables, watches, call stack
 - [ ] JUnit 5 tests: run all / one, results tree, jump to failures
 - [ ] JShell console for trying expressions
@@ -161,6 +207,8 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - [ ] Help install a JDK when none is found
 
 ## v0.5 — Language intelligence
+- [ ] Orthogonal line routing around boxes in the UML diagram; manual bend points; label dragging
+- [ ] Several diagrams per project (`.uml` files)
 - [ ] Java language server (Eclipse JDT LS): type-aware completion, errors as you type, quick fixes, imports,
       refactorings
 - [ ] TypeScript language service for JavaScript and TypeScript (types, errors, go to definition)

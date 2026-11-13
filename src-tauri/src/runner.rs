@@ -15,7 +15,7 @@ use tauri::{AppHandle, Emitter, State};
 use std::os::windows::process::CommandExt;
 
 /// Programs run without a console window of their own; their output goes to the panel.
-fn no_window(cmd: &mut Command) -> &mut Command {
+pub(crate) fn no_window(cmd: &mut Command) -> &mut Command {
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000);
     cmd
@@ -34,7 +34,7 @@ fn exe(name: &str) -> String {
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Jdk {
-    home: String,
+    pub(crate) home: String,
     version: String,
     major: u32,
     vendor: String,
@@ -147,7 +147,7 @@ pub async fn detect_node() -> Option<NodeInfo> {
     .flatten()
 }
 
-fn java_bin(jdk_home: &Option<String>, tool: &str) -> PathBuf {
+pub(crate) fn java_bin(jdk_home: &Option<String>, tool: &str) -> PathBuf {
     match jdk_home {
         Some(h) if !h.is_empty() => Path::new(h).join("bin").join(exe(tool)),
         _ => detect_jdks()
@@ -158,7 +158,7 @@ fn java_bin(jdk_home: &Option<String>, tool: &str) -> PathBuf {
 }
 
 /// The folder itself plus every jar in its `lib` folder.
-fn class_path(root: &Path, out: &Path) -> String {
+pub(crate) fn class_path(root: &Path, out: &Path) -> String {
     let sep = if cfg!(windows) { ";" } else { ":" };
     let mut parts = vec![out.to_string_lossy().to_string()];
     if root.join("lib").is_dir() {

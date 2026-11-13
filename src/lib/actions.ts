@@ -842,11 +842,12 @@ function mainClassFor(path: string | null): { name: string; note?: string } | nu
   return { name: pick.qualifiedName, note: all.length > 1 && path ? t("This file has no main method; running {0}.", pick.qualifiedName) : undefined };
 }
 
-export async function compileJava(): Promise<boolean> {
+/** Compiles the project; `quiet` keeps the output panel closed unless compiling fails. */
+export async function compileJava(quiet = false): Promise<boolean> {
   const root = get().root;
   if (!root) return false;
   if (get().settings.saveBeforeRun && !(await saveAll(true))) return false;
-  set({ run: { status: "compiling", label: t("Compiling") }, panelOpen: true, panelTab: "output" });
+  set({ run: { status: "compiling", label: t("Compiling") }, ...(quiet ? {} : { panelOpen: true, panelTab: "output" as const }) });
   clearOutput();
   const jdk = get().settings.jdkHome || get().jdks[0]?.home || null;
   const version = get().jdks.find((j) => j.home === jdk)?.version;
@@ -858,6 +859,7 @@ export async function compileJava(): Promise<boolean> {
     const errors = problems.filter((p) => p.severity === "error").length;
     const warnings = problems.length - errors;
     if (!result.ok) {
+      set({ panelOpen: true, panelTab: "output" });
       appendOutput("stderr", result.output.trimEnd() + "\n");
       appendOutput("error", t("Compiling failed (errors: {0}, warnings: {1}).", errors, warnings) + "\n");
       set({ run: { status: "idle" } });

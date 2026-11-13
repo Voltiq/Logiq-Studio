@@ -67,7 +67,7 @@ const editor = (f: (v: NonNullable<ReturnType<typeof activeView>>) => void) => (
 export const COMMANDS: Command[] = [
   { id: "file.newProject", label: "New project…", category: "File", icon: FolderPlus, shortcut: "Ctrl+Shift+N", run: () => openDialog({ kind: "newProject" }) },
   { id: "file.newFile", label: "New file…", category: "File", icon: FilePlus, shortcut: "Ctrl+N", enabled: hasFolder, run: () => A.newFile(currentDir()) },
-  { id: "file.newClass", label: "New Java class…", category: "File", icon: Code, enabled: hasFolder, run: () => openDialog({ kind: "newJavaFile", dir: currentDir() }) },
+  { id: "file.newClass", label: "New Java class…", category: "File", icon: Code, enabled: hasFolder, run: () => openDialog({ kind: "classWizard", dir: currentDir() }) },
   { id: "file.openFolder", label: "Open folder…", category: "File", icon: FolderOpen, shortcut: "Ctrl+O", run: () => A.chooseFolder() },
   { id: "file.openFile", label: "Open file…", category: "File", run: () => A.chooseFile() },
   { id: "file.quickOpen", label: "Go to file…", category: "File", shortcut: "Ctrl+P", enabled: hasFolder, run: () => openDialog({ kind: "palette", mode: "files" }) },

@@ -17,8 +17,11 @@ its structure as a UML class diagram that redraws itself while you type, as the 
   records with attributes and methods in UML notation (visibility `+ - # ~`, static underlined, abstract in
   italics); generalisation, realisation, association with role names and multiplicities, dependency and nesting.
   Boxes can be dragged (the layout is saved in `.logiq/uml.json`), the diagram can be arranged automatically,
-  filtered by folder, zoomed, and exported as SVG or PNG or copied as an image. Double-click a class or member to
-  jump to its code.
+  filtered by folder, zoomed, printed, and exported as SVG, PNG, PlantUML or Mermaid. Double-click a class or member
+  to jump to its code. **Edit the code from the diagram**: create classes with a wizard, add, change and delete
+  attributes, methods and constructors, draw inheritance and associations, add notes.
+- **Object bench**: create objects from the diagram's classes, call their methods with arguments, and watch their
+  fields change, drawn as UML objects.
 - **Run**: `F5` compiles every `.java` file with `javac` into `out/` and runs the main class; output streams into
   the panel, and keyboard input (for `Scanner`) can be typed while the program runs. Compiler errors are listed
   under Problems and underlined in the editor. JavaScript files run with Node.js; HTML pages show in the live

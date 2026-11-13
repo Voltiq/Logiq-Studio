@@ -2017,3 +2017,391 @@ button.status-item:hover {
   min-height: 1.875rem;
   border-bottom: 1px solid var(--line);
 }
+
+/* ----- UML editing ----- */
+
+.uml-tools .segment {
+  height: 1.5rem;
+  padding: 0 0.5rem;
+}
+
+.uml-svg.is-tool-inherit,
+.uml-svg.is-tool-associate {
+  cursor: crosshair;
+}
+
+.uml-svg.is-tool-inherit .uml-node,
+.uml-svg.is-tool-associate .uml-node {
+  cursor: crosshair;
+}
+
+.uml-svg.is-tool-note {
+  cursor: copy;
+}
+
+.uml-link {
+  stroke: var(--accent-text);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+.uml-link.is-inherit {
+  stroke-dasharray: none;
+}
+
+.uml-node.is-library .uml-box {
+  fill: var(--surface-3);
+}
+
+.uml-node.is-library .uml-title {
+  fill: var(--text-subtle);
+  font-weight: 500;
+}
+
+.uml-frame {
+  fill: color-mix(in oklab, var(--accent) 4%, transparent);
+  stroke: var(--line-2);
+  stroke-dasharray: 4 4;
+}
+
+.uml-frame-label {
+  fill: var(--text-subtlest);
+  font: 600 11px var(--font-code);
+  letter-spacing: 0.04em;
+}
+
+.uml-note {
+  cursor: grab;
+}
+
+.uml-note-shape {
+  fill: color-mix(in oklab, var(--warning) 16%, var(--surface-2));
+  stroke: color-mix(in oklab, var(--warning) 45%, transparent);
+}
+
+.uml-note-fold {
+  fill: none;
+  stroke: color-mix(in oklab, var(--warning) 45%, transparent);
+}
+
+.uml-note-text {
+  fill: var(--text);
+  font: 400 12px var(--font-body);
+}
+
+.uml-edges .uml-hit {
+  cursor: context-menu;
+}
+
+/* Class wizard and member dialogs */
+.wizard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--space-200);
+  min-height: 0;
+}
+
+.wizard-form,
+.member-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-150);
+  min-width: 0;
+}
+
+.wizard-preview {
+  margin: 0;
+  padding: var(--space-150);
+  max-height: 32rem;
+  overflow: auto;
+  border-radius: 12px;
+  background: var(--bg-2);
+  box-shadow: var(--inset-lo);
+  color: var(--text-subtle);
+  font: 12px/1.55 var(--font-code);
+  white-space: pre;
+  user-select: text;
+}
+
+.wizard-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-100) var(--space-250);
+}
+
+.attr-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.attr-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.attr-vis,
+.attr-input {
+  height: 2rem;
+  min-width: 0;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+  box-shadow: var(--inset-lo);
+  color: var(--text);
+  font-size: 0.78125rem;
+  outline: none;
+}
+
+.attr-vis {
+  flex: none;
+  width: 7.5rem;
+}
+
+.attr-input {
+  flex: 1;
+  font-family: var(--font-code);
+}
+
+.attr-vis:focus,
+.attr-input:focus {
+  border-color: var(--accent-line);
+  box-shadow: var(--focus-ring);
+}
+
+.attr-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--text-subtle);
+  font-size: 0.71875rem;
+}
+
+.attr-flag input {
+  accent-color: var(--accent);
+}
+
+.textarea {
+  min-height: 6rem;
+  padding: 0.5rem 0.6875rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow: var(--inset-lo);
+  color: var(--text);
+  resize: vertical;
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: var(--accent-line);
+  box-shadow: var(--focus-ring);
+}
+
+/* ----- Object bench ----- */
+
+.bench {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  max-height: 46%;
+  margin: 0 8px 8px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: var(--inset-hi), var(--sh-1);
+  overflow: hidden;
+}
+
+.bench-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-100);
+  padding: 4px 6px 4px 4px;
+}
+
+.bench-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 1.625rem;
+  padding: 0 8px 0 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.bench-title:hover {
+  background: var(--wash-2);
+}
+
+.bench-chevron {
+  color: var(--icon-subtle);
+  transition: transform var(--duration-short) var(--ease);
+}
+
+.bench-chevron.is-closed {
+  transform: rotate(-90deg);
+}
+
+.bench-stale {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-warning);
+  font-size: var(--font-size-small);
+}
+
+.bench-result {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0 8px 6px;
+  padding: 6px 6px 6px 10px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.bench-result.is-error {
+  background: var(--bg-danger);
+  color: var(--text-danger);
+}
+
+.bench-call,
+.bench-value {
+  font: 12px var(--font-code);
+  color: var(--text);
+  user-select: text;
+}
+
+.bench-value {
+  font-weight: 600;
+}
+
+.bench-arrow,
+.bench-type {
+  color: var(--text-subtlest);
+  font-size: var(--font-size-small);
+}
+
+.bench-error {
+  flex-basis: 100%;
+  margin: 0;
+  font: 12px/1.5 var(--font-code);
+  white-space: pre-wrap;
+  color: var(--text-danger);
+  user-select: text;
+}
+
+.bench-result > .icon-btn {
+  margin-left: auto;
+}
+
+.bench-objects {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 10px 12px;
+  overflow: auto;
+}
+
+.bench-empty {
+  color: var(--text-subtlest);
+  font-size: var(--font-size-small);
+}
+
+/* A UML object: "name : Class" underlined, then attribute = value. */
+.bench-card {
+  --fill: var(--surface-1);
+  min-width: 10rem;
+  max-width: 22rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background:
+    linear-gradient(var(--fill), var(--fill)) padding-box,
+    linear-gradient(180deg, var(--shine-top), var(--shine-bot)) border-box;
+  box-shadow: var(--sh-1), var(--inset-hi);
+  cursor: pointer;
+  transition:
+    box-shadow var(--duration-short) var(--ease),
+    transform var(--duration-xshort) var(--ease);
+}
+
+.bench-card:hover {
+  box-shadow: var(--sh-2), var(--inset-hi);
+}
+
+.bench-card:active {
+  transform: translateY(1px);
+}
+
+.bench-card.is-focus {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    var(--sh-2);
+}
+
+.bench-card-head {
+  padding: 7px 12px;
+  border-radius: 11px 11px 0 0;
+  background: color-mix(in oklab, var(--accent-orange) 16%, var(--surface-1));
+  text-align: center;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.bench-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 12px 9px;
+  border-top: 1px solid var(--line-2);
+  font: 12px/1.5 var(--font-code);
+}
+
+.bench-field {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bench-fname {
+  color: var(--text-subtle);
+}
+
+.bench-eq {
+  color: var(--text-subtlest);
+}
+
+.bench-fvalue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.bench-ref {
+  padding: 0 5px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: inherit;
+}
+
+.bench-none {
+  color: var(--text-subtlest);
+  font-family: var(--font-body);
+}
