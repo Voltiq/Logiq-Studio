@@ -2,6 +2,13 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.4.0
+
+- **Nassi–Shneiderman diagrams (structograms)**: View → Nassi–Shneiderman diagram of this method (`Ctrl+Alt+N`) draws the Java method at the cursor beside its code and follows it as you type: decisions, multiple choices, loops, exits, try/catch and calls. File → New Nassi–Shneiderman diagram lets you draw one without code, block by block. Both can be exported as PNG or SVG or copied as an image.
+- **Aggregation and composition** in the class diagram: right-click an association to give it a hollow or a filled diamond; the choice holds for the whole project and appears in the PlantUML and Mermaid export.
+- **Settings, reorganised**: sections on the left, a search for any setting, the theme chosen from small pictures, and no more long scrolling.
+- **The file tree**: files no longer look as if they were inside the folder above them.
+
 ## 1.3.0
 
 - **Set up languages from the app** (Help → Set up languages): for Java, JavaScript and TypeScript, Python, C and C++, PHP, Kotlin and Git it shows what each needs and whether it is installed. **Install** sets it up with winget in a terminal (where you answer its questions), and Logiq Studio notices when it is ready, without a restart. Every language also has its download page.
