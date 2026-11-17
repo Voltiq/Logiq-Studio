@@ -1,0 +1,51 @@
+/* The update dialog, the manual, the tour, and the settings' buttons. */
+
+.update-warning { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--text); font-size: var(--font-size-small); line-height: 1.45; }
+.update-warning svg { flex: none; margin-top: 2px; color: var(--warning); }
+.update-notes { max-height: 14rem; margin: 0; padding: 10px 12px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-1); color: var(--text-subtle); font: 400 12.5px/1.55 var(--font-body); white-space: pre-wrap; }
+.settings-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Manual */
+.modal.manual { width: min(960px, calc(100vw - 48px)); max-width: 960px; height: min(46rem, calc(100vh - 64px)); }
+.modal.manual .modal-body { flex: 1; min-height: 0; padding: 0; overflow: hidden; }
+.manual-layout { display: flex; height: 100%; min-height: 0; }
+.manual-nav { flex: none; display: flex; flex-direction: column; gap: 2px; width: 220px; padding: 12px 8px; overflow: auto; border-right: 1px solid var(--line); }
+.manual-link { padding: 6px 10px; border: 0; border-radius: 8px; background: none; color: var(--text-subtle); font: inherit; font-size: var(--font-size-small); text-align: left; cursor: pointer; }
+.manual-link:hover { background: var(--wash); color: var(--text); }
+.manual-link.is-current { background: var(--bg-selected); color: var(--accent-text); font-weight: var(--font-weight-semibold); }
+.manual-text { flex: 1; min-width: 0; padding: 18px 28px 40px; overflow: auto; outline: none; line-height: 1.6; color: var(--text); position: relative; }
+.manual-text h2 { margin: 1.6em 0 0.5em; font-size: 1.125rem; font-weight: var(--font-weight-semibold); letter-spacing: -0.01em; }
+.manual-text section:first-of-type h2 { margin-top: 1em; }
+.manual-text p { margin: 0 0 0.8em; }
+.manual-text ul, .manual-text ol { margin: 0 0 0.8em; padding-left: 1.3em; }
+.manual-text li { margin: 0.25em 0; }
+.manual-text li ul { margin-bottom: 0.2em; }
+.manual-text code { padding: 0.1em 0.4em; border-radius: 5px; background: var(--wash); font: 500 0.86em var(--font-code); }
+.manual-text table { width: 100%; margin: 0 0 1em; border-collapse: collapse; font-size: var(--font-size-small); }
+.manual-text th, .manual-text td { padding: 5px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.manual-text th { color: var(--text-subtle); font-weight: var(--font-weight-semibold); }
+.manual-text td:first-child { white-space: nowrap; }
+.manual-text strong { font-weight: var(--font-weight-semibold); }
+
+/* Tour */
+.tour { position: fixed; inset: 0; z-index: 940; }
+.tour-dim { position: absolute; inset: 0; background: var(--blanket); }
+/* The part being shown stays clear; everything else is dimmed by the shadow. */
+.tour-spot { position: fixed; border-radius: 14px; box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px color-mix(in oklab, var(--accent) 30%, transparent), 0 0 0 200vmax var(--blanket); transition: left 200ms ease, top 200ms ease, width 200ms ease, height 200ms ease; pointer-events: none; }
+.tour-card { position: fixed; display: flex; flex-direction: column; gap: var(--space-100); padding: var(--space-250, 20px); border: 1px solid var(--line-2); border-radius: 16px; background: var(--surface-2); box-shadow: var(--sh-3), var(--inset-hi); }
+.tour-card.is-centred { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.tour-title { margin: 0; font-size: 1.0625rem; line-height: 1.4rem; font-weight: var(--font-weight-semibold); letter-spacing: -0.02em; }
+.tour-body { margin: 0; color: var(--text-subtle); line-height: 1.5; }
+.tour-foot { display: flex; align-items: center; gap: var(--space-100); margin-top: var(--space-100); }
+.tour-dots { display: flex; gap: 5px; flex: 1; }
+.tour-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line-2); }
+.tour-dot.is-current { background: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-spot { transition: none; }
+}
+
+/* Keyboard: rows that take the focus show it inside their own box, and their buttons with it. */
+.scm-file:focus-visible, .scm-commit-head:focus-visible, .var-row:focus-visible, .grid-head:focus-visible, .results-item:focus-visible, .manual-link:focus-visible { outline-offset: -2px; }
+.scm-file:focus-within .scm-file-actions, .scm-commit-head.is-row:focus-within .scm-file-actions { display: flex; }
+.uml-stage:focus-visible .uml-node.is-selected .uml-box { stroke-width: 2.5; }

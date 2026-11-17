@@ -1,6 +1,6 @@
 [package]
 name = "logiq-studio"
-version = "0.8.0"
+version = "1.0.0"
 description = "Logiq Studio: an IDE for Java, Python, C, C++, Kotlin, PHP, SQL and the web with live UML class diagrams"
 license = "MIT"
 authors = ["Voltiq"]
@@ -19,6 +19,9 @@ tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 # A second start hands its folder to the window that is already open
 tauri-plugin-single-instance = "2"
+# Updates from GitHub Releases, signed
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Deleting moves files to the Recycle Bin instead of erasing them

@@ -1171,13 +1171,14 @@ export function scheduleSession() {
   sessionTimer = window.setTimeout(saveSession, 700);
 }
 
-export function saveSession() {
+/** Keeps the session; false when the unsaved text couldn't be stored (too much of it for the browser's storage). */
+export function saveSession(): boolean {
   window.clearTimeout(sessionTimer);
   const s = get();
   try {
     if (!s.root) {
       localStorage.removeItem(SESSION_KEY);
-      return;
+      return true;
     }
     const buffers: Record<string, string> = {};
     if (s.settings.hotExit) {
@@ -1191,8 +1192,15 @@ export function saveSession() {
       buffers,
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    return true;
   } catch {
-    // Storage full: the session is not kept, nothing else is affected.
+    // Storage full: keep at least the open tabs, without the unsaved text.
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ root: s.root, tabs: s.tabs.map((x) => ({ id: x.id, kind: x.kind, path: x.path, group: x.group, pinned: x.pinned })), active: s.active, focusGroup: s.focusGroup, buffers: {} }));
+    } catch {
+      // Not even that: the next start begins without a session.
+    }
+    return !s.tabs.some((x) => x.dirty);
   }
 }
 
@@ -1243,12 +1251,13 @@ export async function requestCloseWindow() {
   const win = getCurrentWindow();
   if (get().run.status === "running") await api.runStop().catch(() => {});
   const dirty = get().tabs.filter((x) => x.dirty);
-  if (dirty.length && !get().settings.hotExit) {
+  // With hot exit the unsaved text is kept and comes back on the next start; when it can't be
+  // kept (very large files don't fit the storage), ask as without hot exit.
+  if (dirty.length && (!get().settings.hotExit || !saveSession())) {
     const choice = await askToSave(dirty.map((x) => x.title));
     if (choice === "cancel") return;
     if (choice === "save" && !(await saveAll(true))) return;
   }
-  // With hot exit the unsaved text is kept and comes back on the next start.
   saveSession();
   await win.destroy().catch(() => win.close());
 }
@@ -1312,6 +1321,13 @@ export async function init() {
     m.startWebServers();
   });
   void import("./git").then((m) => m.initGit());
+  void import("./log").then((m) => m.initLog());
+  // A newer version, asked for quietly: offline is no error, a skipped version stays skipped.
+  if (get().settings.checkUpdates) {
+    void import("./updates").then((m) => m.findUpdateQuietly()).then((update) => update && !get().dialog && openDialog({ kind: "update", update }));
+  }
+  // The first start shows where everything is.
+  void import("../components/Tour").then((m) => !m.tourSeen() && window.setTimeout(() => set({ tour: true }), 900));
   void import("./build").then((m) => m.initBuild());
   // A project that installs or removes Stylelint is asked again.
   void events.onFsChanged((paths) => {

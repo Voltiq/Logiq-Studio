@@ -32,7 +32,7 @@ function VarRow({ v, depth }: { v: DebugVar; depth: number }) {
   const expandable = v.id !== undefined;
   return (
     <>
-      <div className={cx("var-row", v.error && "is-error")} style={{ paddingLeft: 6 + depth * 14 }} onClick={() => expandable && toggleExpand(v)} role={expandable ? "button" : undefined}>
+      <div className={cx("var-row", v.error && "is-error")} style={{ paddingLeft: 6 + depth * 14 }} onClick={() => expandable && toggleExpand(v)} role={expandable ? "button" : undefined} tabIndex={expandable ? 0 : undefined} data-key-click={expandable || undefined}>
         <span className={cx("tree-chevron", expanded && "is-open", !expandable && "is-hidden")} aria-hidden="true">
           <ChevronRight size={13} />
         </span>

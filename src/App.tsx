@@ -10,6 +10,7 @@ import { relative } from "./lib/paths";
 import { t } from "./lib/i18n";
 import { TitleBar } from "./components/TitleBar";
 import { GuiDesigner } from "./gui/GuiDesigner";
+import { Tour } from "./components/Tour";
 import { TopBar } from "./components/TopBar";
 import { ActivityRail } from "./components/ActivityRail";
 import { Explorer } from "./components/Explorer";
@@ -145,7 +146,12 @@ export default function App() {
       if (useStore.getState().dialog) return;
       const target = e.target as HTMLElement | null;
       const inEditor = !!target?.closest?.(".cm-editor");
-      handleShortcut(e, inEditor, !!target?.closest?.(".xterm"));
+      if (handleShortcut(e, inEditor, !!target?.closest?.(".xterm"))) return;
+      // Rows that act on a click do the same on Enter or Space when they have the focus.
+      if ((e.key === "Enter" || e.key === " ") && target?.matches?.("[data-key-click]") && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        target.click();
+      }
     };
     // Capture, so the editor doesn't eat Ctrl+P, F5 and the like first.
     window.addEventListener("keydown", onKey, true);
@@ -211,6 +217,7 @@ export default function App() {
       </div>
       <StatusBar />
       <Dialogs />
+      <Tour />
       {paletteOpen && <Palette />}
       {menu && <Menu request={menu} onClose={() => set({ menu: null })} />}
       <TooltipLayer />

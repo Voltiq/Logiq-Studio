@@ -65,7 +65,13 @@ its structure as a UML class diagram that redraws itself while you type, as the 
   blame (`Ctrl+Alt+B`).
 - **Maven and Gradle**: projects compile with their build tool (wrapper or installed), and Run, Debug, the
   object bench and tests use its class path; build tasks run in the terminal; templates for both.
-- **Languages**: English and German.
+- **Languages**: English, German, Spanish and French, with the manual (`F1`) in all four and a short tour of
+  the window on the first start.
+- **Accessible**: the class diagram can be read by a screen reader and used with the keyboard, focus is visible
+  everywhere, and the colours meet 4.5:1 contrast in both themes.
+- **Installs and updates itself**: a Windows installer for your user account; signed updates from GitHub
+  Releases; *Open with Logiq Studio* on folders and source files in Explorer; a log file and crash reports that
+  stay on your computer; settings that can be exported and imported.
 
 ## Develop
 
@@ -88,6 +94,18 @@ npm test
 
 ```bash
 cd src-tauri && cargo test
+```
+
+## Release
+
+Push a tag matching the version (`v1.0.0`): the Release workflow builds the installer and the signed update files
+and publishes them on GitHub with the version's section of [CHANGELOG.md](CHANGELOG.md). The repository needs the
+secret `TAURI_SIGNING_PRIVATE_KEY` (the text of the private key whose public half is in `tauri.conf.json`).
+
+A local installer, signed for updates:
+
+```bash
+TAURI_SIGNING_PRIVATE_KEY="$HOME/.tauri/logiq-studio.key" npx tauri build
 ```
 
 A JDK (Java 17 or newer recommended) must be installed for compiling and running Java. Logiq Studio finds it

@@ -31,6 +31,7 @@ import { FileIcon } from "./FileIcon";
 import { cx } from "../lib/utils";
 import { isPreviewable } from "../lib/actions";
 import { fuzzy } from "./Palette";
+import { rowWindow } from "../lib/rowWindow";
 import { t } from "../lib/i18n";
 import { useGit } from "../lib/git";
 import { letterOf } from "../lib/gitParse";
@@ -107,6 +108,21 @@ export function Explorer() {
   const [allFiles, setAllFiles] = useState<string[]>([]);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // A long list (a folder with thousands of files) draws only the rows in view.
+  const [scroll, setScroll] = useState({ top: 0, height: 800 });
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const measure = () => setScroll((s) => (s.top === el.scrollTop && s.height === el.clientHeight ? s : { top: el.scrollTop, height: el.clientHeight }));
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+  }, [root]);
   const filterRef = useRef<HTMLInputElement>(null);
   const hoverTimer = useRef(0);
 
@@ -154,6 +170,7 @@ export function Explorer() {
     );
   }
 
+  const win = rowWindow(rows.length, scroll.top, scroll.height, rowHeight());
   const index = rows.findIndex((r) => r.entry.path === selected);
 
   const select = (i: number, extend = false) => {
@@ -167,7 +184,11 @@ export function Explorer() {
     } else {
       set({ selected: r.entry.path, selection: [r.entry.path] });
     }
-    listRef.current?.querySelector<HTMLElement>(`[data-index="${rows.indexOf(r)}"]`)?.scrollIntoView({ block: "nearest" });
+    const at = rows.indexOf(r);
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-index="${at}"]`);
+    if (el) el.scrollIntoView({ block: "nearest" });
+    // Not drawn (far out of view in a long list): scroll to where it is.
+    else if (listRef.current && at >= 0) listRef.current.scrollTop = Math.max(0, at * rowHeight() - listRef.current.clientHeight / 2);
   };
 
   const onClickRow = (e: React.MouseEvent, r: Row, i: number) => {
@@ -319,7 +340,9 @@ export function Explorer() {
         }}
       >
         {filter && rows.length === 0 && <p className="search-note">{t("No file matches.")}</p>}
-        {rows.map((r, i) => {
+        {win.first > 0 && <div style={{ height: win.first * win.row }} aria-hidden="true" />}
+        {rows.slice(win.first, win.last).map((r, j) => {
+          const i = win.first + j;
           const { entry } = r;
           const open = entry.isDir && !!expanded[entry.path];
           const isError = !entry.isDir && errorPaths.has(entry.path.toLowerCase());
@@ -331,6 +354,8 @@ export function Explorer() {
               data-index={i}
               role="treeitem"
               aria-level={r.depth + 1}
+              aria-posinset={win.windowed ? i + 1 : undefined}
+              aria-setsize={win.windowed ? rows.length : undefined}
               aria-expanded={entry.isDir && !filter ? open : undefined}
               aria-selected={selection.includes(entry.path)}
               draggable
@@ -400,9 +425,15 @@ export function Explorer() {
             </div>
           );
         })}
+        {win.last < rows.length && <div style={{ height: (rows.length - win.last) * win.row }} aria-hidden="true" />}
       </div>
     </div>
   );
+}
+
+/** The height of a row: 1.75rem, as in the style sheet. */
+function rowHeight(): number {
+  return (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) * 1.75;
 }
 
 function currentDir(): string {

@@ -264,6 +264,8 @@ export function ResultGrid({ columns, rows }: { columns: SqlColumn[]; rows: SqlV
                 aria-sort={s ? (s.dir === 1 ? "ascending" : "descending") : undefined}
                 className={cx("grid-head", "is-sortable", numeric[c] && "is-number")}
                 style={{ left: lefts[c], width: widths[c] }}
+                tabIndex={0}
+                data-key-click
                 onClick={(e) => toggleSort(c, e.shiftKey)}
                 data-tooltip={`${col.name}${col.declType ? ` · ${col.declType}` : ""} — ${t("click to sort")}`}
               >

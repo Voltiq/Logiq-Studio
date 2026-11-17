@@ -676,7 +676,13 @@ export function route(e: UmlEdge, a: Rect, b: Rect, offset = 0, o: RouteOptions 
   if (o.orthogonal) {
     // The two lines between boxes that point at each other leave on different sides of the middle.
     const shift = offset ? (e.from < e.to ? offset : -offset) : 0;
-    const path = routeOrthogonal(a, b, o.obstacles ?? [a, b], shift);
+    const all = o.obstacles ?? [a, b];
+    let path: Point[] | null;
+    if (all.length > ROUTE_LOCALLY_ABOVE) {
+      const { near, blockers } = routingRegion(a, b, all);
+      if (near.length > ROUTE_SIMPLY_ABOVE) return routeSimple(a, b, shift);
+      path = routeOrthogonal(a, b, near, shift, blockers);
+    } else path = routeOrthogonal(a, b, all, shift);
     if (path) return path;
   }
   const ca = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
@@ -768,11 +774,72 @@ class Heap {
  * in `obstacles`, with as few bends as it can: A* over a sparse grid made of
  * the lines just outside each box. Null when there is no way through.
  */
-export function routeOrthogonal(a: Rect, b: Rect, obstacles: Rect[], shift = 0): Point[] | null {
+/**
+ * The boxes that matter for a line between `a` and `b` in a large diagram: `near` are the
+ * ones around the two boxes (the line may run along their edges), `blockers` every box that
+ * reaches into the area those span (the line must not cross them). With hundreds of boxes
+ * this keeps the search small; the route between two boxes doesn't depend on boxes far away.
+ */
+export function routingRegion(a: Rect, b: Rect, obstacles: Rect[], margin = 140): { near: Rect[]; blockers: Rect[] } {
+  const x0 = Math.min(a.x, b.x) - margin;
+  const y0 = Math.min(a.y, b.y) - margin;
+  const x1 = Math.max(a.x + a.w, b.x + b.w) + margin;
+  const y1 = Math.max(a.y + a.h, b.y + b.h) + margin;
+  const near = obstacles.filter((r) => r.x < x1 && r.x + r.w > x0 && r.y < y1 && r.y + r.h > y0);
+  let hx0 = x0;
+  let hy0 = y0;
+  let hx1 = x1;
+  let hy1 = y1;
+  for (const r of near) {
+    hx0 = Math.min(hx0, r.x - CLEAR);
+    hy0 = Math.min(hy0, r.y - CLEAR);
+    hx1 = Math.max(hx1, r.x + r.w + CLEAR);
+    hy1 = Math.max(hy1, r.y + r.h + CLEAR);
+  }
+  const blockers = obstacles.filter((r) => r.x < hx1 && r.x + r.w > hx0 && r.y < hy1 && r.y + r.h > hy0);
+  return { near, blockers };
+}
+
+/** Diagrams with more boxes than this route each line among the boxes near it only. */
+export const ROUTE_LOCALLY_ABOVE = 40;
+/** A line with more boxes than this around it is drawn as a plain three-part path: finding a way around them all costs more than it shows. */
+export const ROUTE_SIMPLY_ABOVE = 48;
+
+/** A right-angled path of three parts from the side of `a` that faces `b` to the side of `b` that faces `a`, around nothing. */
+export function routeSimple(a: Rect, b: Rect, shift = 0): Point[] {
+  const ca = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
+  const cb = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+  const gapX = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w));
+  const gapY = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h));
+  if (gapX >= gapY) {
+    const right = cb.x > ca.x;
+    const sx = right ? a.x + a.w : a.x;
+    const ex = right ? b.x : b.x + b.w;
+    const mx = Math.round((sx + ex) / 2);
+    return [
+      { x: sx, y: ca.y + shift },
+      { x: mx, y: ca.y + shift },
+      { x: mx, y: cb.y + shift },
+      { x: ex, y: cb.y + shift },
+    ];
+  }
+  const down = cb.y > ca.y;
+  const sy = down ? a.y + a.h : a.y;
+  const ey = down ? b.y : b.y + b.h;
+  const my = Math.round((sy + ey) / 2);
+  return [
+    { x: ca.x + shift, y: sy },
+    { x: ca.x + shift, y: my },
+    { x: cb.x + shift, y: my },
+    { x: cb.x + shift, y: ey },
+  ];
+}
+
+export function routeOrthogonal(a: Rect, b: Rect, obstacles: Rect[], shift = 0, blockers: Rect[] = obstacles): Point[] | null {
   const starts = portsOf(a, shift);
   const goals = portsOf(b, shift);
   const pad = CLEAR - 1;
-  const blocked = obstacles.map((r) => ({ x0: r.x - pad, y0: r.y - pad, x1: r.x + r.w + pad, y1: r.y + r.h + pad }));
+  const blocked = blockers.map((r) => ({ x0: r.x - pad, y0: r.y - pad, x1: r.x + r.w + pad, y1: r.y + r.h + pad }));
   const inside = (x: number, y: number) => blocked.some((r) => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1);
   const xsSet = new Set<number>();
   const ysSet = new Set<number>();

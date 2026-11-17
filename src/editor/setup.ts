@@ -21,7 +21,7 @@ import {
   rectangularSelection,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { bracketMatching, ensureSyntaxTree, foldGutter, foldKeymap, indentOnInput, indentUnit } from "@codemirror/language";
+import { bracketMatching, ensureSyntaxTree, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxTree } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { lintGutter, linter, lintKeymap, type Diagnostic as CmDiagnostic } from "@codemirror/lint";
@@ -41,6 +41,9 @@ import type { Settings } from "../lib/settings";
 import { get } from "../lib/store";
 import { samePath } from "../lib/paths";
 import { t } from "../lib/i18n";
+
+/** Files longer than this (in characters) skip the checks that read the whole text while typing: ESLint, Stylelint, the conflict scan. */
+export const LARGE_FILE = 1_500_000;
 
 /** Dispatched when problems change outside the editor (compiler, language server). */
 export const relint = StateEffect.define<null>();
@@ -143,9 +146,11 @@ function lintSource(path: () => string) {
       const to = Math.max(from, at(d.range.end));
       out.push({ from, to: to === from ? Math.min(doc.length, from + 1) : to, severity: d.severity === 1 ? "error" : d.severity === 2 ? "warning" : "info", source: d.source ?? "server", message: d.message });
     }
-    const conflicted = /^<{7} /m.test(doc.sliceString(0, Math.min(doc.length, 2_000_000)));
+    const huge = doc.length > LARGE_FILE;
+    const conflicted = !huge && /^<{7} /m.test(doc.sliceString(0, doc.length));
     if (!conflicted && !hasServer(path()) && lang.id !== "text" && lang.id !== "markdown" && lang.id !== "html" && lang.id !== "xml") {
-      const tree = ensureSyntaxTree(view.state, doc.length, 300);
+      // A very large file is checked as far as it has been parsed for drawing, not to its end.
+      const tree = huge ? syntaxTree(view.state) : ensureSyntaxTree(view.state, doc.length, 300);
       let count = 0;
       tree?.iterate({
         enter(n) {
@@ -228,10 +233,10 @@ export function createState(path: string, text: string, s: Settings, onUpdate: E
         needsRefresh: (u) => u.transactions.some((tr) => tr.effects.some((e) => e.is(relint))),
       }),
       // Stylelint for style sheets, when the project has it.
-      /\.(css|scss|less)$/i.test(path) ? linter((view) => stylelintDiagnostics(currentPath(path), view.state.doc), { delay: 800 }) : [],
+      /\.(css|scss|less)$/i.test(path) ? linter((view) => (view.state.doc.length > LARGE_FILE ? [] : stylelintDiagnostics(currentPath(path), view.state.doc)), { delay: 800 }) : [],
       // ESLint for JavaScript, next to the language server's own checks.
       /\.(m|c)?jsx?$/i.test(path)
-        ? linter((view) => eslintDiagnostics(view.state.doc.toString(), view.state.doc, /\.mjs$/i.test(currentPath(path)) || /^\s*(import|export)\s/m.test(view.state.doc.toString())).catch(() => []), { delay: 700 })
+        ? linter((view) => (view.state.doc.length > LARGE_FILE ? [] : eslintDiagnostics(view.state.doc.toString(), view.state.doc, /\.mjs$/i.test(currentPath(path)) || /^\s*(import|export)\s/m.test(view.state.doc.toString())).catch(() => [])), { delay: 700 })
         : [],
       compartments.indent.of(indentFor(s)),
       compartments.wrap.of(s.wordWrap ? EditorView.lineWrapping : []),

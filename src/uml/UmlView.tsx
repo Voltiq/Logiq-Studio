@@ -27,6 +27,7 @@ import {
   Plus,
   SlidersHorizontal,
 } from "lucide-react";
+import { flushSync } from "react-dom";
 import { save as pickSavePath } from "@tauri-apps/plugin-dialog";
 import { api, errorText } from "../lib/api";
 import { get, openDialog, openMenu, setSettings, toast, useStore } from "../lib/store";
@@ -37,7 +38,8 @@ import { EmptyState } from "../components/ui/Feedback";
 import { Select } from "../components/ui/Select";
 import type { MenuItem } from "../components/ui/Menu";
 import { allTypes as everyType, useStructureVersion } from "./javaIndex";
-import { autoLayout, BOX, buildDiagram, placeNew, route, type Diagram, type Point, type Positions, type UmlEdge, type UmlNode, type UmlOptions } from "./diagram";
+import { autoLayout, BOX, buildDiagram, placeNew, route, ROUTE_LOCALLY_ABOVE, routingRegion, type Diagram, type Point, type Positions, type Rect, type UmlEdge, type UmlNode, type UmlOptions } from "./diagram";
+import { CULL_ABOVE, lineInView, visibleNodes } from "./visible";
 import { exportPng, exportSvgString } from "./exportDiagram";
 import { simpleType } from "./javaParser";
 import { toMermaid, toPlantUml } from "./exportText";
@@ -47,6 +49,7 @@ import { createTestFor, runTests } from "../lib/tools";
 import { benchCall, describeMethod, useBench } from "./bench";
 import { cx } from "../lib/utils";
 import { t } from "../lib/i18n";
+import { describeNode, neighbour, panIntoView, type Direction } from "./describe";
 
 interface Note {
   id: string;
@@ -113,6 +116,8 @@ function NodeBox({
   at,
   selected,
   dim,
+  domId,
+  description,
   onPointerDown,
   onOpen,
   onMenu,
@@ -120,6 +125,10 @@ function NodeBox({
   onHover,
 }: {
   onMemberMenu: (e: React.MouseEvent, line: number, kind: "field" | "method") => void;
+  /** For the stage's aria-activedescendant. */
+  domId: string;
+  /** The class in words, for screen readers. */
+  description: string;
   node: UmlNode;
   at: Point;
   selected: boolean;
@@ -177,6 +186,9 @@ function NodeBox({
       onPointerEnter={() => onHover(true)}
       onPointerLeave={() => onHover(false)}
       data-id={node.id}
+      id={domId}
+      role="img"
+      aria-label={description}
     >
       <rect className="uml-shadow" x={0} y={2} width={node.w} height={node.h} rx={10} />
       <rect className="uml-box" width={node.w} height={node.h} rx={10} />
@@ -333,6 +345,8 @@ export function UmlView({ visible }: { visible: boolean }) {
   const layoutRef = useRef<Layout | null>(null);
   layoutRef.current = layout;
   const [view, setView] = useState<View>({ x: 40, y: 40, k: 1 });
+  /** Draw every class even when it is out of view (while exporting or printing). */
+  const [drawAll, setDrawAll] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
@@ -913,12 +927,18 @@ export function UmlView({ visible }: { visible: boolean }) {
     }
   }
 
+  /** The drawn diagram with every class in it: a large diagram, which draws only what is in view, is drawn whole for the moment. */
+  function wholeDiagram(): SVGGElement | null {
+    if (diagram.nodes.length > CULL_ABOVE) flushSync(() => setDrawAll(true));
+    return svgRef.current?.querySelector<SVGGElement>(".uml-content") ?? null;
+  }
+
   /** Prints the diagram in print colours, scaled to the page. */
   async function printDiagram() {
-    const g = svgRef.current?.querySelector<SVGGElement>(".uml-content");
+    const g = wholeDiagram();
     const b = bounds();
-    if (!g || !b) return;
-    const svg = await exportSvgString(g, b);
+    if (!g || !b) return setDrawAll(false);
+    const svg = await exportSvgString(g, b).finally(() => setDrawAll(false));
     const frame = document.createElement("iframe");
     frame.style.cssText = "position:fixed;width:0;height:0;border:0;opacity:0";
     document.body.appendChild(frame);
@@ -934,11 +954,11 @@ export function UmlView({ visible }: { visible: boolean }) {
   }
 
   async function doExport(kind: "svg" | "png" | "copy") {
-    const g = svgRef.current?.querySelector<SVGGElement>(".uml-content");
+    const g = wholeDiagram();
     const b = bounds();
-    if (!g || !b) return;
+    if (!g || !b) return setDrawAll(false);
     try {
-      const svg = await exportSvgString(g, b);
+      const svg = await exportSvgString(g, b).finally(() => setDrawAll(false));
       if (kind === "copy") {
         const blob = await exportPng(svg, 2);
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
@@ -959,9 +979,12 @@ export function UmlView({ visible }: { visible: boolean }) {
     }
   }
 
-  // Where each line runs; right-angled lines go around every box.
+  // Where each line runs; right-angled lines go around every box. A line is worked out again
+  // only when something it depends on moved: its two boxes, or (in a large diagram) a box near it.
+  const routeCache = useRef(new Map<string, { key: string; points: Point[] }>());
   const routes = useMemo(() => {
     const out = new Map<string, Point[]>();
+    const cache = routeCache.current;
     const byId = new Map(diagram.nodes.map((n) => [n.id, n]));
     const rect = (id: string) => {
       const n = byId.get(id);
@@ -969,21 +992,64 @@ export function UmlView({ visible }: { visible: boolean }) {
       return n && p ? { x: p.x, y: p.y, w: n.w, h: n.h } : null;
     };
     const obstacles = diagram.nodes.map((n) => rect(n.id)).filter((r): r is NonNullable<typeof r> => !!r);
+    const sig = (r: Rect) => `${r.x},${r.y},${r.w},${r.h}`;
+    const local = obstacles.length > ROUTE_LOCALLY_ABOVE;
+    const everything = local ? "" : obstacles.map(sig).join(";");
     const assoc = new Set(diagram.edges.filter((e) => e.kind === "association").map((e) => `${e.from}->${e.to}`));
+    const seen = new Set<string>();
     for (const edge of diagram.edges) {
       const a = rect(edge.from);
       const b = rect(edge.to);
       if (!a || !b) continue;
       const offset = edge.kind === "association" && edge.from !== edge.to && assoc.has(`${edge.to}->${edge.from}`) ? 7 : 0;
-      out.set(edge.id, route(edge, a, b, offset, { orthogonal: opts.orthogonal, obstacles, bends: layout?.bends[edge.id] }));
+      const bends = layout?.bends[edge.id];
+      const around = !opts.orthogonal || bends?.length ? "" : local ? routingRegion(a, b, obstacles).blockers.map(sig).join(";") : everything;
+      const key = `${sig(a)}|${sig(b)}|${offset}|${opts.orthogonal}|${bends ? JSON.stringify(bends) : ""}|${around}`;
+      seen.add(edge.id);
+      const hit = cache.get(edge.id);
+      if (hit?.key === key) {
+        out.set(edge.id, hit.points);
+        continue;
+      }
+      const points = route(edge, a, b, offset, { orthogonal: opts.orthogonal, obstacles, bends });
+      cache.set(edge.id, { key, points });
+      out.set(edge.id, points);
     }
+    for (const id of [...cache.keys()]) if (!seen.has(id)) cache.delete(id);
     return out;
   }, [diagram, positions, opts.orthogonal, layout?.bends]);
+
+  // A large diagram draws only what is in view (and the selected class, which the keyboard and screen readers point at).
+  const [stageSize, setStageSize] = useState({ w: 1600, h: 1000 });
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const measure = () => el.clientWidth && setStageSize((s) => (s.w === el.clientWidth && s.h === el.clientHeight ? s : { w: el.clientWidth, h: el.clientHeight }));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [root]);
+  const shown = useMemo(() => (diagram.nodes.length > CULL_ABOVE && !drawAll ? visibleNodes(diagram.nodes, positions, view, stageSize) : null), [diagram, positions, view, stageSize, drawAll]);
 
   if (!root) return null;
 
   const hiddenCount = layout?.hidden.length ?? 0;
   const nodesById = new Map(diagram.nodes.map((n) => [n.id, n]));
+  const domIdOf = (id: string) => `uml-node-${diagram.nodes.findIndex((n) => n.id === id)}`;
+  const selectedNode = selected ? nodesById.get(selected) : undefined;
+  const spoken = selectedNode ? describeNode(selectedNode, diagram.edges, nodesById) : "";
+  /** Selects a class from the keyboard and brings it into view. */
+  const selectByKey = (id: string) => {
+    setSelected(id);
+    setSelectedEdge(null);
+    const n = nodesById.get(id);
+    const p = positions[id];
+    const el = stageRef.current;
+    if (!n || !p || !el) return;
+    const pan = panIntoView({ x: p.x, y: p.y, w: n.w, h: n.h }, view, { w: el.clientWidth, h: el.clientHeight });
+    if (pan.dx || pan.dy) setView({ ...view, x: view.x + pan.dx, y: view.y + pan.dy });
+  };
   const focus = hover ?? selected;
   // A frame around each package when the diagram shows more than one.
   const packages = new Map<string, UmlNode[]>();
@@ -1078,8 +1144,38 @@ export function UmlView({ visible }: { visible: boolean }) {
         ref={stageRef}
         className="uml-stage"
         tabIndex={0}
-        aria-label={t("UML class diagram")}
+        role="application"
+        aria-roledescription={t("class diagram")}
+        aria-label={t("UML class diagram, classes: {0}. Arrow keys go from class to class, Enter opens the code, the menu key opens the class's menu, Alt and the arrow keys move the box.", diagram.nodes.length)}
+        aria-activedescendant={selected ? domIdOf(selected) : undefined}
+        onFocus={(e) => {
+          // Coming in with the keyboard: start at the first class.
+          if (e.target === e.currentTarget && !selected && diagram.nodes.length && e.currentTarget.matches(":focus-visible")) selectByKey(diagram.nodes[0].id);
+        }}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          const arrow = ({ ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" } as Record<string, Direction>)[e.key];
+          if (arrow && !e.altKey && !e.ctrlKey) {
+            // From class to class; the first one when none is selected.
+            const next = selected ? neighbour(diagram.nodes, positions, selected, arrow) : (diagram.nodes[0]?.id ?? null);
+            if (next) selectByKey(next);
+            e.preventDefault();
+            return;
+          }
+          if ((e.key === "Home" || e.key === "End") && diagram.nodes.length) {
+            selectByKey(diagram.nodes[e.key === "Home" ? 0 : diagram.nodes.length - 1].id);
+            e.preventDefault();
+            return;
+          }
+          if ((e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) && selected) {
+            // The class's menu, where the class is.
+            const n = nodesById.get(selected);
+            const el = document.getElementById(domIdOf(selected));
+            const r = el?.getBoundingClientRect();
+            if (n && r) nodeMenu(n)({ preventDefault() {}, clientX: r.left + 12, clientY: r.top + 28 } as unknown as React.MouseEvent);
+            e.preventDefault();
+            return;
+          }
           if (e.key === "f" || e.key === "F") fit();
           else if (e.key === "+" || e.key === "=") zoomBy(1.2);
           else if (e.key === "-") zoomBy(1 / 1.2);
@@ -1087,7 +1183,7 @@ export function UmlView({ visible }: { visible: boolean }) {
             setSelected(null);
             setSelectedEdge(null);
           }
-          else if (selected && layout && e.key.startsWith("Arrow")) {
+          else if (selected && layout && e.key.startsWith("Arrow") && (e.altKey || e.ctrlKey)) {
             const step = e.shiftKey ? 32 : 8;
             const p = positions[selected];
             const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key] ?? [0, 0];
@@ -1174,6 +1270,7 @@ export function UmlView({ visible }: { visible: boolean }) {
                 {diagram.edges.map((edge) => {
                   const pts = routes.get(edge.id);
                   if (!pts) return null;
+                  if (shown && selectedEdge !== edge.id && !lineInView(pts, edge.from, edge.to, shown, view, stageSize)) return null;
                   const hot = !!focus && (edge.from === focus || edge.to === focus);
                   return (
                     <EdgeLine
@@ -1220,13 +1317,15 @@ export function UmlView({ visible }: { visible: boolean }) {
               </g>
               <g className="uml-nodes">
                 {diagram.nodes.map((n) =>
-                  positions[n.id] ? (
+                  positions[n.id] && (!shown || shown.has(n.id) || selected === n.id) ? (
                     <NodeBox
                       key={n.id}
                       node={n}
                       at={positions[n.id]}
                       selected={selected === n.id}
                       dim={!!focus && !related.has(n.id)}
+                      domId={domIdOf(n.id)}
+                      description={selected === n.id ? spoken : n.type.name}
                       onPointerDown={onNodeDown(n.id)}
                       onOpen={(line) => openAt(n, line)}
                       onMenu={nodeMenu(n)}
@@ -1248,6 +1347,10 @@ export function UmlView({ visible }: { visible: boolean }) {
             </g>
           </svg>
         )}
+        {/* What the selected class is, said aloud when the selection moves. */}
+        <div className="visually-hidden" aria-live="polite" aria-atomic="true">
+          {spoken}
+        </div>
         <div className="uml-legend" aria-hidden="true">
           {tool === "select" ? (
             <>

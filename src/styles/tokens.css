@@ -288,6 +288,8 @@
 
   --text-disabled: rgba(17, 19, 24, 0.32);
   --icon-disabled: rgba(17, 19, 24, 0.32);
+  /* Red text on the light surfaces: darker than the red of fills, for 4.5:1 contrast. */
+  --text-danger: #b8202c;
   --text-warning-inverse: #1b1406;
 
   --accent-yellow: #b38600;

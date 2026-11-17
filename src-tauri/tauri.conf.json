@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Logiq Studio",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "identifier": "com.voltiq.logiq-studio",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -31,12 +31,14 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "publisher": "Voltiq",
     "copyright": "© 2026 Voltiq",
     "category": "DeveloperTool",
-    "shortDescription": "An IDE for Java and the web with live UML class diagrams",
-    "longDescription": "Logiq Studio edits, compiles and runs Java, HTML, CSS and JavaScript projects. It draws a UML class diagram from your Java code as you type, previews web pages live and shows compiler problems right in the editor.",
+    "shortDescription": "An IDE with live UML class diagrams",
+    "longDescription": "Logiq Studio edits, compiles and runs Java, Python, C, C++, Kotlin, PHP, SQL, HTML, CSS and JavaScript projects. It draws a UML class diagram from your code as you type, designs Swing windows, previews web pages live and shows compiler problems right in the editor.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -45,11 +47,51 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
       "nsis": {
         "installMode": "currentUser",
         "installerIcon": "icons/icon.ico",
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "languages": [
+          "English",
+          "German",
+          "Spanish",
+          "French"
+        ],
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "java"
+        ],
+        "name": "Java Source",
+        "description": "Java source file",
+        "role": "Editor",
+        "mimeType": "text/x-java"
+      },
+      {
+        "ext": [
+          "uml"
+        ],
+        "name": "Logiq Class Diagram",
+        "description": "Logiq Studio class diagram",
+        "role": "Editor"
+      }
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQxNDkwNTI3NThENTAyQjQKUldTMEF0VllKd1ZKUWNyY2pzM0lrTUtBQWxBSzJFUHFsSm1XL2hHbFUraDA5YkQ4Tm16Sm94blYK",
+      "endpoints": [
+        "https://github.com/Voltiq/Logiq-Studio/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

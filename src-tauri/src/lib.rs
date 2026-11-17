@@ -11,6 +11,7 @@ mod build;
 mod debug;
 mod fs;
 mod git;
+mod log;
 mod lsp;
 mod preview;
 mod runner;
@@ -60,6 +61,8 @@ pub fn run() {
                 let _ = app.emit("open-paths", paths);
             }
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(runner::Runner::default())
@@ -74,6 +77,10 @@ pub fn run() {
         .manage(preview::PreviewRoot::default())
         .register_uri_scheme_protocol("logiq-preview", |ctx, request| preview::serve(ctx.app_handle(), &request))
         .setup(|app| {
+            // The log file and crash reports, in the app's own log folder.
+            if let Ok(dir) = app.path().app_log_dir() {
+                log::init(dir);
+            }
             // The window starts hidden and the page shows it once its theme is
             // applied. Show it anyway if the page never gets that far.
             let handle = app.handle().clone();
@@ -151,6 +158,9 @@ pub fn run() {
             toolchain::php_serve_stop,
             lsp::lsp_start_program,
             sql::sql_run,
+            log::log_info,
+            log::log_write,
+            log::crashes_seen,
             sql::sql_schema,
         ])
         .run(tauri::generate_context!())

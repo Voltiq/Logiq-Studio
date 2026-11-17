@@ -72,7 +72,8 @@ const lineDeco = {
 
 function build(state: EditorState, compare: () => void): DecorationSet {
   const doc = state.doc;
-  if (doc.length > 4_000_000) return Decoration.none;
+  // Reading the whole text on every change is too much for a very large file.
+  if (doc.length > 1_500_000) return Decoration.none;
   const text = doc.toString();
   if (!text.includes("<<<<<<<")) return Decoration.none;
   const out: Range<Decoration>[] = [];

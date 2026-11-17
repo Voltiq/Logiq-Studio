@@ -383,6 +383,15 @@ export function GuiDesigner({ path }: { path: string }) {
     };
     if (e.key === "Delete" || e.key === "Backspace") return handled(), remove(selection);
     if (e.key === "Escape") return handled(), setTool(null), setSelection([]);
+    // Without a mouse: an arrow key picks the first component, Tab goes on to the next one.
+    if (!selection.length && e.key.startsWith("Arrow") && form.components.length) return handled(), setSelection([form.components[0].name]);
+    if (e.key === "Tab" && selection.length === 1 && form.components.length > 1 && !mod) {
+      const i = form.components.findIndex((c) => c.name === selection[0]);
+      const next = i + (e.shiftKey ? -1 : 1);
+      // Past the last (or before the first) one, Tab leaves the canvas as usual.
+      if (next >= 0 && next < form.components.length) return handled(), setSelection([form.components[next].name]);
+      return;
+    }
     if (selection.length && e.key.startsWith("Arrow")) {
       handled();
       return nudge(e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0, e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0);
@@ -480,6 +489,8 @@ export function GuiDesigner({ path }: { path: string }) {
           ref={canvas}
           className={cx("gd-canvas", tool && "is-placing")}
           tabIndex={0}
+          role="application"
+          aria-label={t("Window designer, components: {0}. Arrow keys select and move, Tab goes to the next component, Enter opens its event handler, Delete removes it.", form.components.length)}
           onKeyDown={onKeyDown}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes(DRAG_TYPE)) {
@@ -530,6 +541,8 @@ export function GuiDesigner({ path }: { path: string }) {
                     style={{ left: c.x, top: c.y, width: c.w, height: c.h }}
                     onContextMenu={(e) => contextMenu(e, c)}
                     title={c.name}
+                    role="img"
+                    aria-label={`${c.type} ${c.name}${c.text ? `: ${c.text}` : ""}`}
                   >
                     <ComponentView c={c} />
                   </div>

@@ -446,11 +446,79 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - [ ] JavaFX windows (FXML) → later
 - [ ] Containers with their own layout (components inside a panel, layout managers) → later
 
-## v1.0 — Release
-- [ ] Windows installer (NSIS, current user), signed updates from GitHub Releases like the other Studio apps
-- [ ] Interface in Spanish and French (German is done)
-- [ ] Manual (`F1`) and a short tour on first start
-- [ ] Accessibility pass (screen readers in the diagram, keyboard everywhere, contrast)
-- [ ] Performance: very large files and folders, diagrams with hundreds of classes
-- [ ] Logs and crash reports to a file; settings import / export
-- [ ] File associations (`.java`, `.html`, `.css`, `.js`) and "Open folder with Logiq Studio" in Explorer
+## v1.0 — Release (2026-11-17)
+
+### Installing and updating
+- [x] **Windows installer** (NSIS) for the current user, no administrator needed, in English, German, Spanish and
+      French; 7.7 MB, the WebView2 runtime fetched only when missing
+- [x] **Signed updates from GitHub Releases** like the other Studio apps: the app asks for `latest.json` at start
+      (Settings → Updates switches that off), shows what is new, and installs in the background and restarts;
+      a version can be skipped; Help → Look for updates. Updates install only with a valid signature (minisign
+      key; the public half is in `tauri.conf.json`, the private one in `~/.tauri/logiq-studio.key`, never in
+      the repository)
+- [x] GitHub workflows: **CI** (type-check, build, interface and Rust tests, release build) and **Release** (a
+      `v*` tag builds the installer and the signed update files and publishes them with the version's section of
+      `CHANGELOG.md` as notes)
+- [x] **File associations**: `.java` and `.uml` open in Logiq Studio; HTML, CSS, JavaScript, TypeScript, JSON,
+      Markdown, Python, C, C++, Kotlin, PHP and SQL files get Logiq Studio in their *Open with* list without
+      taking over their default program (a `.py` still runs, a `.html` still opens the browser)
+- [x] **"Open with Logiq Studio"** on folders in Explorer, on the folder and on the empty space inside it; both
+      are removed again on uninstall
+- [x] A test keeps the version the same in `package.json`, `Cargo.toml`, `tauri.conf.json` and the changelog
+
+### Help
+- [x] **Manual** (`F1`, Help → Manual) in English, German, Spanish and French, with chapters on the left; the
+      same Markdown files are in `docs/`, and a test keeps the translations' chapters, lists, tables and keys in
+      step with the English one
+- [x] **Tour** of the window on the first start (seven steps, each pointing at its part; Esc leaves; again from
+      Help → Tour of the window)
+
+### Languages
+- [x] **Spanish and French**: all 1,200 interface texts, beside English and German; Settings → Language; the
+      language follows Windows' when none is chosen; the page's `lang` is set, so screen readers pronounce it
+      right
+- [x] Tests: every text the interface shows is translated in all three, placeholders and the ellipsis of
+      commands that ask for more kept
+
+### Accessibility
+- [x] **The class diagram with a screen reader**: the selected class is read out in words (kind, name, what it
+      extends and implements, attributes and methods with their visibility spoken, what it has, uses and is
+      used by); the diagram is an application landmark that says how to use it
+- [x] **The class diagram with the keyboard**: arrow keys go from class to class in that direction (the class
+      is brought into view), Home and End, Enter opens the code, the menu key (or Shift+F10) opens the class's
+      menu, Alt with the arrows moves the box
+- [x] **The GUI designer with the keyboard**: an arrow key selects the first component, Tab goes on to the
+      next, arrows move, Enter opens the event handler; components are named for screen readers
+- [x] Rows that only reacted to a click (changed files, stashes, debugger variables, result columns) take the
+      focus and act on Enter or Space; focus is visible on all of them, and their buttons show with the focus
+- [x] **Contrast**: every text colour checked against every surface in both themes; red text and the Git colours
+      of the light theme darkened to reach 4.5:1
+- [x] Reduced motion is respected (the tour's spotlight too)
+
+### Performance
+- [x] **Large diagrams**: a line is routed among the boxes near it only, and long ones that would cross dozens
+      of boxes as a plain right-angled path: 400 classes with 1,100 lines route in about 0.1 s instead of 8 s;
+      routes are kept and worked out again only when a box they depend on moves; a diagram of more than 80
+      classes draws only what is in view (exporting and printing still draw it all)
+- [x] **Large folders**: the explorer draws only the rows in view of a long list (thousands of files)
+- [x] **Large files**: above 1.5 million characters the checks that read the whole text on every pause (ESLint,
+      Stylelint, the conflict scan, the full syntax check) are left out; parsing a 20,000-line Java file takes
+      about 10 ms, the change bar for it a few
+- [x] Unsaved text too large for the session store is asked about when closing instead of being lost
+- [x] Measured in tests with generous limits: parse, build, layout and routing of 400 classes, 20,000-line Java
+      and 7,000-line Python files, quick open among 50,000 file names
+
+### Logs and settings
+- [x] **Log file** (`logiq-studio.log` in the app's log folder, one earlier file kept): start, errors in the
+      window, errors shown to the user; never the text of your files; Help → Show the log file
+- [x] **Crash reports**: a panic writes a report with the message, the place and a stack trace; the next start
+      says so and shows it in its folder; the ten newest are kept
+- [x] **Settings export and import** (Settings → Settings file and log): a JSON file without what belongs to this
+      computer (recent folders, the JDK's place, panel sizes); on import only known settings with valid values
+      are taken, and what was left out is named
+
+### Known limits of 1.0
+- The installer is not code-signed yet: SmartScreen warns the first time (the release notes say how to go on)
+- The update check needs the GitHub repository `Voltiq/Logiq-Studio` and its `TAURI_SIGNING_PRIVATE_KEY`
+  secret; until the first release is published, the check finds nothing
+- Tried in the browser stand-in and with native tests, and the installer was built; not yet installed and run

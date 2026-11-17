@@ -8,6 +8,9 @@ import { applyTheme } from "../lib/theme";
 import { invalidName, join, relative } from "../lib/paths";
 import { TEMPLATES, type TemplateId } from "../lib/templates";
 import { LanguageSettings } from "./LanguageSettings";
+import { MaintenanceSetting, UpdateDialog, UpdatesSetting } from "./ReleaseDialogs";
+import { ManualDialog } from "./Manual";
+import { APP_VERSION } from "../lib/version";
 import { COMMANDS } from "../lib/commands";
 import { UmlDialogs } from "../uml/ClassDialogs";
 import { ToolDialogs } from "./ToolDialogs";
@@ -315,6 +318,8 @@ function SettingsDialog() {
           { value: "system", label: t("Same as Windows") },
           { value: "en", label: "English" },
           { value: "de", label: "Deutsch" },
+          { value: "es", label: "Español" },
+          { value: "fr", label: "Français" },
         ]}
       />
       <div className="settings-row">
@@ -349,13 +354,17 @@ function SettingsDialog() {
           {t("Other…")}
         </Button>
       </div>
-      {s.jdkHome && !jdks.some((j) => j.home === s.jdkHome) && <p className="dialog-text">Using {s.jdkHome}</p>}
+      {s.jdkHome && !jdks.some((j) => j.home === s.jdkHome) && <p className="dialog-text">{t("Using {0}", s.jdkHome)}</p>}
       {!jdks.length && (
         <SectionMessage appearance="warning" title={t("No JDK found")}>
           {t("Install a JDK (for example Temurin from adoptium.net), then restart Logiq Studio, or choose its folder here.")}
         </SectionMessage>
       )}
-      <p className="dialog-text">JavaScript files run with {node ? `Node.js ${node.version}` : "Node.js, which wasn't found on this computer"}.</p>
+      <p className="dialog-text">{node ? t("JavaScript files run with Node.js {0}.", node.version) : t("JavaScript files run with Node.js, which wasn't found on this computer.")}</p>
+      <h3 className="settings-heading">{t("Updates")}</h3>
+      <UpdatesSetting />
+      <h3 className="settings-heading">{t("Settings file and log")}</h3>
+      <MaintenanceSetting />
     </Modal>
   );
 }
@@ -421,7 +430,7 @@ function AboutDialog() {
       <div className="about">
         <img src="/app-icon.svg" alt="" width={64} height={64} />
         <div>
-          <p className="about-name">Logiq Studio 0.8.0</p>
+          <p className="about-name">Logiq Studio {APP_VERSION}</p>
           <p className="dialog-text">{t("An IDE for Java, Python, C, C++, Kotlin, PHP, SQL and the web that draws UML class diagrams from your code. Built with Tauri, Rust and React in the Graphiq design language.")}</p>
         </div>
       </div>
@@ -483,6 +492,10 @@ export function Dialogs() {
       return <ToolDialogs d={d} />;
     case "clone":
       return <CloneDialog />;
+    case "update":
+      return <UpdateDialog d={d} />;
+    case "manual":
+      return <ManualDialog />;
     default:
       return <UmlDialogs d={d} />;
   }

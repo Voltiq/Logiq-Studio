@@ -18,7 +18,9 @@ export interface Settings {
   hotExit: boolean;
   /** Use Eclipse JDT LS for Java when it is installed. */
   javaServer: boolean;
-  language: "system" | "en" | "de";
+  language: "system" | "en" | "de" | "es" | "fr";
+  /** Ask GitHub for a newer version when the app starts. */
+  checkUpdates: boolean;
   /** Save all files before compiling. */
   saveBeforeRun: boolean;
   /** Empty: the newest JDK found. */
@@ -54,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotExit: true,
   javaServer: true,
   language: "system",
+  checkUpdates: true,
   saveBeforeRun: true,
   jdkHome: "",
   nodePath: "",

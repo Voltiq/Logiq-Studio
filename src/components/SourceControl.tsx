@@ -113,6 +113,8 @@ function FileRow({ f, staged }: { f: GitFile; staged: boolean }) {
     <div
       className="scm-file"
       role="listitem"
+      tabIndex={0}
+      data-key-click
       onClick={() => void (deleted ? undefined : openWorkingDiff(abs, staged))}
       onDoubleClick={() => !deleted && void openFile(abs)}
       onContextMenu={(e) => {
@@ -171,7 +173,7 @@ function ConflictRow({ f }: { f: GitFile }) {
     });
   };
   return (
-    <div className="scm-file" role="listitem" onClick={() => void openFile(abs)} onContextMenu={menu} data-tooltip={f.path}>
+    <div className="scm-file" role="listitem" tabIndex={0} data-key-click onClick={() => void openFile(abs)} onContextMenu={menu} data-tooltip={f.path}>
       <FileIcon name={name} />
       <span className="scm-file-name">{name}</span>
       <span className="scm-file-dir">{dir}</span>
@@ -192,7 +194,7 @@ function StashRow({ s }: { s: Stash }) {
   const lang = useStore((st) => st.settings.language);
   return (
     <div className="scm-commit">
-      <div className="scm-commit-head is-row" role="button" tabIndex={0} aria-expanded={open} onClick={() => (setOpen(!open), !files && void stashFiles(s).then(setFiles, () => setFiles([])))} data-tooltip={s.ref}>
+      <div className="scm-commit-head is-row" role="button" tabIndex={0} data-key-click aria-expanded={open} onClick={() => (setOpen(!open), !files && void stashFiles(s).then(setFiles, () => setFiles([])))} data-tooltip={s.ref}>
         <Archive size={14} className="scm-commit-icon" aria-hidden="true" />
         <span className="scm-commit-subject">{s.message || s.ref}</span>
         <span className="scm-commit-when">{s.date ? relativeTime(s.date, Date.now(), lang === "system" ? undefined : lang) : ""}</span>

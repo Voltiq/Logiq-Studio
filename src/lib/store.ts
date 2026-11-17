@@ -100,7 +100,9 @@ export type Dialog =
   | { kind: "runConfig" }
   | { kind: "libraries" }
   | { kind: "installJdk" }
-  | { kind: "clone" };
+  | { kind: "clone" }
+  | { kind: "update"; update: import("./updates").Update }
+  | { kind: "manual" };
 
 export interface State {
   settings: Settings;
@@ -139,6 +141,8 @@ export interface State {
   problemsVersion: number;
   /** Bumped when the UML diagram should lay itself out again. */
   umlLayoutNonce: number;
+  /** The tour of the window is showing. */
+  tour: boolean;
 }
 
 export const useStore = create<State>(() => ({
@@ -171,6 +175,7 @@ export const useStore = create<State>(() => ({
   toasts: [],
   problemsVersion: 0,
   umlLayoutNonce: 0,
+  tour: false,
 }));
 
 export const get = useStore.getState;

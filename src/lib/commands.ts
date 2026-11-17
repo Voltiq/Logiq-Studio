@@ -250,7 +250,11 @@ export const COMMANDS: Command[] = [
   { id: "run.stop", label: "Stop", category: "Run", icon: CircleStop, shortcut: "Shift+F5", enabled: () => get().run.status === "running", run: () => A.stopRun() },
   { id: "run.output", label: "Show output", category: "Run", icon: SquareTerminal, run: () => set({ panelOpen: true, panelTab: "output" }) },
 
+  { id: "help.manual", label: "Manual", category: "Help", icon: BookOpen, shortcut: "F1", run: () => openDialog({ kind: "manual" }) },
+  { id: "help.tour", label: "Tour of the window", category: "Help", icon: Lightbulb, run: () => set({ tour: true }) },
   { id: "help.shortcuts", label: "Keyboard shortcuts", category: "Help", icon: Keyboard, shortcut: "Ctrl+K", run: () => openDialog({ kind: "shortcuts" }) },
+  { id: "help.updates", label: "Look for updates…", category: "Help", run: () => void import("../components/ReleaseDialogs").then((m) => m.checkForUpdates()) },
+  { id: "help.log", label: "Show the log file", category: "Help", run: () => void import("./log").then((m) => m.showLog()) },
   { id: "help.jdk", label: "Install a JDK…", category: "Help", icon: Coffee, run: () => openDialog({ kind: "installJdk" }) },
   { id: "view.debug", label: "Show debugger", category: "View", icon: Bug, shortcut: "Ctrl+Shift+D", run: () => set({ sidebar: "debug" }) },
   { id: "uml.sequence", label: "Show sequence diagram", category: "UML", icon: ListVideo, enabled: hasFolder, run: () => A.openSequence() },
