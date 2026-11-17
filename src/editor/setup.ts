@@ -25,6 +25,8 @@ import { bracketMatching, ensureSyntaxTree, foldGutter, foldKeymap, indentOnInpu
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { lintGutter, linter, lintKeymap, type Diagnostic as CmDiagnostic } from "@codemirror/lint";
+import { compilerSawText } from "../lib/javaCheck";
+import { inlineProblems } from "./inlineProblems";
 import { graphiqHighlight, graphiqTheme } from "./theme";
 import { languageFor } from "./languages";
 import { javaCompletions } from "./javaComplete";
@@ -148,7 +150,10 @@ function lintSource(path: () => string) {
     }
     const huge = doc.length > LARGE_FILE;
     const conflicted = !huge && /^<{7} /m.test(doc.sliceString(0, doc.length));
-    if (!conflicted && !hasServer(path()) && lang.id !== "text" && lang.id !== "markdown" && lang.id !== "html" && lang.id !== "xml") {
+    // The quick syntax check doesn't know every newer Java form; once the compiler has seen this very text,
+    // its word stands and the quick check's guesses are left out.
+    const compilerKnows = lang.id === "java" && !huge && compilerSawText(path(), doc.toString());
+    if (!conflicted && !compilerKnows && !hasServer(path()) && lang.id !== "text" && lang.id !== "markdown" && lang.id !== "html" && lang.id !== "xml") {
       // A very large file is checked as far as it has been parsed for drawing, not to its end.
       const tree = huge ? syntaxTree(view.state) : ensureSyntaxTree(view.state, doc.length, 300);
       let count = 0;
@@ -217,6 +222,7 @@ export function createState(path: string, text: string, s: Settings, onUpdate: E
       highlightSelectionMatches(),
       search({ top: true }),
       lintGutter(),
+      inlineProblems,
       gitGutter(
         () => currentPath(path),
         (p) => void import("../lib/diffTabs").then((m) => m.openWorkingDiff(p)),

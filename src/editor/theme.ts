@@ -184,6 +184,23 @@ export const graphiqTheme = EditorView.theme({
     textDecorationSkipInk: "none",
     textUnderlineOffset: "3px",
   },
+  // A line's problem, said after its code.
+  ".cm-inline-problem": {
+    marginLeft: "2.5em",
+    padding: "1px 7px",
+    borderRadius: "6px",
+    fontFamily: "var(--font-body)",
+    fontSize: "0.85em",
+    fontStyle: "normal",
+    whiteSpace: "pre",
+    color: "var(--text-subtle)",
+    background: "var(--wash)",
+    pointerEvents: "none",
+    userSelect: "none",
+  },
+  ".cm-inline-problem.is-error": { color: "var(--text-danger)", background: "color-mix(in oklab, var(--danger) 10%, transparent)" },
+  ".cm-inline-problem.is-warning": { color: "var(--text-warning)", background: "color-mix(in oklab, var(--warning) 10%, transparent)" },
+  ".cm-inline-problem-more": { marginLeft: "6px", opacity: "0.75" },
   ".cm-lint-marker": { width: "0.9em", height: "0.9em" },
   // The marker whole and centred on its line (it was pushed partly out of its column).
   ".cm-gutter-lint": { width: "1.3em" },

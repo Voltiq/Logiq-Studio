@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   CompileResult,
+  Diagnostic,
   Entry,
   Jdk,
   NodeInfo,
@@ -37,6 +38,9 @@ export const api = {
   detectJdks: () => invoke<Jdk[]>("detect_jdks"),
   detectNode: () => invoke<NodeInfo | null>("detect_node"),
   javaCompile: (root: string, jdkHome: string | null) => invoke<CompileResult>("java_compile", { root, jdkHome }),
+  /** The Java problems with the editors' unsaved text, compiled into a temporary folder; null for Maven and Gradle. */
+  javaCheck: (root: string, jdkHome: string | null, buffers: { path: string; text: string }[]) =>
+    invoke<Diagnostic[] | null>("java_check", { root, jdkHome, buffers }),
   runJava: (root: string, mainClass: string, jdkHome: string | null, args: string[], vmOptions = "") =>
     invoke<number>("run_java", { root, mainClass, jdkHome, args, vmOptions }),
   runNode: (file: string, node: string | null) => invoke<number>("run_node", { file, node }),

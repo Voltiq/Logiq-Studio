@@ -35,6 +35,7 @@ import { canFormat, formatText, formatView } from "../editor/format";
 import { breakpointField } from "../editor/breakpoints";
 import { loadRunConfig, splitArgs, useRunConfig } from "./runConfig";
 import { indexFor, indexText, javaIndex, otherIndex, STRUCTURE_EXTENSIONS, unindex } from "../uml/javaIndex";
+import { scheduleJavaCheck } from "./javaCheck";
 import { HTML_SKELETON, javaSkeleton, TEMPLATES, type TemplateId } from "./templates";
 import type { Diagnostic } from "./types";
 import { t } from "./i18n";
@@ -140,6 +141,7 @@ function onDocChanged(doc: Doc) {
       window.setTimeout(() => indexText(doc.path, doc.state.doc.toString()), 220),
     );
   }
+  if (extname(doc.path) === "java") scheduleJavaCheck();
   if (get().settings.autoSave && dirty) {
     window.clearTimeout(autoSaveTimer);
     autoSaveTimer = window.setTimeout(() => void saveAll(true), 1000);
@@ -265,6 +267,8 @@ export async function reloadJavaIndex() {
       return doc ? { path: s.path, text: doc.state.doc.toString() } : s;
     }),
   );
+  // The folder's Java problems show without building it first.
+  if (sources.length) scheduleJavaCheck(600);
 }
 
 export async function loadDir(dir: string) {
@@ -1296,6 +1300,8 @@ const fsPending = new Set<string>();
 async function applyFsChanges() {
   const paths = [...fsPending];
   fsPending.clear();
+  // A Java file saved, added, removed or renamed (or a folder with some): its problems are checked again.
+  if (paths.some((p) => extname(p) === "java" || !extname(p))) scheduleJavaCheck(400);
   const { tree, root } = get();
   if (!root) return;
   const dirs = new Set<string>();

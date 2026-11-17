@@ -114,6 +114,7 @@ pub fn run() {
             runner::detect_jdks,
             runner::detect_node,
             runner::java_compile,
+            runner::java_check,
             build::build_info,
             runner::run_java,
             runner::run_node,

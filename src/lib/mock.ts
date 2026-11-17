@@ -237,6 +237,21 @@ export function installMock() {
           return [{ home: "C:\\Program Files\\Java\\jdk-27", version: "27", major: 27, vendor: "Oracle Corporation" }];
         case "detect_node":
           return { path: "C:\\Program Files\\nodejs\\node.exe", version: "v26.9.0" };
+        case "java_check": {
+          // Stands in for javac: an unknown name the samples use for trying it out.
+          await new Promise((r) => setTimeout(r, 300));
+          const texts = new Map([...files].filter(([p]) => p.endsWith(".java")));
+          for (const b of (a.buffers as { path: string; text: string }[]) ?? []) texts.set(b.path, b.text);
+          const out: { path: string; line: number; column: number; severity: string; message: string }[] = [];
+          for (const [path, text] of texts) {
+            const cls = path.replace(/^.*[\\/]/, "").replace(/\.java$/, "");
+            text.split("\n").forEach((line, i) => {
+              const at = line.indexOf("undefinedThing");
+              if (at >= 0) out.push({ path, line: i + 1, column: at + 1, severity: "error", message: `cannot find symbol\nsymbol:   method undefinedThing()\nlocation: class ${cls}` });
+            });
+          }
+          return out;
+        }
         case "java_compile":
           await new Promise((r) => setTimeout(r, 400));
           return { ok: true, diagnostics: [], output: "", files: [...files.keys()].filter((p) => p.endsWith(".java")).length, durationMs: 412 };

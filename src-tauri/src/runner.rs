@@ -345,6 +345,100 @@ pub async fn java_compile(root: String, jdk_home: Option<String>) -> Result<Comp
     .map_err(|e| e.to_string())?
 }
 
+/// The text of a file open in an editor, which may differ from the file on disk.
+#[derive(serde::Deserialize)]
+pub struct Buffer {
+    path: String,
+    text: String,
+}
+
+/// One check at a time; a second waits for the first.
+static CHECKING: Mutex<()> = Mutex::new(());
+static CHECKS: AtomicU32 = AtomicU32::new(0);
+
+fn path_key(p: &str) -> String {
+    p.replace('\\', "/").to_lowercase()
+}
+
+/// Checks the Java code of a plain folder (not Maven or Gradle) as it is in the editors: every .java file is
+/// compiled, open files with their unsaved text, into a temporary folder that is removed afterwards; `out` is
+/// left alone. Returns the problems, or None when the folder isn't checked this way.
+#[tauri::command]
+pub async fn java_check(root: String, jdk_home: Option<String>, buffers: Vec<Buffer>) -> Result<Option<Vec<Diagnostic>>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = PathBuf::from(&root);
+        if crate::build::tool_of(&root).is_some() {
+            return Ok(None);
+        }
+        let files = java_sources(&root);
+        if files.is_empty() {
+            return Ok(Some(Vec::new()));
+        }
+        let _one = CHECKING.lock().unwrap_or_else(|e| e.into_inner());
+        let n = CHECKS.fetch_add(1, Ordering::Relaxed);
+        let tmp = std::env::temp_dir().join(format!("logiq-check-{}-{}", std::process::id(), n));
+        let _ = std::fs::remove_dir_all(&tmp);
+        let out_dir = tmp.join("out");
+        std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
+
+        // Unsaved editors stand in for their files: same name, in a folder of their own.
+        let mut by_key: std::collections::HashMap<String, &Buffer> = std::collections::HashMap::new();
+        for b in &buffers {
+            by_key.insert(path_key(&b.path), b);
+        }
+        let mut back: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut list = String::new();
+        for (i, f) in files.iter().enumerate() {
+            let original = f.to_string_lossy().to_string();
+            let source = match by_key.get(&path_key(&original)) {
+                Some(b) => {
+                    let dir = tmp.join("src").join(i.to_string());
+                    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+                    let copy = dir.join(f.file_name().unwrap_or_default());
+                    std::fs::write(&copy, &b.text).map_err(|e| e.to_string())?;
+                    back.insert(path_key(&copy.to_string_lossy()), original.clone());
+                    copy
+                }
+                None => f.clone(),
+            };
+            list.push_str(&format!("\"{}\"\n", source.to_string_lossy().replace('\\', "/")));
+        }
+        let argfile = tmp.join("files.txt");
+        std::fs::write(&argfile, list).map_err(|e| e.to_string())?;
+
+        // The project's own libraries; not `out`, whose old classes would hide a class that is gone.
+        let sep = if cfg!(windows) { ";" } else { ":" };
+        let mut cp = vec![out_dir.to_string_lossy().to_string()];
+        if root.join("lib").is_dir() {
+            cp.push(root.join("lib").join("*").to_string_lossy().to_string());
+        }
+        let output = no_window(
+            Command::new(java_bin(&jdk_home, "javac"))
+                .current_dir(&root)
+                .args(["-J-Duser.language=en", "-J-Dstdout.encoding=UTF-8", "-J-Dstderr.encoding=UTF-8"])
+                .args(["-encoding", "UTF-8", "-proc:none", "-Xlint:unchecked,deprecation", "-Xmaxerrs", "500"])
+                .arg("-d")
+                .arg(&out_dir)
+                .arg("-cp")
+                .arg(cp.join(sep))
+                .arg(format!("@{}", argfile.to_string_lossy())),
+        )
+        .output();
+        let _ = std::fs::remove_dir_all(&tmp);
+        let output = output.map_err(|e| e.to_string())?;
+        let text = format!("{}{}", crate::fs::decode(&output.stdout), crate::fs::decode(&output.stderr)).replace("\r\n", "\n");
+        let mut found = parse_javac(&text);
+        for d in &mut found {
+            if let Some(original) = back.get(&path_key(&d.path)) {
+                d.path = original.clone();
+            }
+        }
+        Ok(Some(found))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 // ----- Running ----------------------------------------------------------------
 
 struct Running {
@@ -613,6 +707,40 @@ mod tests {
         let r = tauri::async_runtime::block_on(java_compile(dir.to_string_lossy().to_string(), None)).unwrap();
         assert!(r.ok, "{}", r.output);
         assert!(dir.join("out").join("Main.class").is_file());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn checks_unsaved_text_without_touching_out() {
+        if detect_jdks().is_empty() {
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("logiq-check-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // On disk: an error in Shape.java, which Main uses.
+        std::fs::write(dir.join("Shape.java"), "public class Shape { int area() { return \"x\"; } }").unwrap();
+        std::fs::write(dir.join("Main.java"), "public class Main { public static void main(String[] a) { new Shape().area(); } }").unwrap();
+        let shape = dir.join("Shape.java").to_string_lossy().to_string();
+        let root = dir.to_string_lossy().to_string();
+        let check = |buffers: Vec<Buffer>| tauri::async_runtime::block_on(java_check(root.clone(), None, buffers)).unwrap().unwrap();
+
+        let found = check(vec![]);
+        assert_eq!(found.len(), 1, "{:?}", found);
+        assert_eq!(path_key(&found[0].path), path_key(&shape));
+
+        // The editor has fixed it but not saved: no problem.
+        assert!(check(vec![Buffer { path: shape.clone(), text: "public class Shape { int area() { return 1; } }".into() }]).is_empty());
+
+        // An unsaved new error is reported for the real file, at its line.
+        let found = check(vec![Buffer { path: shape.clone(), text: "public class Shape {
+  int area() { return y; }
+}".into() }]);
+        assert_eq!(found.len(), 1, "{:?}", found);
+        assert_eq!(path_key(&found[0].path), path_key(&shape));
+        assert_eq!(found[0].line, 2);
+        assert!(found[0].message.starts_with("cannot find symbol"));
+        assert!(!dir.join("out").exists());
         let _ = std::fs::remove_dir_all(dir);
     }
 }

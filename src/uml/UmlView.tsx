@@ -478,26 +478,66 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
     [diagram, positions],
   );
 
+  /** Shows the whole diagram; false while the canvas has no size yet (it is tried again when it has). */
   const fit = useCallback(
-    (pos?: Positions) => {
+    (pos?: Positions): boolean => {
       const b = bounds(pos);
       const el = stageRef.current;
-      if (!b || !el) return;
+      if (!b || !el) return false;
       const w = el.clientWidth;
       const h = el.clientHeight;
-      if (!w || !h) return;
+      if (!w || !h) return false;
       const k = Math.min(1.25, Math.max(0.2, Math.min((w - 64) / (b.x1 - b.x0), (h - 64) / (b.y1 - b.y0))));
       setView({ k, x: (w - (b.x1 - b.x0) * k) / 2 - b.x0 * k, y: (h - (b.y1 - b.y0) * k) / 2 - b.y0 * k });
+      return true;
     },
     [bounds],
   );
 
+  // The first look shows it all. A timer, not the next frame: a window in the background draws no frames.
   useEffect(() => {
-    if (visible && layout && !fitted.current && diagram.nodes.length) {
-      fitted.current = true;
-      requestAnimationFrame(() => fit());
-    }
+    if (!visible || !layout || fitted.current || !diagram.nodes.length) return;
+    const id = window.setTimeout(() => {
+      if (!fitted.current && fit()) fitted.current = true;
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [visible, layout, diagram.nodes.length, fit]);
+
+  // Classes that appear while you write (or in a new file) are brought into view: new boxes are placed beside
+  // the others, often out of sight. A diagram in a tab behind does it when it is shown.
+  const seen = useRef<Set<string> | null>(null);
+  const toReveal = useRef<string[]>([]);
+  useEffect(() => {
+    if (!layout) {
+      seen.current = null;
+      toReveal.current = [];
+      return;
+    }
+    const ids = diagram.nodes.map((n) => n.id);
+    const before = seen.current;
+    seen.current = new Set(ids);
+    if (!before) return;
+    const added = ids.filter((id) => !before.has(id));
+    toReveal.current = [...toReveal.current.filter((id) => seen.current!.has(id)), ...added];
+  }, [diagram, layout]);
+  useEffect(() => {
+    if (!visible || !fitted.current || !toReveal.current.length) return;
+    const ids = toReveal.current;
+    toReveal.current = [];
+    window.setTimeout(() => {
+      const el = stageRef.current;
+      if (!el || !el.clientWidth) return;
+      const out = ids.some((id) => {
+        const p = positions[id];
+        const n = diagram.nodes.find((x) => x.id === id);
+        if (!p || !n) return false;
+        const x = p.x * view.k + view.x;
+        const y = p.y * view.k + view.y;
+        return x < 0 || y < 0 || x + n.w * view.k > el.clientWidth || y + n.h * view.k > el.clientHeight;
+      });
+      if (out) fit();
+    }, 0);
+  }, [visible, diagram, positions, view, fit]);
 
   // ----- Pointer: drag boxes, pan the canvas ---------------------------------------
   const drag = useRef<
@@ -1031,6 +1071,11 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
     ro.observe(el);
     return () => ro.disconnect();
   }, [root]);
+  // A diagram first shown before its canvas had a size (a pane that was closed) is fitted once it has one.
+  useEffect(() => {
+    if (visible && layout && !fitted.current && diagram.nodes.length && fit()) fitted.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stageSize]);
   const shown = useMemo(() => (diagram.nodes.length > CULL_ABOVE && !drawAll ? visibleNodes(diagram.nodes, positions, view, stageSize) : null), [diagram, positions, view, stageSize, drawAll]);
 
   if (!root) return null;
