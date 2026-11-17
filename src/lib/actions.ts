@@ -468,6 +468,30 @@ export function reorderTab(id: string, beforeId: string | null, group: Group) {
   scheduleSession();
 }
 
+/**
+ * Files dropped on an editor group open there; a file that is open already in the other group moves over.
+ * With `beforeId` they go before that tab (null: at the end), else after the group's active tab.
+ */
+export async function openFilesIn(paths: string[], g: Group, beforeId?: string | null) {
+  const fileTab = (p: string) => get().tabs.find((t) => (t.kind === "file" || t.kind === "image" || t.kind === "uml") && t.path && samePath(t.path, p));
+  let last: string | null = null;
+  for (const p of paths) {
+    const open = fileTab(p);
+    if (open) {
+      if (open.group !== g) moveToGroup(open.id, g);
+    } else await openFile(p, undefined, g);
+    const tab = fileTab(p);
+    if (!tab) continue;
+    if (beforeId !== undefined) reorderTab(tab.id, beforeId, g);
+    last = tab.id;
+  }
+  if (last) {
+    activate(last);
+    focusGroup(g);
+  }
+  scheduleSession();
+}
+
 export function togglePin(id: string) {
   set((s) => ({ tabs: sortPinned(s.tabs.map((t) => (t.id === id ? { ...t, pinned: !t.pinned } : t))) }));
   scheduleSession();

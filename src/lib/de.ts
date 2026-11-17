@@ -1212,4 +1212,8 @@ export const de: Record<string, string> = {
   "Used by {0}.": "Benutzt von {0}.",
   "Uses {0}.": "Benutzt {0}.",
   "Window designer, components: {0}. Arrow keys select and move, Tab goes to the next component, Enter opens its event handler, Delete removes it.": "Fenster-Designer, Komponenten: {0}. Die Pfeiltasten wählen aus und verschieben, Tab geht zur nächsten Komponente, Enter öffnet ihre Ereignis-Methode, Entf entfernt sie.",
+  // Dropping files into the editor groups
+  "Move here": "Hierher verschieben",
+  "Open here": "Hier öffnen",
+  "{0} files": "{0} Dateien",
 };

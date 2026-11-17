@@ -35,6 +35,7 @@ import { rowWindow } from "../lib/rowWindow";
 import { t } from "../lib/i18n";
 import { useGit } from "../lib/git";
 import { letterOf } from "../lib/gitParse";
+import { endEditorDrag, PATHS_TYPE, setDragGhost, startEditorDrag } from "../lib/editorDrag";
 
 interface Row {
   entry: Entry;
@@ -89,7 +90,7 @@ function entryMenu(entry: Entry): MenuItem[] {
   return items;
 }
 
-const DRAG_TYPE = "application/x-logiq-paths";
+const DRAG_TYPE = PATHS_TYPE;
 
 export function Explorer() {
   const root = useStore((s) => s.root);
@@ -379,6 +380,11 @@ export function Explorer() {
                 e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(paths));
                 e.dataTransfer.setData("text/plain", paths.join("\n"));
                 e.dataTransfer.effectAllowed = "move";
+                // Files (not folders) can also be dropped on an editor group to open them there.
+                const isDir = new Map(rows.map((x) => [x.entry.path, x.entry.isDir]));
+                const files = paths.filter((p) => isDir.get(p) === false);
+                startEditorDrag(files.length ? { kind: "files", paths: files } : null);
+                setDragGhost(e, basename(paths[0]), paths.length);
               }}
               onDragOver={(e) => {
                 if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
@@ -401,6 +407,7 @@ export function Explorer() {
                 void A.moveInto(JSON.parse(raw), target);
               }}
               onDragEnd={() => {
+                endEditorDrag();
                 window.clearTimeout(hoverTimer.current);
                 setDropTarget(null);
               }}

@@ -1205,4 +1205,8 @@ export const fr: Record<string, string> = {
   "Used by {0}.": "Utilisée par {0}.",
   "Uses {0}.": "Utilise {0}.",
   "Window designer, components: {0}. Arrow keys select and move, Tab goes to the next component, Enter opens its event handler, Delete removes it.": "Concepteur de fenêtres, composants : {0}. Les flèches sélectionnent et déplacent, Tab passe au composant suivant, Entrée ouvre son gestionnaire d'événement, Suppr le supprime.",
+  // Dropping files into the editor groups
+  "Move here": "Déplacer ici",
+  "Open here": "Ouvrir ici",
+  "{0} files": "{0} fichiers",
 };

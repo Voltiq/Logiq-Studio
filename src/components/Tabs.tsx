@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { AppWindow, ClipboardCopy, Columns2, FolderOpen, GitCompare, ListVideo, Network, Pin, PinOff, X } from "lucide-react";
 import { get, openMenu, useStore, type Group, type Tab } from "../lib/store";
 import * as A from "../lib/actions";
@@ -6,8 +6,11 @@ import { FileIcon } from "./FileIcon";
 import { cx } from "../lib/utils";
 import { t } from "../lib/i18n";
 import type { MenuItem } from "./ui/Menu";
+import { endEditorDrag, PATHS_TYPE, setDragGhost, startEditorDrag, TAB_TYPE, useEditorDrag } from "../lib/editorDrag";
 
-const DRAG_TYPE = "application/x-logiq-tab";
+const DRAG_TYPE = TAB_TYPE;
+/** A tab from either group, or files from the explorer. */
+const takes = (e: DragEvent) => e.dataTransfer.types.includes(DRAG_TYPE) || (e.dataTransfer.types.includes(PATHS_TYPE) && useEditorDrag.getState().drag?.kind === "files");
 
 function tabMenu(tab: Tab): MenuItem[] {
   const tabs = get().tabs.filter((x) => x.group === tab.group);
@@ -51,8 +54,9 @@ export function Tabs({ group }: { group: Group }) {
         if (strip.current && Math.abs(e.deltaY) > Math.abs(e.deltaX)) strip.current.scrollLeft += e.deltaY;
       }}
       onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+        if (!takes(e)) return;
         e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
         if (e.target === e.currentTarget) setDropBefore(null);
       }}
       onDragLeave={(e) => {
@@ -62,10 +66,16 @@ export function Tabs({ group }: { group: Group }) {
         const id = e.dataTransfer.getData(DRAG_TYPE);
         const before = dropBefore;
         setDropBefore(undefined);
+        const drag = useEditorDrag.getState().drag;
         if (id) {
           e.preventDefault();
           A.reorderTab(id, before ?? null, group);
+        } else if (drag?.kind === "files") {
+          // The files open here, where they were let go; folders among them stay where they are.
+          e.preventDefault();
+          void A.openFilesIn(drag.paths, group, before ?? null);
         }
+        endEditorDrag();
       }}
     >
       {tabs.map((tab) => (
@@ -94,9 +104,11 @@ export function Tabs({ group }: { group: Group }) {
           onDragStart={(e) => {
             e.dataTransfer.setData(DRAG_TYPE, tab.id);
             e.dataTransfer.effectAllowed = "move";
+            startEditorDrag({ kind: "tab", id: tab.id, group, title: tab.title });
+            setDragGhost(e, tab.title);
           }}
           onDragOver={(e) => {
-            if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+            if (!takes(e)) return;
             e.preventDefault();
             e.stopPropagation();
             // Before this tab when over its left half, else before the next one.
@@ -105,7 +117,10 @@ export function Tabs({ group }: { group: Group }) {
             const target = e.clientX < r.left + r.width / 2 ? tab.id : next;
             if (target !== dropBefore) setDropBefore(target);
           }}
-          onDragEnd={() => setDropBefore(undefined)}
+          onDragEnd={() => {
+            setDropBefore(undefined);
+            endEditorDrag();
+          }}
         >
           {tab.kind === "uml" ? <Network size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "sequence" ? <ListVideo size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "diff" ? <GitCompare size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "gui" ? <AppWindow size={15} className="tab-uml-icon" aria-hidden="true" /> : <FileIcon name={tab.title} />}
           <span className="tab-title">{tab.title}</span>

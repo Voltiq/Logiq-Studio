@@ -26,6 +26,7 @@ import { Dialogs } from "./components/Dialogs";
 import { Palette } from "./components/Palette";
 import { Toasts } from "./components/Toasts";
 import { Resizer } from "./components/Resizer";
+import { SplitDropArea } from "./components/SplitDrop";
 import { UmlView } from "./uml/UmlView";
 import { SourceControl } from "./components/SourceControl";
 import { DiffView } from "./components/DiffView";
@@ -186,7 +187,7 @@ export default function App() {
           </>
         )}
         <div className="center">
-          <div className="groups">
+          <SplitDropArea>
             <EditorGroup group={0} />
             {hasSide && root && (
               <>
@@ -196,7 +197,7 @@ export default function App() {
                 </div>
               </>
             )}
-          </div>
+          </SplitDropArea>
           {panelOpen && (
             <>
               <Resizer axis="y" size={settings.panelHeight} min={110} max={720} invert label={t("Panel height")} onResize={(h) => setSettings({ panelHeight: h })} />

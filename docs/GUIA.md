@@ -6,7 +6,7 @@ Logiq Studio es un editor de programas y páginas web que además te muestra la 
 
 - **La barra superior** tiene los menús, un campo de búsqueda de archivos y comandos, y el botón **Ejecutar**.
 - **La barra de la izquierda** cambia la barra lateral: Explorador, Buscar, Esquema, Control de código fuente, Depurador. Debajo están el diagrama de clases y el terminal, y al final los ajustes.
-- **El centro** contiene tus archivos abiertos como pestañas. Una pestaña se puede arrastrar a un lado para ver dos archivos juntos.
+- **El centro** contiene tus archivos abiertos como pestañas. Arrastra un archivo del explorador, o una pestaña, a la parte derecha del editor para ver dos archivos juntos; el editor muestra dónde caerá antes de soltarlo.
 - **El panel inferior** muestra la salida de un programa, los problemas, las pruebas, los resultados de SQL, JShell y el terminal. `Ctrl+J` lo muestra y lo oculta.
 - **La barra de estado** muestra errores y avisos, la rama de Git, la posición del cursor y la herramienta con la que se ejecuta el archivo. Casi todos sus elementos se pueden pulsar.
 

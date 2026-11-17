@@ -6,7 +6,7 @@ Logiq Studio est un éditeur de programmes et de pages web qui vous montre aussi
 
 - **La barre du haut** contient les menus, un champ de recherche de fichiers et de commandes, et le bouton **Exécuter**.
 - **La barre de gauche** change la barre latérale : Explorateur, Rechercher, Plan, Contrôle de code source, Débogueur. En dessous se trouvent le diagramme de classes et le terminal, et tout en bas les paramètres.
-- **Le centre** contient vos fichiers ouverts sous forme d'onglets. Un onglet peut être glissé sur le côté pour voir deux fichiers côte à côte.
+- **Le centre** contient vos fichiers ouverts sous forme d'onglets. Glissez un fichier de l'explorateur, ou un onglet, sur la partie droite de l'éditeur pour voir deux fichiers côte à côte ; l'éditeur montre où il arrivera avant que vous le lâchiez.
 - **Le panneau du bas** affiche la sortie d'un programme, les problèmes, les tests, les résultats SQL, JShell et le terminal. `Ctrl+J` l'affiche et le masque.
 - **La barre d'état** affiche les erreurs et les avertissements, la branche Git, la position du curseur et l'outil avec lequel le fichier s'exécute. La plupart de ses éléments sont cliquables.
 

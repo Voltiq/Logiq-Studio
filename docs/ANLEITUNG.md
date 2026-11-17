@@ -6,7 +6,7 @@ Logiq Studio ist ein Editor für Programme und Webseiten, der dir auch die Struk
 
 - **Die Leiste oben** enthält die Menüs, ein Suchfeld für Dateien und Befehle und den Button **Ausführen**.
 - **Die Leiste links** schaltet die Seitenleiste um: Explorer, Suchen, Gliederung, Quellcodeverwaltung, Debugger. Darunter liegen das Klassendiagramm und das Terminal, ganz unten die Einstellungen.
-- **Die Mitte** zeigt deine offenen Dateien als Tabs. Ein Tab lässt sich zur Seite ziehen, um zwei Dateien nebeneinander zu sehen.
+- **Die Mitte** zeigt deine offenen Dateien als Tabs. Zieh eine Datei aus dem Explorer oder einen Tab auf den rechten Teil des Editors, um zwei Dateien nebeneinander zu sehen; der Editor zeigt vor dem Loslassen, wo sie landet.
 - **Das Panel unten** zeigt die Ausgabe eines Programms, Probleme, Tests, SQL-Ergebnisse, JShell und das Terminal. `Strg+J` blendet es ein und aus.
 - **Die Statusleiste** zeigt Fehler und Warnungen, den Git-Branch, die Cursorposition und das Werkzeug, mit dem die Datei läuft. Die meisten Einträge lassen sich anklicken.
 

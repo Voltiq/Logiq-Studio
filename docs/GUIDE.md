@@ -6,7 +6,7 @@ Logiq Studio is an editor for programs and web pages that also shows you the str
 
 - **The bar at the top** has the menus, a search field for files and commands, and the **Run** button.
 - **The rail on the left** switches the sidebar: Explorer, Search, Outline, Source control, Debugger. Below them are the class diagram and the terminal, and at the bottom the settings.
-- **The middle** holds your open files as tabs. A tab can be dragged to the side to see two files next to each other.
+- **The middle** holds your open files as tabs. Drag a file from the explorer, or a tab, onto the right part of the editor to see two files next to each other; the editor shows where it will land before you let go.
 - **The panel at the bottom** shows a program's output, problems, tests, results of SQL, JShell and the terminal. `Ctrl+J` shows and hides it.
 - **The status bar** shows errors and warnings, the Git branch, the cursor position and the tool the file runs with. Most of its items can be clicked.
 

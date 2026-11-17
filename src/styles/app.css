@@ -2982,3 +2982,244 @@ button.status-item:hover {
 .diff-empty { padding: 24px; color: var(--text-subtle); }
 
 .clone-progress { margin: 4px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--wash); color: var(--text-subtle); font: 400 12px var(--font-code); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ==========================================================================
+   Dropping files and tabs into the editor groups
+   ========================================================================== */
+
+.groups {
+  position: relative;
+  --drop-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Where the drop lands: this group, or the right half that becomes the side group. */
+.drop-preview {
+  position: absolute;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.985);
+  transition:
+    left 240ms var(--drop-ease),
+    top 240ms var(--drop-ease),
+    width 240ms var(--drop-ease),
+    height 240ms var(--drop-ease),
+    opacity 160ms ease,
+    transform 240ms var(--drop-ease);
+}
+
+.drop-preview.is-shown {
+  opacity: 1;
+  transform: none;
+}
+
+.drop-preview::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--accent-line);
+  background:
+    radial-gradient(120% 80% at 50% 50%, color-mix(in oklab, var(--accent) 16%, transparent), color-mix(in oklab, var(--accent) 7%, transparent));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--accent) 12%, transparent),
+    inset 0 0 36px -8px color-mix(in oklab, var(--accent) 45%, transparent),
+    0 18px 48px -18px color-mix(in oklab, var(--accent) 60%, transparent);
+  backdrop-filter: blur(2px) saturate(1.15);
+  animation: drop-breathe 1.8s ease-in-out infinite;
+}
+
+.drop-preview.is-split::before {
+  border-style: solid;
+  background:
+    linear-gradient(90deg, color-mix(in oklab, var(--accent) 6%, transparent), color-mix(in oklab, var(--accent) 18%, transparent));
+}
+
+@keyframes drop-breathe {
+  50% {
+    border-color: color-mix(in oklab, var(--accent) 80%, transparent);
+  }
+}
+
+.drop-pill {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 48px);
+  padding: 9px 16px 9px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-full);
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: var(--sh-3), var(--inset-hi);
+  color: var(--text);
+  transform: translate(-50%, -50%);
+  animation: drop-pill-in 260ms var(--drop-ease);
+}
+
+@keyframes drop-pill-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px)) scale(0.92);
+  }
+}
+
+.drop-pill-icon {
+  flex: none;
+  box-sizing: content-box;
+  padding: 7px;
+  border-radius: 50%;
+  background: var(--accent-fill);
+  color: #fff;
+  box-shadow: var(--accent-glow);
+}
+
+.drop-pill-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.drop-pill-title {
+  font-weight: var(--font-weight-semibold, 600);
+  white-space: nowrap;
+}
+
+.drop-pill-what {
+  overflow: hidden;
+  color: var(--text-subtle);
+  font-size: var(--font-size-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Let go: the preview settles into the group and fades. */
+.drop-preview.is-landing {
+  opacity: 0;
+  transform: scale(1.012);
+  transition:
+    opacity 380ms ease 40ms,
+    transform 380ms var(--drop-ease);
+}
+
+.drop-preview.is-landing::before {
+  animation: drop-land 380ms var(--drop-ease) forwards;
+}
+
+@keyframes drop-land {
+  from {
+    border-color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 26%, transparent);
+  }
+}
+
+/* Without a side group: the place on the right that opens one, shown while something is dragged. */
+.split-hint {
+  position: absolute;
+  z-index: 39;
+  top: 50%;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  border: 1.5px dashed var(--accent-line);
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--surface-2) 70%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--sh-2);
+  color: var(--accent-text);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(14px, -50%);
+  transition:
+    opacity 200ms ease,
+    transform 280ms var(--drop-ease);
+}
+
+.split-hint span {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.04em;
+}
+
+.split-hint.is-shown {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+.split-hint.is-shown.is-taken {
+  opacity: 0;
+  transform: translate(-24px, -50%) scale(0.9);
+}
+
+/* The side group slides in when it opens, a tab when it arrives. */
+.side-group {
+  animation: side-group-in 300ms var(--drop-ease);
+}
+
+@keyframes side-group-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+
+.tab {
+  animation: tab-in 220ms var(--drop-ease);
+}
+
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.94);
+  }
+}
+
+/* What follows the pointer while a file or tab is dragged. */
+.drag-ghost {
+  position: fixed;
+  top: -200px;
+  left: -200px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  padding: 6px 10px 6px 8px;
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  background: var(--surface-overlay);
+  color: var(--text);
+  font: var(--font-weight-medium) var(--font-size-body) var(--font-body);
+  box-shadow: var(--sh-2);
+}
+
+.drag-ghost::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.drag-ghost-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drag-ghost-count {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: var(--font-size-small);
+}
