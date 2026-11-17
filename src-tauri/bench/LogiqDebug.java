@@ -302,7 +302,12 @@ public class LogiqDebug {
                 EventSet set = q.remove();
                 boolean resume = true;
                 for (Event e : set) {
-                    if (e instanceof ClassPrepareEvent) {
+                    if (e instanceof VMStartEvent) {
+                        // launch() lets the program go once its breakpoints are in place. Letting it go here too
+                        // could release it a second time, just as it waits for a class's breakpoints to be set,
+                        // and the first lines would run past them.
+                        resume = false;
+                    } else if (e instanceof ClassPrepareEvent) {
                         placeBreakpoints(((ClassPrepareEvent) e).referenceType());
                     } else if (e instanceof BreakpointEvent || e instanceof StepEvent) {
                         if (e instanceof StepEvent) vm.eventRequestManager().deleteEventRequest(e.request());

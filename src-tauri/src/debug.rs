@@ -151,9 +151,21 @@ mod tests {
     use std::sync::mpsc::{channel, Receiver};
     use std::time::Duration;
 
+    /// Everything the helper wrote (events and its own errors), for a failure to say what happened.
+    static SEEN: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+    fn seen(line: &str) {
+        let mut s = SEEN.lock().unwrap_or_else(|e| e.into_inner());
+        s.push_str(line);
+        s.push('\n');
+    }
+
     fn next(rx: &Receiver<String>, what: &str) -> serde_json::Value {
         loop {
-            let line = rx.recv_timeout(Duration::from_secs(20)).unwrap_or_else(|_| panic!("no {what} event"));
+            let line = rx.recv_timeout(Duration::from_secs(20)).unwrap_or_else(|e| {
+                let log = SEEN.lock().map(|s| s.clone()).unwrap_or_default();
+                panic!("no {what} event ({e:?}); the helper wrote:\n{log}")
+            });
             let v: serde_json::Value = serde_json::from_str(&line).unwrap();
             if v["event"] == what {
                 return v;
@@ -188,15 +200,23 @@ mod tests {
                 .current_dir(&dir)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
                 .spawn()
                 .unwrap();
             let stdout = child.stdout.take().unwrap();
+            let stderr = child.stderr.take().unwrap();
             let (tx, rx) = channel();
             std::thread::spawn(move || {
                 for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                    seen(&line);
                     if let Some(j) = line.strip_prefix(MARK) {
                         let _ = tx.send(j.to_string());
                     }
+                }
+            });
+            std::thread::spawn(move || {
+                for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                    seen(&format!("stderr: {line}"));
                 }
             });
             let mut stdin = child.stdin.take().unwrap();
