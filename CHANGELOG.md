@@ -2,6 +2,14 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.1.0
+
+- **Drag files into a split view**: drag a file from the explorer, or a tab, onto the editor. A preview shows where it will land before you let go: in this editor, or (over the right part) in a new editor at the side. Files dropped on the tab bar open at that place among the tabs. Dropping a file on the code now opens it instead of typing its path in.
+- **Smooth panels**: the side bar, the bottom panel and the web preview slide in and out, and a new view or panel tab fades in. Reduced motion turns this off.
+- **Several class diagrams at once**: each `.uml` file opens in its own tab next to the project's diagram instead of replacing it.
+- **Fixed**: the UML button on the left closed the open diagram instead of showing it.
+- **Fixed**: the heading of the source control view had lost its style.
+
 ## 1.0.0
 
 The first release with an installer.

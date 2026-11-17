@@ -1,7 +1,7 @@
 {
   "name": "logiq-studio",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A professional IDE for Java, Python, C, C++, Kotlin, PHP, SQL and the web with live UML class diagrams.",
   "license": "MIT",
   "type": "module",
