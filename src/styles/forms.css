@@ -498,3 +498,8 @@
   color: var(--text-subtlest);
 }
 
+
+/* Text (or a placeholder) longer than its field ends in an ellipsis rather than being cut mid-letter. */
+input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]) {
+  text-overflow: ellipsis;
+}

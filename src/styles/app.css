@@ -153,7 +153,8 @@
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(12rem, 26rem) minmax(0, 1fr);
+  /* The menus and the tools keep their room; the search field in the middle gives way when it is tight. */
+  grid-template-columns: minmax(max-content, 1fr) minmax(10rem, 26rem) minmax(max-content, 1fr);
   align-items: center;
   gap: var(--space-200);
   padding: 0 var(--space-150) 0 var(--space-100);
@@ -2565,6 +2566,11 @@ button.status-item:hover {
 }
 
 .frame-where {
+  flex: 0 1 auto;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-subtlest);
   font-size: 0.6875rem;
 }
@@ -2576,6 +2582,7 @@ button.status-item:hover {
   min-height: 1.5rem;
   padding-right: 6px;
   border-radius: 7px;
+  overflow: hidden;
   font: 12px var(--font-code);
   white-space: nowrap;
   cursor: default;
@@ -2589,20 +2596,32 @@ button.status-item:hover {
   background: var(--wash);
 }
 
+/* A long name, type or value ends in an ellipsis instead of running past the panel. */
+.var-name,
+.var-type {
+  flex: 0 1 auto;
+  min-width: 2ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .var-name {
   color: var(--syntax-function);
 }
 
 .var-type {
+  flex-shrink: 3;
   color: var(--text-subtlest);
   font-size: 0.6875rem;
 }
 
 .var-eq {
+  flex: none;
   color: var(--text-subtlest);
 }
 
 .var-value {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

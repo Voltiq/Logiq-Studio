@@ -102,7 +102,7 @@ export function DebugPanel() {
                   {f.cls.replace(/^.*\./, "")}.{f.method}
                 </span>
                 <span className="frame-where">
-                  {f.source || "?"}:{f.line}
+                  {f.source ? basename(f.source) : "?"}:{f.line}
                 </span>
               </button>
             );
