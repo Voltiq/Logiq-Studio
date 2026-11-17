@@ -20,7 +20,7 @@ const how = () => t("Install Python from python.org (tick “Add python.exe to P
 
 async function python() {
   const py = await toolFor("python");
-  if (!py) missingTool(t("Python wasn't found"), how());
+  if (!py) missingTool(t("Python wasn't found"), how(), "python");
   return py;
 }
 

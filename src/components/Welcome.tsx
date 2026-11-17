@@ -98,7 +98,7 @@ export function Welcome() {
           <span>
             <FileCode size={13} aria-hidden="true" /> {jdks[0] ? t("Java {0} found", jdks[0].version) : t("No JDK found: Java code can be edited but not compiled")}
             {!jdks[0] && (
-              <button type="button" className="link-button" onClick={() => openDialog({ kind: "installJdk" })}>
+              <button type="button" className="link-button" onClick={() => openDialog({ kind: "languages", focus: "java" })}>
                 {t("Install a JDK…")}
               </button>
             )}

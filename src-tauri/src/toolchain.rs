@@ -58,6 +58,23 @@ fn candidates(kind: &str) -> (Vec<&'static str>, Vec<(PathBuf, &'static str)>) {
     let npm = env_dir("APPDATA").map(|a| a.join("npm")).unwrap_or_default();
     let scoop = user.join("scoop").join("shims");
     let llvm = program_files.join("LLVM").join("bin");
+    // Programs winget installs from an archive (WinLibs, PHP) stay in its package folder.
+    let winget = local.join("Microsoft").join("WinGet");
+    let winget_packages = |prefix: &str, sub: &[&str], source: &'static str| -> Vec<(PathBuf, &'static str)> {
+        let mut v = Vec::new();
+        if let Ok(rd) = std::fs::read_dir(winget.join("Packages")) {
+            for e in rd.flatten() {
+                if e.file_name().to_string_lossy().starts_with(prefix) {
+                    let mut p = e.path();
+                    for s in sub {
+                        p = p.join(s);
+                    }
+                    v.push((p, source));
+                }
+            }
+        }
+        v
+    };
     let gcc_dirs = || -> Vec<(PathBuf, &'static str)> {
         vec![
             (PathBuf::from(r"C:\msys64\ucrt64\bin"), "MSYS2"),
@@ -91,6 +108,7 @@ fn candidates(kind: &str) -> (Vec<&'static str>, Vec<(PathBuf, &'static str)>) {
         "cc" | "cxx" => {
             dirs.push((llvm, "LLVM"));
             dirs.extend(gcc_dirs());
+            dirs.extend(winget_packages("BrechtSanders.WinLibs", &["mingw64", "bin"], "WinLibs"));
             if kind == "cc" {
                 vec!["clang", "gcc", "cc"]
             } else {
@@ -100,6 +118,7 @@ fn candidates(kind: &str) -> (Vec<&'static str>, Vec<(PathBuf, &'static str)>) {
         "clangd" | "clang-format" => {
             dirs.push((llvm, "LLVM"));
             dirs.extend(gcc_dirs());
+            dirs.extend(winget_packages("BrechtSanders.WinLibs", &["mingw64", "bin"], "WinLibs"));
             if kind == "clangd" {
                 vec!["clangd"]
             } else {
@@ -113,6 +132,8 @@ fn candidates(kind: &str) -> (Vec<&'static str>, Vec<(PathBuf, &'static str)>) {
                 dirs.push((d, "PHP"));
             }
             dirs.push((scoop.clone(), "Scoop"));
+            dirs.extend(winget_packages("PHP.PHP.", &[], "PHP"));
+            dirs.push((winget.join("Links"), "winget"));
             vec!["php"]
         }
         "kotlinc" => {

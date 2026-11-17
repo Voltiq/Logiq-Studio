@@ -84,7 +84,7 @@ Las líneas cambiadas se marcan en el borde izquierdo del editor; pulsa una marc
 
 ## Cuando algo va mal
 
-- **«No se encontró ningún JDK»**: instala un JDK (por ejemplo Temurin desde adoptium.net) y elígelo en Ajustes → Java.
+- **«No se encontró ningún JDK»**, o ningún compilador para C, C++, Python o PHP: abre Ayuda → Configurar lenguajes. Muestra lo que necesita cada lenguaje y lo que está instalado; «Instalar» lo configura con winget en un terminal y Logiq Studio lo usa en cuanto está listo.
 - **Falta la herramienta de un lenguaje**: la barra de estado lo dice; su información emergente explica cómo instalarla.
 - **El programa espera y no pasa nada**: probablemente espera una entrada. Escribe en el campo bajo la salida y pulsa Intro.
 - **Logiq Studio se cerró inesperadamente**: se guarda un informe del fallo en tu equipo. **Ayuda → Mostrar el archivo de registro** abre la carpeta; adjuntar el informe a un informe de error ayuda a corregir la causa.

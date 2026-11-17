@@ -37,7 +37,7 @@ async function textOf(path: string) {
 async function compile(path: string): Promise<string | null> {
   const kotlinc = await toolFor("kotlinc");
   if (!kotlinc) {
-    missingTool(t("The Kotlin compiler wasn't found"), how());
+    missingTool(t("The Kotlin compiler wasn't found"), how(), "kotlin");
     return null;
   }
   const root = get().root;
@@ -59,7 +59,7 @@ export const kotlinPlugin: LanguagePlugin = {
     if (!(await beginRun(basename(path)))) return;
     if (extname(path) === "kts") {
       const kotlinc = await toolFor("kotlinc");
-      if (!kotlinc) return missingTool(t("The Kotlin compiler wasn't found"), how());
+      if (!kotlinc) return missingTool(t("The Kotlin compiler wasn't found"), how(), "kotlin");
       await startProgram(kotlinc.path, ["-script", path, ...programArgs()], { cwd: dirname(path), env: env(), label: basename(path), echo: `kotlinc -script ${basename(path)}` });
       return;
     }

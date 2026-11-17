@@ -4,7 +4,8 @@
  * shown, and starting the program with its input from the panel.
  */
 import { invoke } from "@tauri-apps/api/core";
-import { appendOutput, clearOutput, get, set, toast } from "../lib/store";
+import { appendOutput, clearOutput, get, openDialog, set, toast } from "../lib/store";
+import type { SetupId } from "./setup";
 import { errorText } from "../lib/api";
 import type { CompileResult } from "../lib/types";
 import { basename } from "../lib/paths";
@@ -75,9 +76,9 @@ export async function startProgram(
   }
 }
 
-/** Says a tool is missing, with how to get it. */
-export function missingTool(title: string, how: string) {
+/** Says a tool is missing, with how to get it, and a way to set the language up when it is one. */
+export function missingTool(title: string, how: string, setup?: SetupId) {
   endRun();
   appendOutput("error", `${title}\n${how}\n`);
-  toast("error", title, how);
+  toast("error", title, how, setup ? { label: t("Set up"), run: () => openDialog({ kind: "languages", focus: setup }) } : undefined);
 }

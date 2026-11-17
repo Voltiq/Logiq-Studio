@@ -255,7 +255,7 @@ export const COMMANDS: Command[] = [
   { id: "help.shortcuts", label: "Keyboard shortcuts", category: "Help", icon: Keyboard, shortcut: "Ctrl+K", run: () => openDialog({ kind: "shortcuts" }) },
   { id: "help.updates", label: "Look for updates…", category: "Help", run: () => void import("../components/ReleaseDialogs").then((m) => m.checkForUpdates()) },
   { id: "help.log", label: "Show the log file", category: "Help", run: () => void import("./log").then((m) => m.showLog()) },
-  { id: "help.jdk", label: "Install a JDK…", category: "Help", icon: Coffee, run: () => openDialog({ kind: "installJdk" }) },
+  { id: "help.languages", label: "Set up languages…", category: "Help", icon: Coffee, run: () => openDialog({ kind: "languages" }) },
   { id: "view.debug", label: "Show debugger", category: "View", icon: Bug, shortcut: "Ctrl+Shift+D", run: () => set({ sidebar: "debug" }) },
   { id: "uml.sequence", label: "Show sequence diagram", category: "UML", icon: ListVideo, enabled: hasFolder, run: () => A.openSequence() },
   { id: "help.about", label: "About Logiq Studio", category: "Help", run: () => openDialog({ kind: "about" }) },

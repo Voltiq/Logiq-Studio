@@ -28,6 +28,9 @@ export interface Settings {
   nodePath: string;
   /** The shell new terminals start; empty: the first one found. */
   terminalShell: string;
+  /** The terminal's text cursor: a box, a vertical line or an underline. */
+  terminalCursor: "block" | "bar" | "underline";
+  terminalCursorBlink: boolean;
   /** Start installed language servers for Python, C, C++, PHP and Kotlin (clangd, Pyright…). */
   languageServers: boolean;
   /** More compiler flags for C and C++ (after -std=c17 / -std=c++20 -Wall -Wextra -g). */
@@ -61,6 +64,8 @@ export const DEFAULT_SETTINGS: Settings = {
   jdkHome: "",
   nodePath: "",
   terminalShell: "",
+  terminalCursor: "block",
+  terminalCursorBlink: true,
   languageServers: true,
   cFlags: "",
   sqlMaxRows: 10000,

@@ -1154,3 +1154,21 @@ body.is-resizing-rows * {
   }
 }
 
+
+/* A toast's way out: "Set up C++", "Install". */
+.toast-action {
+  margin-top: var(--space-100);
+  padding: 4px 10px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.toast-action:hover {
+  background: color-mix(in oklab, var(--accent) 26%, transparent);
+}

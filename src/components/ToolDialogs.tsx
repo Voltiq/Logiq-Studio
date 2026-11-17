@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { Copy, ExternalLink, FileArchive, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { CircleCheck, Copy, Download, ExternalLink, FileArchive, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { closeDialog, set, toast, useStore, type Dialog } from "../lib/store";
-import { api } from "../lib/api";
+import { closeDialog, toast, type Dialog } from "../lib/store";
 import { t } from "../lib/i18n";
 import { basename } from "../lib/paths";
 import { saveRunConfig, useRunConfig } from "../lib/runConfig";
@@ -11,7 +10,9 @@ import { javaIndex } from "../uml/javaIndex";
 import { Modal } from "./ui/Modal";
 import { Button, IconButton } from "./ui/Button";
 import { Select, TextField } from "./ui/Field";
-import { EmptyState, SectionMessage } from "./ui/Feedback";
+import { EmptyState, Lozenge, Spinner } from "./ui/Feedback";
+import { checkAll, install, installCommand, LANGUAGES, useSetup, type SetupId } from "../languages/setup";
+import { cx } from "../lib/utils";
 
 const AUTO = "*auto*";
 
@@ -91,50 +92,97 @@ function LibrariesDialog() {
   );
 }
 
-const WINGET = "winget install EclipseAdoptium.Temurin.25.JDK";
-
-function InstallJdkDialog() {
-  const jdks = useStore((s) => s.jdks);
+/** What each language needs, whether it is here, and a way to install it. */
+function LanguagesDialog({ focus }: { focus?: SetupId }) {
+  const found = useSetup((s) => s.found);
+  const installing = useSetup((s) => s.installing);
   const [busy, setBusy] = useState(false);
-  const search = async () => {
+  const check = async () => {
     setBusy(true);
-    const found = await api.detectJdks().catch(() => []);
-    set({ jdks: found });
+    await checkAll();
     setBusy(false);
-    if (found.length) {
-      toast("success", t("Java {0} found", found[0].version), found[0].home);
-      closeDialog();
-    } else toast("warning", t("Still no JDK found"), t("If you just installed one, its folder can also be chosen in Settings."));
   };
+  useEffect(() => void check(), []);
+  const list = focus ? [...LANGUAGES.filter((l) => l.id === focus), ...LANGUAGES.filter((l) => l.id !== focus)] : LANGUAGES;
   return (
     <Modal
-      title={t("Install a JDK")}
-      width="medium"
+      title={t("Languages and tools")}
+      width="large"
       onClose={closeDialog}
       footer={
-        <Button appearance="primary" iconBefore={RefreshCw} loading={busy} onClick={() => void search()}>
-          {t("Search again")}
+        <Button iconBefore={RefreshCw} loading={busy} onClick={() => void check()}>
+          {t("Look again")}
         </Button>
       }
     >
-      {jdks.length > 0 && <SectionMessage appearance="success">{t("Java {0} is installed.", jdks[0].version)}</SectionMessage>}
-      <p className="dialog-text">{t("Compiling and running Java needs a JDK (the Java Development Kit). Eclipse Temurin is free and works well:")}</p>
-      <ol className="jdk-steps">
-        <li>
-          {t("Download the installer (choose the latest LTS for Windows, .msi):")}
-          <Button spacing="compact" iconBefore={ExternalLink} onClick={() => void openUrl("https://adoptium.net/temurin/releases/").catch(() => {})}>
-            adoptium.net
-          </Button>
-        </li>
-        <li>
-          {t("Or install it from a terminal with winget:")}
-          <span className="jdk-cmd">
-            <code>{WINGET}</code>
-            <IconButton icon={Copy} label={t("Copy command")} spacing="compact" onClick={() => void navigator.clipboard.writeText(WINGET).then(() => toast("success", t("Command copied")))} />
-          </span>
-        </li>
-        <li>{t("Then search again here. Logiq Studio finds JDKs in JAVA_HOME, on the PATH and in the usual install folders.")}</li>
-      </ol>
+      <p className="dialog-text">
+        {t("What each language needs on this computer. Install sets it up with winget in a terminal, where you answer its questions; Logiq Studio notices when it is ready.")}
+      </p>
+      <div className="lang-list">
+        {list.map((l) => {
+          const f = found[l.id];
+          const state = installing.includes(l.id) ? "installing" : f === undefined ? "checking" : f ? "ready" : "missing";
+          const command = installCommand(l);
+          const needs = l.needs && found[l.needs] === null ? LANGUAGES.find((x) => x.id === l.needs) : undefined;
+          return (
+            <div key={l.id} className={cx("lang-row", `is-${state}`, focus === l.id && "is-focus")}>
+              <div className="lang-main">
+                <div className="lang-name">
+                  {l.name}
+                  <span className="lang-tool">{l.tool}</span>
+                </div>
+                <p className="lang-why">{l.why()}</p>
+                {f && (
+                  <p className="lang-found">
+                    <span className="lang-found-label">{f.label}</span>
+                    <span className="lang-path">{f.path}</span>
+                  </p>
+                )}
+                {state === "missing" && needs && <p className="lang-needs">{t("Needs {0} first.", needs.tool)}</p>}
+              </div>
+              <div className="lang-actions">
+                {state === "checking" && <Spinner size={16} label={t("Looking…")} />}
+                {state === "ready" && (
+                  <Lozenge appearance="success" icon={CircleCheck}>
+                    {t("Ready")}
+                  </Lozenge>
+                )}
+                {state === "installing" && (
+                  <span className="lang-installing">
+                    <Spinner size={14} /> {t("Installing…")}
+                  </span>
+                )}
+                {state === "missing" && command && (
+                  <Button
+                    appearance="primary"
+                    spacing="compact"
+                    iconBefore={Download}
+                    onClick={() => {
+                      closeDialog();
+                      void install(l);
+                    }}
+                  >
+                    {t("Install")}
+                  </Button>
+                )}
+                {state === "missing" && command && (
+                  <IconButton
+                    icon={Copy}
+                    label={t("Copy the install command")}
+                    spacing="compact"
+                    onClick={() => void navigator.clipboard.writeText(command).then(() => toast("success", t("Command copied"), command))}
+                  />
+                )}
+                {state !== "ready" && (
+                  <Button spacing="compact" appearance={command ? "subtle" : "default"} iconBefore={ExternalLink} onClick={() => void openUrl(l.page).catch(() => {})}>
+                    {t("Download page")}
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </Modal>
   );
 }
@@ -145,8 +193,8 @@ export function ToolDialogs({ d }: { d: Dialog }) {
       return <RunConfigDialog />;
     case "libraries":
       return <LibrariesDialog />;
-    case "installJdk":
-      return <InstallJdkDialog />;
+    case "languages":
+      return <LanguagesDialog focus={d.focus} />;
     default:
       return null;
   }

@@ -49,6 +49,8 @@ export interface ToastData {
   appearance: "success" | "error" | "warning" | "info";
   title: string;
   description?: string;
+  /** A button in the toast: what to do about it. */
+  action?: { label: string; run: () => void };
 }
 
 export type Dialog =
@@ -99,7 +101,8 @@ export type Dialog =
   | { kind: "benchCall"; owner: string; methodLine: number; target: string | null }
   | { kind: "runConfig" }
   | { kind: "libraries" }
-  | { kind: "installJdk" }
+  /** What each language needs, whether it is installed, and installing it; `focus` puts one first. */
+  | { kind: "languages"; focus?: import("../languages/setup").SetupId }
   | { kind: "clone" }
   | { kind: "update"; update: import("./updates").Update }
   | { kind: "manual" };
@@ -198,10 +201,10 @@ export function setSettings(patch: Partial<Settings>) {
 }
 
 let toastId = 0;
-export function toast(appearance: ToastData["appearance"], title: string, description?: string) {
+export function toast(appearance: ToastData["appearance"], title: string, description?: string, action?: ToastData["action"]) {
   const id = ++toastId;
-  set((s) => ({ toasts: [...s.toasts.slice(-3), { id, appearance, title, description }] }));
-  window.setTimeout(() => dismissToast(id), appearance === "error" ? 8000 : 4500);
+  set((s) => ({ toasts: [...s.toasts.slice(-3), { id, appearance, title, description, action }] }));
+  window.setTimeout(() => dismissToast(id), action ? 12000 : appearance === "error" ? 8000 : 4500);
 }
 
 export function dismissToast(id: number) {

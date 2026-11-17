@@ -17,6 +17,18 @@ export function Toasts() {
             <div className="toast-content">
               <p className="toast-title">{x.title}</p>
               {x.description && <p className="toast-description">{x.description}</p>}
+              {x.action && (
+                <button
+                  type="button"
+                  className="toast-action"
+                  onClick={() => {
+                    dismissToast(x.id);
+                    x.action!.run();
+                  }}
+                >
+                  {x.action.label}
+                </button>
+              )}
             </div>
             <IconButton icon={X} label={t("Dismiss")} spacing="compact" onClick={() => dismissToast(x.id)} />
           </div>

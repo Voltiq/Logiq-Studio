@@ -15,7 +15,7 @@ const MENUS: Record<string, string[]> = {
   View: ["view.palette", "-", "view.explorer", "view.outline", "view.sidebar", "view.panel", "view.terminal", "view.newTerminal", "view.problems", "view.preview", "-", "view.split", "view.focusOther", "-", "uml.open", "uml.side", "uml.layout", "-", "view.zoomIn", "view.zoomOut", "view.zoomReset"],
   Run: ["run.run", "run.debug", "run.trace", "run.compile", "run.stop", "-", "debug.continue", "debug.over", "debug.into", "debug.out", "debug.breakpoint", "-", "run.tests", "run.jshell", "-", "run.config", "project.libraries", "-", "build.tasks", "build.task", "build.jar", "build.javadoc", "-", "run.output"],
   Git: ["view.git", "-", "git.commit", "git.amend", "git.stageAll", "git.openChanges", "-", "git.pull", "git.push", "git.sync", "git.fetch", "-", "git.newBranch", "git.merge", "git.rebase", "git.continue", "git.abort", "-", "git.stash", "git.tag", "git.pushTags", "git.blame", "-", "git.addRemote", "git.clone", "git.init", "git.identity"],
-  Help: ["help.manual", "help.tour", "help.shortcuts", "-", "help.jdk", "help.updates", "help.log", "-", "help.about"],
+  Help: ["help.manual", "help.tour", "help.shortcuts", "-", "help.languages", "help.updates", "help.log", "-", "help.about"],
 };
 
 export function menuItems(ids: string[]): MenuItem[] {

@@ -18,7 +18,11 @@ export function settingsToFile(s: Settings, version: string): string {
 }
 
 const LIMITS: Partial<Record<keyof Settings, [number, number]>> = { fontSize: [9, 28], tabSize: [1, 8], sqlMaxRows: [100, 1_000_000] };
-const CHOICES: Partial<Record<keyof Settings, string[]>> = { theme: ["system", "light", "dark"], language: ["system", "en", "de", "es", "fr"] };
+const CHOICES: Partial<Record<keyof Settings, string[]>> = {
+  theme: ["system", "light", "dark"],
+  language: ["system", "en", "de", "es", "fr"],
+  terminalCursor: ["block", "bar", "underline"],
+};
 
 function sameKind(a: unknown, b: unknown): boolean {
   return typeof a === typeof b && Array.isArray(a) === Array.isArray(b) && a !== null;

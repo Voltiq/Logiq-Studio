@@ -3328,3 +3328,107 @@ button.status-item:hover {
     transform: translateY(4px);
   }
 }
+
+/* ==========================================================================
+   Languages and tools
+   ========================================================================== */
+
+.lang-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--space-150);
+}
+
+.lang-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  transition:
+    border-color var(--duration-short) var(--ease),
+    background var(--duration-short) var(--ease);
+}
+
+.lang-row.is-focus {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.lang-row.is-ready {
+  background: transparent;
+}
+
+.lang-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.lang-name {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.lang-tool {
+  color: var(--text-subtlest);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-regular);
+}
+
+.lang-why {
+  margin-top: 2px;
+  color: var(--text-subtle);
+  font-size: var(--font-size-small);
+}
+
+.lang-found {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 4px;
+  font-size: var(--font-size-small);
+}
+
+.lang-found-label {
+  flex: none;
+  color: var(--text-success);
+  font-weight: var(--font-weight-medium);
+}
+
+.lang-path {
+  overflow: hidden;
+  color: var(--text-subtlest);
+  font-family: var(--font-code);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lang-needs {
+  margin-top: 4px;
+  color: var(--text-warning);
+  font-size: var(--font-size-small);
+}
+
+.lang-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: none;
+}
+
+.lang-installing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-subtle);
+  font-size: var(--font-size-small);
+}

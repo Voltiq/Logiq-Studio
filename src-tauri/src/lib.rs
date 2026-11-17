@@ -9,6 +9,7 @@
 mod bench;
 mod build;
 mod debug;
+mod envpath;
 mod fs;
 mod git;
 mod log;
@@ -152,6 +153,7 @@ pub fn run() {
             stylelint::stylelint_available,
             stylelint::stylelint_run,
             toolchain::tools_find,
+            envpath::env_refresh_path,
             toolchain::tool_exec,
             toolchain::run_program,
             toolchain::native_compile,

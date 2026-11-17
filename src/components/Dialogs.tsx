@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { open as pickPath } from "@tauri-apps/plugin-dialog";
 import { closeDialog, setSettings, useStore, type Dialog } from "../lib/store";
+import type { Settings } from "../lib/settings";
 import { createProject, newJavaFile } from "../lib/actions";
 import { errorText } from "../lib/api";
 import { applyTheme } from "../lib/theme";
@@ -344,6 +345,20 @@ function SettingsDialog() {
       <Toggle label={t("Reload the web preview on save")} checked={s.livePreview} onChange={(v) => setSettings({ livePreview: v })} />
       <h3 className="settings-heading">{t("Terminal")}</h3>
       <TerminalShellSetting />
+      <div className="field">
+        <span className="field-label">{t("Cursor")}</span>
+        <Segmented<Settings["terminalCursor"]>
+          label={t("Cursor")}
+          value={s.terminalCursor}
+          onChange={(terminalCursor) => setSettings({ terminalCursor })}
+          options={[
+            { value: "block", label: t("Block") },
+            { value: "bar", label: t("Vertical line") },
+            { value: "underline", label: t("Underscore") },
+          ]}
+        />
+      </div>
+      <Toggle label={t("Blinking cursor")} checked={s.terminalCursorBlink} onChange={(v) => setSettings({ terminalCursorBlink: v })} />
       <h3 className="settings-heading">{t("Languages")}</h3>
       <LanguageSettings />
       <h3 className="settings-heading">{t("Java")}</h3>
@@ -488,7 +503,7 @@ export function Dialogs() {
       return <ShortcutsDialog />;
     case "runConfig":
     case "libraries":
-    case "installJdk":
+    case "languages":
       return <ToolDialogs d={d} />;
     case "clone":
       return <CloneDialog />;

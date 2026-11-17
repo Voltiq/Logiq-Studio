@@ -37,7 +37,7 @@ export function parsePhpLint(output: string, path: string): Diagnostic[] {
 /** Serves the folder with PHP's web server and shows the page in the preview. */
 export async function previewPhp(path: string) {
   const php = await toolFor("php");
-  if (!php) return missingTool(t("PHP wasn't found"), how());
+  if (!php) return missingTool(t("PHP wasn't found"), how(), "php");
   const root = get().root && isInside(path, get().root!) ? get().root! : dirname(path);
   try {
     const port = await invoke<number>("php_serve", { root, php: php.path });
@@ -53,13 +53,13 @@ export const phpPlugin: LanguagePlugin = {
   async run(path) {
     if (!(await beginRun(basename(path)))) return;
     const php = await toolFor("php");
-    if (!php) return missingTool(t("PHP wasn't found"), how());
+    if (!php) return missingTool(t("PHP wasn't found"), how(), "php");
     await startProgram(php.path, ["-d", "display_errors=stderr", "-f", path, "--", ...programArgs()], { cwd: dirname(path), label: basename(path), echo: `php ${basename(path)}` });
   },
   async build(path) {
     const php = await toolFor("php");
     if (!php) {
-      missingTool(t("PHP wasn't found"), how());
+      missingTool(t("PHP wasn't found"), how(), "php");
       return false;
     }
     const r = await invoke<{ code: number; stdout: string; stderr: string }>("tool_exec", { program: php.path, args: ["-l", path], cwd: dirname(path), input: null, env: null, timeoutMs: 20000 });

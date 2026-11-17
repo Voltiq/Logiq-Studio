@@ -7,7 +7,8 @@
  */
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
-import { get as getApp, openMenu, toast } from "../lib/store";
+import { get as getApp, openDialog, openMenu, toast } from "../lib/store";
+import { setupFor } from "./setup";
 import { basename, dirname, join } from "../lib/paths";
 import { t } from "../lib/i18n";
 import type { MenuItem } from "../components/ui/Menu";
@@ -128,6 +129,8 @@ export async function toolMenu(kind: ToolKind, anchor: HTMLElement, extra: MenuI
     },
     ...extra,
   );
+  const setup = setupFor(kind);
+  if (setup) items.push({ label: list.length ? t("Set up languages…") : t("Install…"), onSelect: () => openDialog({ kind: "languages", focus: setup }) });
   openMenu({ anchor, align: "end", items });
 }
 

@@ -11,7 +11,7 @@ import { Terminal, type ITheme } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
-import { get as getApp, set as setApp, toast } from "./store";
+import { get as getApp, set as setApp, toast, useStore } from "./store";
 import { errorText } from "./api";
 import { t } from "./i18n";
 import { shellLine } from "./shellLine";
@@ -140,7 +140,9 @@ export async function newTerminal(shellId?: string, cwd?: string): Promise<numbe
     fontFamily: '"Geist Mono Variable", "Geist Mono", Consolas, monospace',
     fontSize: fontSize(),
     lineHeight: 1.15,
-    cursorBlink: true,
+    cursorStyle: getApp().settings.terminalCursor,
+    cursorInactiveStyle: "outline",
+    cursorBlink: getApp().settings.terminalCursorBlink,
     scrollback: 5000,
     allowProposedApi: true,
     theme: themeFor(null),
@@ -181,6 +183,20 @@ export async function newTerminal(shellId?: string, cwd?: string): Promise<numbe
   setApp({ panelOpen: true, panelTab: "terminal" });
   return id;
 }
+
+/** The cursor of every terminal, after the setting changes. */
+export function applyCursor() {
+  const { terminalCursor, terminalCursorBlink } = getApp().settings;
+  for (const inst of instances.values()) {
+    inst.term.options.cursorStyle = terminalCursor;
+    inst.term.options.cursorBlink = terminalCursorBlink;
+  }
+}
+
+// The cursor follows the setting, also when settings are imported.
+useStore.subscribe((s, p) => {
+  if (s.settings.terminalCursor !== p.settings.terminalCursor || s.settings.terminalCursorBlink !== p.settings.terminalCursorBlink) applyCursor();
+});
 
 /** Puts terminal `id` into `host` and starts its shell once it knows its size. */
 export function attach(id: number, host: HTMLElement) {

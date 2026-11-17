@@ -17,7 +17,7 @@ import { currentTool, findTools, toolFor, toolLabel, toolMenu, buildDir } from "
 import type { LanguagePlugin } from "./plugin";
 
 const WINDOWS = navigator.userAgent.includes("Windows");
-const how = () => t("Install LLVM (clang) with `winget install LLVM.LLVM`, or gcc with MSYS2 (msys2.org), then choose it in the status bar.");
+const how = () => t("Install a compiler with Help → Set up languages (WinLibs brings GCC and Clang), or choose one in the status bar.");
 
 const SOURCES: Record<"c" | "cpp", string[]> = { c: ["c"], cpp: ["cpp", "cc", "cxx"] };
 
@@ -60,7 +60,7 @@ async function compile(path: string): Promise<string | null> {
   }
   const compiler = await toolFor(lang === "c" ? "cc" : "cxx");
   if (!compiler) {
-    missingTool(lang === "c" ? t("No C compiler was found") : t("No C++ compiler was found"), how());
+    missingTool(lang === "c" ? t("No C compiler was found") : t("No C++ compiler was found"), how(), "cpp");
     return null;
   }
   const files = await programSources(path, lang);
