@@ -27,7 +27,7 @@ function RailButton({ icon: Icon, label, shortcut, on, disabled, badge, onClick 
 export function ActivityRail() {
   const sidebar = useStore((s) => s.sidebar);
   const root = useStore((s) => s.root);
-  const umlOn = useStore((s) => activeIdOf(s) === "uml");
+  const umlOn = useStore((s) => s.tabs.find((x) => x.id === activeIdOf(s))?.kind === "uml");
   const panelOpen = useStore((s) => s.panelOpen);
   const errors = useStore((s) => s.problems.filter((p) => p.severity === "error").length);
   const debugPaused = useDebug((s) => s.status === "paused");
@@ -42,7 +42,7 @@ export function ActivityRail() {
       <RailButton icon={GitBranch} label={t("Source control")} shortcut="Ctrl+Shift+G" on={sidebar === "git"} disabled={!root} badge={gitChanges} onClick={() => pick("git")} />
       <RailButton icon={Bug} label={t("Debugger")} shortcut="Ctrl+Shift+D" on={sidebar === "debug"} disabled={!root} badge={debugPaused ? 1 : 0} onClick={() => pick("debug")} />
       <span className="rail-sep" />
-      <RailButton icon={Network} label={t("UML class diagram")} shortcut="Ctrl+Shift+U" on={umlOn} disabled={!root} onClick={openUml} />
+      <RailButton icon={Network} label={t("UML class diagram")} shortcut="Ctrl+Shift+U" on={umlOn} disabled={!root} onClick={() => openUml()} />
       <RailButton icon={SquareTerminal} label={t("Output and problems")} shortcut="Ctrl+J" on={panelOpen} badge={errors} onClick={() => togglePanel()} />
       <span className="rail-spacer" />
       <RailButton icon={Settings} label={t("Settings")} shortcut="Ctrl+," onClick={() => openDialog({ kind: "settings" })} />

@@ -380,8 +380,8 @@ export function SourceControl() {
   if (info === false) {
     return (
       <div className="scm">
-        <div className="sidebar-head">
-          <span className="sidebar-title">{t("Source control")}</span>
+        <div className="side-head">
+          <span className="side-title">{t("Source control")}</span>
         </div>
         <EmptyState icon={GitBranch} title={t("Git isn't installed")}>
           {t("Install Git for Windows from git-scm.com, then restart Logiq Studio.")}
@@ -393,8 +393,8 @@ export function SourceControl() {
   if (!repo || !status) {
     return (
       <div className="scm">
-        <div className="sidebar-head">
-          <span className="sidebar-title">{t("Source control")}</span>
+        <div className="side-head">
+          <span className="side-title">{t("Source control")}</span>
         </div>
         <EmptyState
           icon={GitBranch}
@@ -439,9 +439,8 @@ export function SourceControl() {
 
   return (
     <div className="scm">
-      <div className="sidebar-head">
-        <span className="sidebar-title">{t("Source control")}</span>
-        <span className="spacer" />
+      <div className="side-head">
+        <span className="side-title">{t("Source control")}</span>
         <IconButton icon={RefreshCw} label={t("Refresh")} spacing="compact" onClick={() => void refreshNow()} />
         <IconButton icon={MoreHorizontal} label={t("More actions")} spacing="compact" onClick={moreMenu} />
       </div>

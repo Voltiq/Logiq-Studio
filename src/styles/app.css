@@ -3223,3 +3223,60 @@ button.status-item:hover {
   color: var(--accent-text);
   font-size: var(--font-size-small);
 }
+
+/* ==========================================================================
+   Panels sliding in and out (Reveal), and views appearing in them
+   ========================================================================== */
+
+/* At rest the wrapper isn't there for the layout. */
+.reveal,
+.reveal-inner {
+  display: contents;
+}
+
+.reveal.is-moving {
+  display: flex;
+  flex: none;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  /* Clipped only along the way it moves, so the panel's shadow stays on the other sides. */
+  clip-path: inset(-32px 0 -32px 0);
+  will-change: width, height, opacity;
+}
+
+.reveal-y.is-moving {
+  flex-direction: column;
+  clip-path: inset(0 -32px 0 -32px);
+}
+
+.reveal.is-moving > .reveal-inner {
+  display: flex;
+  flex: none;
+}
+
+.reveal-y.is-moving > .reveal-inner {
+  flex-direction: column;
+}
+
+/* The part out of reach is on the side the panel slides away to. */
+.reveal-from-start.is-moving {
+  justify-content: flex-end;
+}
+
+.reveal-from-end.is-moving {
+  justify-content: flex-start;
+}
+
+/* Switching the side bar's view or the panel's tab: the new one fades up. */
+.sidebar > *,
+.bottom-body > * {
+  animation: view-in 200ms var(--ease);
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}

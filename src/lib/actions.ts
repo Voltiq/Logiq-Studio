@@ -760,7 +760,7 @@ export async function movePath(path: string, to: string) {
     tabs: s.tabs.map((t) => {
       if (!t.path || !isInside(t.path, path)) return t;
       const p = to + t.path.slice(path.length);
-      return { ...t, id: t.kind === "uml" ? t.id : p, path: p, title: basename(p) };
+      return { ...t, id: t.kind === "uml" ? t.id : p, path: p, title: t.kind === "uml" ? stem(p) : basename(p) };
     }),
     active: [map(s.active[0]), map(s.active[1])],
     selected: to,
@@ -925,28 +925,31 @@ export async function createProject(parent: string, name: string, template: Temp
 // ----- Views ---------------------------------------------------------------------------------------
 
 /** Opens the class diagram, in the side group when asked (code left, diagram right). */
+/** Shows the project's class diagram (every class), opening its tab when needed. */
 export function openUml(group?: Group) {
-  const existing = get().tabs.find((t) => t.id === "uml");
-  if (!existing) {
-    const tab: Tab = { id: "uml", kind: "uml", path: null, title: t("UML class diagram"), dirty: false, group: group ?? targetGroup() };
-    insertTab(tab);
-  } else if (group !== undefined && existing.group !== group) {
-    moveToGroup("uml", group);
-    return;
-  }
-  activate("uml");
+  return openDiagram(null, group);
 }
 
+let diagramTabs = 0;
+
 /**
- * Shows a class diagram: a .uml file with its own choice of classes, or the
- * project's diagram of every class (null).
+ * Shows a class diagram in its own tab: a .uml file with its own choice of classes, or the project's diagram
+ * of every class (null). Returns the tab's id.
  */
-export function openDiagram(path: string | null, group?: Group) {
-  openUml(group);
-  const title = path ? stem(path) : t("UML class diagram");
-  set((s) => ({ tabs: s.tabs.map((x) => (x.id === "uml" ? { ...x, path, title } : x)) }));
-  activate("uml");
-  scheduleSession();
+export function openDiagram(path: string | null, group?: Group): string {
+  // Only a real group: a handler that passes its event along must not move the tab out of sight.
+  const g = group === 0 || group === 1 ? group : undefined;
+  const existing = get().tabs.find((x) => x.kind === "uml" && (path ? !!x.path && samePath(x.path, path) : !x.path));
+  if (!existing) {
+    const id = path ? `uml-${Date.now().toString(36)}-${++diagramTabs}` : "uml";
+    insertTab({ id, kind: "uml", path, title: path ? stem(path) : t("UML class diagram"), dirty: false, group: g ?? targetGroup() });
+    activate(id);
+    scheduleSession();
+    return id;
+  }
+  if (g !== undefined && existing.group !== g) moveToGroup(existing.id, g);
+  else activate(existing.id);
+  return existing.id;
 }
 
 /** Shows the sequence diagram of the last traced run. */
@@ -1245,10 +1248,11 @@ async function restoreSession(): Promise<boolean> {
         if (tab.path && (await api.exists(tab.path).catch(() => false))) await openDesigner(tab.path, tab.group);
         continue;
       }
-      if (tab.kind === "uml") openDiagram(tab.path && (await api.exists(tab.path).catch(() => false)) ? tab.path : null, tab.group);
+      let id = tab.id;
+      if (tab.kind === "uml") id = openDiagram(tab.path && (await api.exists(tab.path).catch(() => false)) ? tab.path : null, tab.group);
       else if (tab.path && (await api.exists(tab.path).catch(() => false))) await openFile(tab.path, undefined, tab.group);
       else continue;
-      if (tab.pinned) togglePin(tab.id);
+      if (tab.pinned && !get().tabs.find((x) => x.id === id)?.pinned) togglePin(id);
       const unsaved = tab.path ? session.buffers[tab.path] : undefined;
       const doc = tab.path ? getDoc(tab.path) : undefined;
       if (doc && unsaved !== undefined && unsaved !== doc.state.doc.toString()) {

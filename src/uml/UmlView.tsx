@@ -332,13 +332,13 @@ function EdgeLine({ edge, points, hot, dim, selected, labelOffset, onMenu, onSel
 
 /* ----- The view -------------------------------------------------------------------- */
 
-export function UmlView({ visible }: { visible: boolean }) {
+export function UmlView({ tabId, visible }: { tabId: string; visible: boolean }) {
   const version = useStructureVersion();
   const root = useStore((s) => s.root);
   const opts = useStore((s) => s.settings.uml);
   const layoutNonce = useStore((s) => s.umlLayoutNonce);
   /** The .uml file shown, or null for the project's diagram of every class. */
-  const diagramPath = useStore((s) => s.tabs.find((x) => x.id === "uml")?.path ?? null);
+  const diagramPath = useStore((s) => s.tabs.find((x) => x.id === tabId)?.path ?? null);
   const [diagramFiles, setDiagramFiles] = useState<string[]>([]);
   const [scope, setScope] = useState<string>(ALL);
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -454,9 +454,10 @@ export function UmlView({ visible }: { visible: boolean }) {
   useEffect(() => {
     if (layoutNonce !== lastNonce.current) {
       lastNonce.current = layoutNonce;
-      relayout();
+      // Only the diagram in view is arranged, not the others open in tabs.
+      if (visible) relayout();
     }
-  }, [layoutNonce, relayout]);
+  }, [layoutNonce, relayout, visible]);
 
   const bounds = useCallback(
     (pos: Positions = positions) => {

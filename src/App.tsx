@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Code, FilePlus, Network } from "lucide-react";
 import { set, setSettings, useStore, type Group } from "./lib/store";
@@ -27,6 +27,7 @@ import { Palette } from "./components/Palette";
 import { Toasts } from "./components/Toasts";
 import { Resizer } from "./components/Resizer";
 import { SplitDropArea } from "./components/SplitDrop";
+import { Reveal } from "./components/Reveal";
 import { UmlView } from "./uml/UmlView";
 import { SourceControl } from "./components/SourceControl";
 import { DiffView } from "./components/DiffView";
@@ -94,7 +95,6 @@ function EditorGroup({ group }: { group: Group }) {
   const focused = useStore((s) => s.focusGroup === group);
   const mine = tabs.filter((x) => x.group === group);
   const active = mine.find((x) => x.id === activeId);
-  const hasUml = mine.some((x) => x.kind === "uml");
   const twoGroups = tabs.some((x) => x.group === 1);
 
   return (
@@ -107,7 +107,11 @@ function EditorGroup({ group }: { group: Group }) {
       {active?.kind === "file" && active.path && <Breadcrumbs path={active.path} focused={focused} />}
       <div className="stage-body">
         <Editor group={group} visible={active?.kind === "file"} />
-        {hasUml && <UmlView visible={active?.kind === "uml"} />}
+        {mine
+          .filter((x) => x.kind === "uml")
+          .map((x) => (
+            <UmlView key={x.id} tabId={x.id} visible={active?.id === x.id} />
+          ))}
         {mine.some((x) => x.kind === "sequence") && <SequenceView visible={active?.kind === "sequence"} />}
         {active?.kind === "image" && active.path && <ImageView path={active.path} />}
         {active?.kind === "diff" && <DiffView key={active.id} id={active.id} />}
@@ -167,6 +171,10 @@ export default function App() {
   }, []);
 
   const showSidebar = !!root && !!sidebar;
+  // While the side bar slides shut, it keeps showing the view it had.
+  const lastView = useRef(sidebar);
+  if (sidebar) lastView.current = sidebar;
+  const view = sidebar ?? lastView.current;
 
   return (
     <div className="app">
@@ -174,18 +182,16 @@ export default function App() {
       <TopBar />
       <div className="workbench">
         <ActivityRail />
-        {showSidebar && (
-          <>
-            <aside className="sidebar panel" style={{ width: settings.sidebarWidth }} aria-label={t("Side bar")}>
-              {sidebar === "explorer" && <Explorer />}
-              {sidebar === "search" && <SearchPanel />}
-              {sidebar === "outline" && <OutlinePanel />}
-              {sidebar === "debug" && <DebugPanel />}
-              {sidebar === "git" && <SourceControl />}
-            </aside>
-            <Resizer axis="x" size={settings.sidebarWidth} min={190} max={560} label={t("Side bar width")} onResize={(w) => setSettings({ sidebarWidth: w })} />
-          </>
-        )}
+        <Reveal open={showSidebar} axis="x" from="start">
+          <aside className="sidebar panel" style={{ width: settings.sidebarWidth }} aria-label={t("Side bar")}>
+            {view === "explorer" && <Explorer />}
+            {view === "search" && <SearchPanel />}
+            {view === "outline" && <OutlinePanel />}
+            {view === "debug" && <DebugPanel />}
+            {view === "git" && <SourceControl />}
+          </aside>
+          <Resizer axis="x" size={settings.sidebarWidth} min={190} max={560} label={t("Side bar width")} onResize={(w) => setSettings({ sidebarWidth: w })} />
+        </Reveal>
         <div className="center">
           <SplitDropArea>
             <EditorGroup group={0} />
@@ -198,23 +204,19 @@ export default function App() {
               </>
             )}
           </SplitDropArea>
-          {panelOpen && (
-            <>
-              <Resizer axis="y" size={settings.panelHeight} min={110} max={720} invert label={t("Panel height")} onResize={(h) => setSettings({ panelHeight: h })} />
-              <div className="bottom-wrap" style={{ height: settings.panelHeight }}>
-                <BottomPanel />
-              </div>
-            </>
-          )}
-        </div>
-        {previewOpen && root && (
-          <>
-            <Resizer axis="x" size={settings.previewWidth} min={280} max={1200} invert label={t("Preview width")} onResize={(w) => setSettings({ previewWidth: w })} />
-            <div className="preview-wrap" style={{ width: settings.previewWidth }}>
-              <Preview />
+          <Reveal open={panelOpen} axis="y" from="end">
+            <Resizer axis="y" size={settings.panelHeight} min={110} max={720} invert label={t("Panel height")} onResize={(h) => setSettings({ panelHeight: h })} />
+            <div className="bottom-wrap" style={{ height: settings.panelHeight }}>
+              <BottomPanel />
             </div>
-          </>
-        )}
+          </Reveal>
+        </div>
+        <Reveal open={previewOpen && !!root} axis="x" from="end">
+          <Resizer axis="x" size={settings.previewWidth} min={280} max={1200} invert label={t("Preview width")} onResize={(w) => setSettings({ previewWidth: w })} />
+          <div className="preview-wrap" style={{ width: settings.previewWidth }}>
+            <Preview />
+          </div>
+        </Reveal>
       </div>
       <StatusBar />
       <Dialogs />

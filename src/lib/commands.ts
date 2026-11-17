@@ -228,9 +228,9 @@ export const COMMANDS: Command[] = [
   { id: "view.zoomOut", label: "Smaller editor text", category: "View", shortcut: "Ctrl+-", run: () => zoom(-1) },
   { id: "view.zoomReset", label: "Reset editor text size", category: "View", shortcut: "Ctrl+0", run: () => zoom(0) },
 
-  { id: "uml.open", label: "Show UML class diagram", category: "UML", icon: Network, shortcut: "Ctrl+Shift+U", enabled: hasFolder, run: () => A.openUml() },
-  { id: "uml.side", label: "Show UML class diagram to the side", category: "UML", enabled: hasFolder, run: () => A.openUml(1) },
-  { id: "uml.layout", label: "Arrange UML diagram automatically", category: "UML", enabled: hasFolder, run: () => (A.openUml(), set((s) => ({ umlLayoutNonce: s.umlLayoutNonce + 1 }))) },
+  { id: "uml.open", label: "Show UML class diagram", category: "UML", icon: Network, shortcut: "Ctrl+Shift+U", enabled: hasFolder, run: () => void A.openUml() },
+  { id: "uml.side", label: "Show UML class diagram to the side", category: "UML", enabled: hasFolder, run: () => void A.openUml(1) },
+  { id: "uml.layout", label: "Arrange UML diagram automatically", category: "UML", enabled: hasFolder, run: () => (activeTab()?.kind !== "uml" && A.openUml(), set((s) => ({ umlLayoutNonce: s.umlLayoutNonce + 1 }))) },
 
   { id: "run.run", label: "Run", category: "Run", icon: Play, shortcut: "F5", enabled: hasFolder, run: () => (D.useDebug.getState().status === "paused" ? void D.resume() : A.runActive()) },
   { id: "run.debug", label: "Start debugging", category: "Run", icon: Bug, shortcut: "F6", enabled: () => hasFolder() && !D.isDebugging() && get().run.status === "idle", run: () => D.startDebug() },
