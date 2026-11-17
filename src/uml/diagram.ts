@@ -80,6 +80,8 @@ export interface UmlEdge {
   from: string;
   to: string;
   labels: RoleLabel[];
+  /** An association that is an aggregation or a composition: a diamond at the whole (`from`). */
+  whole?: "aggregation" | "composition";
 }
 
 export interface Diagram {

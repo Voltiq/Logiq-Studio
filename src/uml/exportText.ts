@@ -51,7 +51,8 @@ export function toPlantUml(d: Diagram, showTypes = true): string {
     else {
       const mult = [...new Set(e.labels.map((l) => l.multiplicity))].join(", ");
       const role = e.labels.map((l) => l.role).join(", ");
-      out.push(`${a} --> ${mult ? `"${mult}" ` : ""}${b}${role ? ` : ${role}` : ""}`);
+      const line = e.whole === "composition" ? "*-->" : e.whole === "aggregation" ? "o-->" : "-->";
+      out.push(`${a} ${line} ${mult ? `"${mult}" ` : ""}${b}${role ? ` : ${role}` : ""}`);
     }
   }
   out.push("@enduml", "");
@@ -91,7 +92,8 @@ export function toMermaid(d: Diagram, showTypes = true): string {
     else {
       const mult = [...new Set(e.labels.map((l) => l.multiplicity))].join(", ");
       const role = e.labels.map((l) => l.role.replace(/^[-+#~]/, "")).join(", ");
-      out.push(`  ${a} --> ${mult ? `"${mult}" ` : ""}${b}${role ? ` : ${role}` : ""}`);
+      const line = e.whole === "composition" ? "*--" : e.whole === "aggregation" ? "o--" : "-->";
+      out.push(`  ${a} ${line} ${mult ? `"${mult}" ` : ""}${b}${role ? ` : ${role}` : ""}`);
     }
   }
   return out.join("\n") + "\n";

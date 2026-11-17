@@ -15,6 +15,7 @@ import { changeField, changeSignature, addField, addMethod, parseParams, renderC
 import { addAssociation, createClass, editType, indentUnit } from "./edit";
 import { renameEverywhere } from "../editor/javaNav";
 import { BenchDialogs } from "./BenchPanel";
+import { setWhole, type Whole } from "./relations";
 
 const NAME_RE = /^[\p{L}_$][\p{L}\p{N}_$]*$/u;
 const PRIMITIVES = ["int", "double", "boolean", "char", "long", "float", "short", "byte", "String", "void"];
@@ -361,6 +362,7 @@ function AssociationDialog({ d }: { d: Extract<Dialog, { kind: "association" }> 
   const [many, setMany] = useState<"one" | "many">("one");
   const [role, setRole] = useState(base);
   const [vis, setVis] = useState<Visibility>("private");
+  const [whole, setWholeKind] = useState<"none" | Whole>("none");
   const [error, setError] = useState<string | null>(null);
   if (!from || !to) return null;
   const save = async () => {
@@ -369,6 +371,7 @@ function AssociationDialog({ d }: { d: Extract<Dialog, { kind: "association" }> 
     if (from.fields.some((f) => f.name === r)) return setError(t("{0} already has an attribute called {1}.", from.name, r));
     closeDialog();
     await addAssociation(d.from, d.to, r, many === "many", vis);
+    setWhole(d.from, d.to, whole === "none" ? null : whole);
   };
   return (
     <Modal
@@ -398,6 +401,23 @@ function AssociationDialog({ d }: { d: Extract<Dialog, { kind: "association" }> 
           { value: "many", label: t("many (0..*)") },
         ]}
       />
+      <Segmented<"none" | Whole>
+        label={t("Kind")}
+        value={whole}
+        onChange={setWholeKind}
+        options={[
+          { value: "none", label: t("Association") },
+          { value: "aggregation", label: t("Aggregation") },
+          { value: "composition", label: t("Composition") },
+        ]}
+      />
+      <p className="dialog-text">
+        {whole === "aggregation"
+          ? t("{1} is a part of {0}, but can exist without it.", from.name, to.name)
+          : whole === "composition"
+            ? t("{1} belongs to {0} and exists only with it.", from.name, to.name)
+            : t("{0} knows {1}.", from.name, to.name)}
+      </p>
       <TextField label={t("Role name (the attribute in {0})", from.name)} value={role} autoFocus spellCheck={false} onChange={(e) => (setRole(e.target.value), setError(null))} />
       <Select label={t("Visibility")} value={vis} onChange={setVis} options={VIS_OPTIONS} />
       <p className="dialog-text is-mono">

@@ -43,6 +43,7 @@ import { CULL_ABOVE, lineInView, visibleNodes } from "./visible";
 import { exportPng, exportSvgString } from "./exportDiagram";
 import { simpleType } from "./javaParser";
 import { toMermaid, toPlantUml } from "./exportText";
+import { loadRelations, relationKey, setWhole, useRelations } from "./relations";
 import { addInheritance, askAssociation, deleteClass, deleteMember, newClassDir, removeAssociation, removeInheritance } from "./edit";
 import { BenchPanel } from "./BenchPanel";
 import { createTestFor, runTests } from "../lib/tools";
@@ -258,7 +259,27 @@ function EdgeLine({ edge, points, hot, dim, selected, labelOffset, onMenu, onSel
   const tip = points[points.length - 1];
   const prev = points[points.length - 2];
   const head = arrowHead(edge.kind, tip, prev);
-  const d = points
+  // Aggregation and composition: a diamond where the line leaves the whole, the line starting behind it.
+  let diamond: React.ReactNode = null;
+  let start = points[0];
+  if (edge.whole && points.length > 1) {
+    const a = points[0];
+    const b = points[1];
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const ux = (b.x - a.x) / len;
+    const uy = (b.y - a.y) / len;
+    const L = 18;
+    const W = 6.5;
+    const mid = { x: a.x + (ux * L) / 2, y: a.y + (uy * L) / 2 };
+    start = { x: a.x + ux * L, y: a.y + uy * L };
+    diamond = (
+      <path
+        className={edge.whole === "composition" ? "uml-diamond is-filled" : "uml-diamond"}
+        d={`M${a.x},${a.y}L${mid.x - uy * W},${mid.y + ux * W}L${start.x},${start.y}L${mid.x + uy * W},${mid.y - ux * W}Z`}
+      />
+    );
+  }
+  const d = [start, ...points.slice(1)]
     .slice(0, -1)
     .map((p, i) => `${i ? "L" : "M"}${p.x},${p.y}`)
     .concat(`L${head.line.x},${head.line.y}`)
@@ -300,6 +321,7 @@ function EdgeLine({ edge, points, hot, dim, selected, labelOffset, onMenu, onSel
     <g className={cx("uml-relation", `is-${edge.kind}`, (hot || selected) && "is-hot", dim && !selected && "is-dim", selected && "is-selected")}>
       <path className="uml-hit" d={d} onContextMenu={onMenu} onPointerDown={onSelect} />
       <path className={cx("uml-edge", dashed && "is-dashed")} d={d} />
+      {diamond}
       {head.shape}
       {labels}
       {selected && bendable && (
@@ -425,7 +447,14 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
     return allTypes.filter((x) => !hidden.has(x.qualifiedName) && (scope === ALL || dirname(x.path) === scope));
   }, [allTypes, layout?.hidden, scope, chosen]);
 
-  const diagram: Diagram = useMemo(() => buildDiagram(types, opts), [types, opts]);
+  const wholes = useRelations((s) => s.wholes);
+  useEffect(() => {
+    if (root) void loadRelations(root);
+  }, [root]);
+  const diagram: Diagram = useMemo(() => {
+    const d = buildDiagram(types, opts);
+    return { ...d, edges: d.edges.map((e) => (e.kind === "association" && wholes[relationKey(e.from, e.to)] ? { ...e, whole: wholes[relationKey(e.from, e.to)] } : e)) };
+  }, [types, opts, wholes]);
 
   const known = useMemo(() => new Set(allTypes.map((x) => x.qualifiedName)), [allTypes]);
   const positions = useMemo(() => (layout ? placeNew(diagram, layout.positions, known) : {}), [diagram, layout, known]);
@@ -875,8 +904,16 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
       x: e.clientX,
       y: e.clientY,
       items: [
-        { type: "heading", label: `${a.type.name} → ${b.type.name} (${what})` },
+        { type: "heading", label: `${a.type.name} → ${b.type.name} (${edge.whole === "aggregation" ? t("aggregation") : edge.whole === "composition" ? t("composition") : what})` },
         { label: t("Go to code"), icon: FileCode, onSelect: () => openAt(a, a.type.line) },
+        ...(edge.kind === "association"
+          ? [
+              { type: "separator" as const },
+              { label: t("Association"), checked: !edge.whole, onSelect: () => setWhole(edge.from, edge.to, null) },
+              { label: t("Aggregation: {0} has {1} as a part", a.type.name, b.type.name), checked: edge.whole === "aggregation", onSelect: () => setWhole(edge.from, edge.to, "aggregation") },
+              { label: t("Composition: {0} owns {1}", a.type.name, b.type.name), checked: edge.whole === "composition", onSelect: () => setWhole(edge.from, edge.to, "composition") },
+            ]
+          : []),
         ...(layout?.bends[edge.id] || layout?.labels[edge.id]
           ? [
               { type: "separator" as const },
@@ -891,7 +928,10 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
                 label: t("Delete relation"),
                 icon: Trash2,
                 danger: true,
-                onSelect: () => void (edge.kind === "association" ? removeAssociation(a.type, b.type) : removeInheritance(a.type, b.type)),
+                onSelect: () => {
+                  if (edge.kind === "association") setWhole(edge.from, edge.to, null);
+                  void (edge.kind === "association" ? removeAssociation(a.type, b.type) : removeInheritance(a.type, b.type));
+                },
               },
             ]
           : []),
