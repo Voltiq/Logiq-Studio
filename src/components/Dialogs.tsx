@@ -1,28 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { open as pickPath } from "@tauri-apps/plugin-dialog";
-import { closeDialog, setSettings, useStore, type Dialog } from "../lib/store";
-import type { Settings } from "../lib/settings";
+import { closeDialog, useStore, type Dialog } from "../lib/store";
 import { createProject, newJavaFile } from "../lib/actions";
 import { errorText } from "../lib/api";
-import { applyTheme } from "../lib/theme";
 import { invalidName, join, relative } from "../lib/paths";
 import { TEMPLATES, type TemplateId } from "../lib/templates";
-import { LanguageSettings } from "./LanguageSettings";
-import { MaintenanceSetting, UpdateDialog, UpdatesSetting } from "./ReleaseDialogs";
+import { SettingsDialog } from "./SettingsDialog";
+import { UpdateDialog } from "./ReleaseDialogs";
 import { ManualDialog } from "./Manual";
 import { APP_VERSION } from "../lib/version";
 import { COMMANDS } from "../lib/commands";
 import { UmlDialogs } from "../uml/ClassDialogs";
 import { ToolDialogs } from "./ToolDialogs";
 import { CloneDialog } from "./CloneDialog";
-import { installJavaServer, startJavaServer, useLsp } from "../lsp/clients";
-import { loadShells, useTerminals } from "../lib/terminals";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
-import { Checkbox, RadioList, Segmented, Select, TextField, Toggle } from "./ui/Field";
+import { RadioList, Select, TextField } from "./ui/Field";
 import { SectionMessage, Shortcut } from "./ui/Feedback";
-import type { ThemePreference } from "../lib/types";
 import { t } from "../lib/i18n";
 
 function PromptDialog({ d }: { d: Extract<Dialog, { kind: "prompt" }> }) {
@@ -279,163 +274,6 @@ function NewJavaFileDialog({ d }: { d: Extract<Dialog, { kind: "newJavaFile" }> 
       />
       <p className="dialog-text">In {root ? relative(root, d.dir) || "the project folder" : d.dir}</p>
     </Modal>
-  );
-}
-
-function SettingsDialog() {
-  const s = useStore((st) => st.settings);
-  const jdks = useStore((st) => st.jdks);
-  const node = useStore((st) => st.node);
-  const jdkOptions = useMemo(
-    () => [{ value: "", label: jdks[0] ? t("Newest found (Java {0})", jdks[0].version) : t("None found") }, ...jdks.map((j) => ({ value: j.home, label: `Java ${j.version} · ${j.home}` }))],
-    [jdks],
-  );
-  const chooseJdk = async () => {
-    const picked = await pickPath({ directory: true, title: t("Choose a JDK folder") }).catch(() => null);
-    if (typeof picked === "string") setSettings({ jdkHome: picked });
-  };
-  return (
-    <Modal title={t("Settings")} width="medium" onClose={closeDialog}>
-      <h3 className="settings-heading">{t("Appearance")}</h3>
-      <Segmented<ThemePreference>
-        label={t("Theme")}
-        value={s.theme}
-        onChange={(theme) => {
-          setSettings({ theme });
-          void applyTheme(theme);
-        }}
-        options={[
-          { value: "system", label: t("System") },
-          { value: "dark", label: t("Graphite") },
-          { value: "light", label: t("Porcelain") },
-        ]}
-      />
-      <Select
-        label={t("Language")}
-        value={s.language}
-        onChange={(language) => setSettings({ language })}
-        helper={t("Applies the next time Logiq Studio starts.")}
-        options={[
-          { value: "system", label: t("Same as Windows") },
-          { value: "en", label: "English" },
-          { value: "de", label: "Deutsch" },
-          { value: "es", label: "Español" },
-          { value: "fr", label: "Français" },
-        ]}
-      />
-      <div className="settings-row">
-        <TextField label={t("Editor text size")} type="number" min={9} max={28} value={s.fontSize} onChange={(e) => setSettings({ fontSize: Math.max(9, Math.min(28, +e.target.value || 13)) })} compact />
-        <TextField label={t("Tab size")} type="number" min={1} max={8} value={s.tabSize} onChange={(e) => setSettings({ tabSize: Math.max(1, Math.min(8, +e.target.value || 4)) })} compact />
-      </div>
-      <h3 className="settings-heading">{t("Editor")}</h3>
-      <Checkbox label={t("Indent with spaces")} checked={s.insertSpaces} onChange={(v) => setSettings({ insertSpaces: v })} />
-      <Checkbox label={t("Wrap long lines")} checked={s.wordWrap} onChange={(v) => setSettings({ wordWrap: v })} />
-      <Checkbox label={t("Line numbers")} checked={s.lineNumbers} onChange={(v) => setSettings({ lineNumbers: v })} />
-      <Checkbox label={t("Close brackets and quotes automatically")} checked={s.autoCloseBrackets} onChange={(v) => setSettings({ autoCloseBrackets: v })} />
-      <h3 className="settings-heading">{t("Saving and running")}</h3>
-      <Toggle label={t("Save automatically")} description={t("A second after you stop typing.")} checked={s.autoSave} onChange={(v) => setSettings({ autoSave: v })} />
-      <Toggle label={t("Format when saving")} description={t("Java, HTML, CSS, JavaScript, JSON and Markdown with Prettier; C and C++ with clang-format.")} checked={s.formatOnSave} onChange={(v) => setSettings({ formatOnSave: v })} />
-      <Toggle
-        label={t("Keep unsaved changes when closing")}
-        description={t("Open files and unsaved text come back on the next start, without asking.")}
-        checked={s.hotExit}
-        onChange={(v) => setSettings({ hotExit: v })}
-      />
-      <Toggle label={t("Save all files before running")} checked={s.saveBeforeRun} onChange={(v) => setSettings({ saveBeforeRun: v })} />
-      <Toggle label={t("Reload the web preview on save")} checked={s.livePreview} onChange={(v) => setSettings({ livePreview: v })} />
-      <h3 className="settings-heading">{t("Terminal")}</h3>
-      <TerminalShellSetting />
-      <div className="field">
-        <span className="field-label">{t("Cursor")}</span>
-        <Segmented<Settings["terminalCursor"]>
-          label={t("Cursor")}
-          value={s.terminalCursor}
-          onChange={(terminalCursor) => setSettings({ terminalCursor })}
-          options={[
-            { value: "block", label: t("Block") },
-            { value: "bar", label: t("Vertical line") },
-            { value: "underline", label: t("Underscore") },
-          ]}
-        />
-      </div>
-      <Toggle label={t("Blinking cursor")} checked={s.terminalCursorBlink} onChange={(v) => setSettings({ terminalCursorBlink: v })} />
-      <h3 className="settings-heading">{t("Languages")}</h3>
-      <LanguageSettings />
-      <h3 className="settings-heading">{t("Java")}</h3>
-      <JavaServerSetting />
-      <div className="settings-row is-end">
-        <Select label={t("JDK")} value={jdkOptions.some((o) => o.value === s.jdkHome) ? s.jdkHome : ""} options={jdkOptions} onChange={(v) => setSettings({ jdkHome: v })} />
-        <Button iconBefore={FolderOpen} onClick={() => void chooseJdk()}>
-          {t("Other…")}
-        </Button>
-      </div>
-      {s.jdkHome && !jdks.some((j) => j.home === s.jdkHome) && <p className="dialog-text">{t("Using {0}", s.jdkHome)}</p>}
-      {!jdks.length && (
-        <SectionMessage appearance="warning" title={t("No JDK found")}>
-          {t("Install a JDK (for example Temurin from adoptium.net), then restart Logiq Studio, or choose its folder here.")}
-        </SectionMessage>
-      )}
-      <p className="dialog-text">{node ? t("JavaScript files run with Node.js {0}.", node.version) : t("JavaScript files run with Node.js, which wasn't found on this computer.")}</p>
-      <h3 className="settings-heading">{t("Updates")}</h3>
-      <UpdatesSetting />
-      <h3 className="settings-heading">{t("Settings file and log")}</h3>
-      <MaintenanceSetting />
-    </Modal>
-  );
-}
-
-function TerminalShellSetting() {
-  const shells = useTerminals((s) => s.shells);
-  const value = useStore((st) => st.settings.terminalShell);
-  useEffect(() => void loadShells(), []);
-  return (
-    <Select
-      label={t("Shell for new terminals")}
-      value={shells.some((x) => x.id === value) ? value : ""}
-      onChange={(v) => setSettings({ terminalShell: v })}
-      options={[{ value: "", label: shells[0] ? t("First found ({0})", shells[0].name) : t("None found") }, ...shells.map((x) => ({ value: x.id, label: x.name }))]}
-    />
-  );
-}
-
-/** Install or switch the Java language server (Eclipse JDT LS). */
-function JavaServerSetting() {
-  const state = useLsp((s) => s.java);
-  const on = useStore((st) => st.settings.javaServer);
-  const missing = state === "missing";
-  return (
-    <div className="lsp-setting">
-      <div className="lsp-setting-text">
-        <span className="field-label">{t("Java language server")}</span>
-        <span className="dialog-text">
-          {state === "ready"
-            ? t("Running: errors as you type, completion that knows types, quick fixes (Ctrl+.), organize imports.")
-            : state === "starting"
-              ? t("Starting… The first start indexes the JDK and takes a minute.")
-              : state === "installing"
-                ? t("Downloading and unpacking (about 50 MB)…")
-                : state === "failed"
-                  ? t("It stopped. It needs Java 21 or newer to run.")
-                  : missing
-                    ? t("Eclipse JDT LS gives errors as you type, completion that knows types and quick fixes. It is downloaded once (about 50 MB) from eclipse.org.")
-                    : t("Switched off. Java uses Logiq Studio's own completion and the compiler's errors.")}
-        </span>
-      </div>
-      {missing || state === "installing" ? (
-        <Button appearance="primary" loading={state === "installing"} onClick={() => void installJavaServer()}>
-          {t("Install")}
-        </Button>
-      ) : (
-        <Toggle
-          label={t("Use it")}
-          checked={on}
-          onChange={(v) => {
-            setSettings({ javaServer: v });
-            void startJavaServer();
-          }}
-        />
-      )}
-    </div>
   );
 }
 
