@@ -2,6 +2,13 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.3.0
+
+- **Set up languages from the app** (Help → Set up languages): for Java, JavaScript and TypeScript, Python, C and C++, PHP, Kotlin and Git it shows what each needs and whether it is installed. **Install** sets it up with winget in a terminal (where you answer its questions), and Logiq Studio notices when it is ready, without a restart. Every language also has its download page.
+- "No compiler was found" messages and the tool menus in the status bar lead straight there.
+- **Terminal cursor** (Settings → Terminal): a block, a vertical line or an underscore, blinking or not.
+- **Fixed**: when debugging started, a breakpoint near the beginning of a program could be passed over.
+
 ## 1.2.0
 
 - **Java problems while you write**: a moment after you stop typing (and after saving), your Java code is checked in the background with what is in the editors, saved or not. A mistake you fix is no longer marked, and a new one shows up, without pressing Run. Opening a folder shows its problems right away. (Maven and Gradle projects are still checked when you build.)
