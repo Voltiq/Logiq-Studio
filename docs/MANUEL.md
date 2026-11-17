@@ -58,6 +58,7 @@ Pour trouver une erreur, placez un point d'arrêt avec `F9` et lancez le débogu
 - Double-cliquez sur une classe ou un membre pour aller à son code.
 - Un clic droit sur une classe Java ajoute des attributs, des méthodes et des constructeurs, ou crée un objet de cette classe sur l'**établi d'objets**, sous le diagramme, pour appeler ses méthodes.
 - **Nouvelle classe** crée une classe à l'aide d'un assistant ; les outils d'héritage et d'association dessinent des liens qui sont écrits dans le code.
+- **Agrégation et composition** : faites un clic droit sur une association et choisissez s'il s'agit d'une agrégation (une partie qui peut exister seule, losange vide) ou d'une composition (une partie qui appartient à son tout, losange plein). Le choix vaut pour tout le projet et apparaît dans chaque diagramme et dans l'export PlantUML et Mermaid.
 - **Exporter** enregistre le diagramme en SVG, PNG, PlantUML ou Mermaid.
 
 Au clavier : `Tab` entre dans le diagramme, les flèches vont de classe en classe, `Entrée` ouvre le code et la touche Menu ouvre le menu de la classe.
@@ -67,6 +68,14 @@ Au clavier : `Tab` entre dans le diagramme, les flèches vont de classe en class
 **Fichier → Nouvelle fenêtre Swing…** crée une classe de fenêtre et l'ouvre dans le concepteur d'interfaces. Faites glisser des boutons, des étiquettes et des champs de texte depuis la gauche dans la fenêtre, déplacez-les et redimensionnez-les (ils s'alignent les uns sur les autres), et réglez leurs propriétés à droite.
 
 Pour indiquer ce que fait un bouton, double-cliquez dessus : une méthode comme `okButton_ActionPerformed` est écrite pour que vous la complétiez. Le concepteur n'écrit que le code situé entre les commentaires `// GUI-BEGIN` et `// GUI-END` ; le reste de la classe vous appartient, et ce que vous modifiez dans le code se voit dans le concepteur.
+
+## Diagrammes de Nassi-Shneiderman
+
+Un diagramme de Nassi-Shneiderman (structogramme) montre comment fonctionne une méthode : séquences, décisions, boucles et choix sous forme de boîtes imbriquées.
+
+- **À partir du code** : placez le curseur dans une méthode Java et choisissez **Affichage → Diagramme de Nassi-Shneiderman de cette méthode** (`Ctrl+Alt+N`). Il s'ouvre à côté du code et le suit pendant que vous écrivez.
+- **Sans code** : **Fichier → Nouveau diagramme de Nassi-Shneiderman** crée un fichier `.nsd`. Sélectionnez un bloc et ajoutez après lui des instructions, décisions, boucles, choix, appels et sorties ; double-cliquez sur un bloc pour modifier son texte, cliquez sur ∅ pour remplir une branche vide. **Modifier une copie** transforme un diagramme issu du code en un diagramme modifiable.
+- **Exporter** en PNG ou en SVG, ou le copier comme image.
 
 ## Git
 
@@ -80,7 +89,7 @@ Les lignes modifiées sont marquées sur le bord gauche de l'éditeur ; cliquez 
 
 ## Paramètres
 
-`Ctrl+,` ouvre les paramètres : thème (Graphite est sombre, Porcelaine clair), langue, taille du texte, enregistrement et mise en forme, l'interpréteur du terminal, les outils de chaque langage, le JDK et les mises à jour. **Exporter les paramètres…** les écrit dans un fichier que vous pouvez importer sur un autre ordinateur.
+`Ctrl+,` ouvre les paramètres : thème (Graphite est sombre, Porcelaine clair), langue, taille du texte, enregistrement et mise en forme, l'interpréteur du terminal, les outils de chaque langage, le JDK et les mises à jour. **Exporter les paramètres…** les écrit dans un fichier que vous pouvez importer sur un autre ordinateur. Choisissez une section à gauche ou recherchez un paramètre par son nom.
 
 ## En cas de problème
 

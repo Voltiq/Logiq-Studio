@@ -46,6 +46,7 @@ import {
   Archive,
   Tag,
   UserRound,
+  Rows3,
 } from "lucide-react";
 import { expandAbbreviation } from "@emmetio/codemirror6-plugin";
 import { findUsages, goToDefinition, renameSymbol } from "../editor/javaNav";
@@ -132,6 +133,7 @@ export const COMMANDS: Command[] = [
   { id: "file.newFile", label: "New file…", category: "File", icon: FilePlus, shortcut: "Ctrl+N", enabled: hasFolder, run: () => A.newFile(currentDir()) },
   { id: "file.newClass", label: "New Java class…", category: "File", icon: Code, enabled: hasFolder, run: () => openDialog({ kind: "classWizard", dir: currentDir() }) },
   { id: "file.newWindow", label: "New Swing window…", category: "File", icon: AppWindow, enabled: hasFolder, run: () => A.newSwingWindow(currentDir()) },
+  { id: "file.newNsd", label: "New Nassi–Shneiderman diagram…", category: "File", icon: Rows3, enabled: hasFolder, run: () => void import("../nsd/open").then((m) => m.newNsd(currentDir())) },
   {
     id: "view.designer",
     label: "Open in the GUI designer",
@@ -229,6 +231,7 @@ export const COMMANDS: Command[] = [
   { id: "view.zoomReset", label: "Reset editor text size", category: "View", shortcut: "Ctrl+0", run: () => zoom(0) },
 
   { id: "uml.open", label: "Show UML class diagram", category: "UML", icon: Network, shortcut: "Ctrl+Shift+U", enabled: hasFolder, run: () => void A.openUml() },
+  { id: "nsd.method", label: "Nassi–Shneiderman diagram of this method", category: "View", icon: Rows3, shortcut: "Ctrl+Alt+N", enabled: hasEditor, run: () => void import("../nsd/open").then((m) => m.nsdAtCursor()) },
   { id: "uml.side", label: "Show UML class diagram to the side", category: "UML", enabled: hasFolder, run: () => void A.openUml(1) },
   { id: "uml.layout", label: "Arrange UML diagram automatically", category: "UML", enabled: hasFolder, run: () => (activeTab()?.kind !== "uml" && A.openUml(), set((s) => ({ umlLayoutNonce: s.umlLayoutNonce + 1 }))) },
 

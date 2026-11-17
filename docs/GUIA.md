@@ -58,6 +58,7 @@ Para encontrar un error, pon un punto de interrupción con `F9` e inicia el depu
 - Haz doble clic en una clase o en un miembro para saltar a su código.
 - Haz clic derecho en una clase Java para añadir atributos, métodos y constructores, o para crear un objeto de ella en el **banco de objetos**, bajo el diagrama, y llamar a sus métodos.
 - **Nueva clase** crea una clase con un asistente; las herramientas de herencia y asociación dibujan enlaces que se escriben en el código.
+- **Agregación y composición**: haz clic derecho en una asociación y elige si es una agregación (una parte que puede existir por sí sola, rombo vacío) o una composición (una parte que pertenece a su todo, rombo relleno). La elección se guarda para el proyecto y aparece en cada diagrama y en la exportación a PlantUML y Mermaid.
 - **Exportar** guarda el diagrama como SVG, PNG, PlantUML o Mermaid.
 
 Con el teclado: `Tab` entra en el diagrama, las flechas van de clase en clase, `Intro` abre el código y la tecla de menú abre el menú de la clase.
@@ -67,6 +68,14 @@ Con el teclado: `Tab` entra en el diagrama, las flechas van de clase en clase, `
 **Archivo → Nueva ventana Swing…** crea una clase de ventana y la abre en el diseñador de interfaces. Arrastra botones, etiquetas y campos de texto desde la izquierda hasta la ventana, muévelos y cambia su tamaño (se ajustan unos a otros), y establece sus propiedades a la derecha.
 
 Para decir qué hace un botón, haz doble clic en él: se escribe un método como `okButton_ActionPerformed` para que lo rellenes. El diseñador solo escribe el código entre los comentarios `// GUI-BEGIN` y `// GUI-END`; el resto de la clase es tuyo, y lo que cambies en el código se ve en el diseñador.
+
+## Diagramas de Nassi-Shneiderman
+
+Un diagrama de Nassi-Shneiderman muestra cómo funciona un método: secuencias, decisiones, bucles y selecciones como cajas anidadas.
+
+- **A partir del código**: pon el cursor en un método de Java y elige **Ver → Diagrama de Nassi-Shneiderman de este método** (`Ctrl+Alt+N`). Se abre junto al código y lo sigue mientras escribes.
+- **Sin código**: **Archivo → Nuevo diagrama de Nassi-Shneiderman** crea un archivo `.nsd`. Selecciona un bloque y añade después instrucciones, decisiones, bucles, selecciones, llamadas y salidas; haz doble clic en un bloque para cambiar su texto y en ∅ para llenar una rama vacía. **Editar una copia** convierte un diagrama hecho a partir del código en uno que puedes cambiar.
+- **Exportar** como PNG o SVG, o copiarlo como imagen.
 
 ## Git
 
@@ -80,7 +89,7 @@ Las líneas cambiadas se marcan en el borde izquierdo del editor; pulsa una marc
 
 ## Ajustes
 
-`Ctrl+,` abre los ajustes: tema (Grafito es oscuro, Porcelana claro), idioma, tamaño del texto, guardado y formato, el intérprete del terminal, las herramientas de cada lenguaje, el JDK y las actualizaciones. **Exportar ajustes…** los escribe en un archivo que puedes importar en otro equipo.
+`Ctrl+,` abre los ajustes: tema (Grafito es oscuro, Porcelana claro), idioma, tamaño del texto, guardado y formato, el intérprete del terminal, las herramientas de cada lenguaje, el JDK y las actualizaciones. **Exportar ajustes…** los escribe en un archivo que puedes importar en otro equipo. Elige una sección a la izquierda o busca un ajuste por su nombre.
 
 ## Cuando algo va mal
 

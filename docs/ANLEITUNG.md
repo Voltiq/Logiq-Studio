@@ -58,6 +58,7 @@ Um einen Fehler zu finden, setze mit `F9` einen Haltepunkt und starte den Debugg
 - Ein Doppelklick auf eine Klasse oder ein Element springt zum Code.
 - Ein Rechtsklick auf eine Java-Klasse fügt Attribute, Methoden und Konstruktoren hinzu oder erzeugt ein Objekt davon auf der **Objektbank** unter dem Diagramm, dessen Methoden du aufrufen kannst.
 - **Neue Klasse** legt eine Klasse mit einem Assistenten an; die Werkzeuge für Vererbung und Assoziation zeichnen Verbindungen, die in den Code geschrieben werden.
+- **Aggregation und Komposition**: Klicke mit der rechten Maustaste auf eine Assoziation und wähle, ob sie eine Aggregation (ein Teil, das auch allein bestehen kann, leere Raute) oder eine Komposition (ein Teil, das seinem Ganzen gehört, gefüllte Raute) ist. Die Wahl gilt für das ganze Projekt und erscheint in jedem Diagramm und im Export als PlantUML und Mermaid.
 - **Exportieren** speichert das Diagramm als SVG, PNG, PlantUML oder Mermaid.
 
 Mit der Tastatur: `Tab` führt ins Diagramm, die Pfeiltasten gehen von Klasse zu Klasse, `Enter` öffnet den Code, und die Menütaste öffnet das Menü der Klasse.
@@ -67,6 +68,14 @@ Mit der Tastatur: `Tab` führt ins Diagramm, die Pfeiltasten gehen von Klasse zu
 **Datei → Neues Swing-Fenster…** legt eine Fensterklasse an und öffnet sie im GUI-Designer. Zieh Buttons, Labels und Textfelder von links ins Fenster, verschiebe sie und ändere ihre Größe (sie rasten aneinander ein) und stelle rechts ihre Eigenschaften ein.
 
 Um festzulegen, was ein Button tut, klick ihn doppelt an: Eine Methode wie `okButton_ActionPerformed` wird für dich geschrieben, die du ausfüllst. Der Designer schreibt nur den Code zwischen den Kommentaren `// GUI-BEGIN` und `// GUI-END`; der Rest der Klasse gehört dir, und was du im Code änderst, zeigt sich im Designer.
+
+## Struktogramme
+
+Ein Struktogramm (Nassi-Shneiderman-Diagramm) zeigt, wie eine Methode arbeitet: Folgen, Verzweigungen, Schleifen und Mehrfachauswahlen als ineinander liegende Kästen.
+
+- **Aus Code**: Setze den Cursor in eine Java-Methode und wähle **Ansicht → Struktogramm dieser Methode** (`Strg+Alt+N`). Es öffnet sich neben dem Code und folgt ihm beim Schreiben.
+- **Ohne Code**: **Datei → Neues Struktogramm** legt eine `.nsd`-Datei an. Wähle einen Block und füge danach Anweisungen, Verzweigungen, Schleifen, Mehrfachauswahlen, Aufrufe und Aussprünge ein; doppelklicke einen Block, um seinen Text zu ändern, klicke auf ∅, um einen leeren Zweig zu füllen. **Kopie bearbeiten** macht aus einem Struktogramm aus Code eines, das du ändern kannst.
+- **Exportieren** als PNG oder SVG, oder als Bild kopieren.
 
 ## Git
 
@@ -80,7 +89,7 @@ Geänderte Zeilen sind am linken Rand des Editors markiert; ein Klick auf eine M
 
 ## Einstellungen
 
-`Strg+,` öffnet die Einstellungen: Design (Graphit ist dunkel, Porzellan hell), Sprache, Textgröße, Speichern und Formatieren, die Shell des Terminals, die Werkzeuge jeder Sprache, das JDK und Updates. **Einstellungen exportieren…** schreibt sie in eine Datei, die du auf einem anderen Computer importieren kannst.
+`Strg+,` öffnet die Einstellungen: Design (Graphit ist dunkel, Porzellan hell), Sprache, Textgröße, Speichern und Formatieren, die Shell des Terminals, die Werkzeuge jeder Sprache, das JDK und Updates. **Einstellungen exportieren…** schreibt sie in eine Datei, die du auf einem anderen Computer importieren kannst. Wähle links einen Bereich oder suche eine Einstellung nach ihrem Namen.
 
 ## Wenn etwas schiefgeht
 

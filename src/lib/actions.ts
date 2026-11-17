@@ -379,6 +379,11 @@ export async function openFile(path: string, at?: { line: number; col?: number; 
     openDiagram(path, group);
     return;
   }
+  if (extname(path) === "nsd") {
+    const { openNsdFile } = await import("../nsd/open");
+    await openNsdFile(path, group);
+    return;
+  }
   // A diff of the file carries its path too; only an editor (or image) tab is the file.
   const existing = get().tabs.find((t) => (t.kind === "file" || t.kind === "image") && t.path && samePath(t.path, path));
   if (existing) {
@@ -1248,6 +1253,13 @@ async function restoreSession(): Promise<boolean> {
     await openFolder(session.root);
     for (const tab of session.tabs) {
       if (tab.kind === "diff" || tab.kind === "sequence") continue;
+      if (tab.kind === "nsd") {
+        const { openNsdFile, openNsdOfMethod, parseNsdId } = await import("../nsd/open");
+        const src = parseNsdId(tab.id);
+        if (src && "file" in src && (await api.exists(src.file).catch(() => false))) await openNsdFile(src.file, tab.group);
+        else if (src && "code" in src && (await api.exists(src.code).catch(() => false))) await openNsdOfMethod(src.code, src.signature, tab.group);
+        continue;
+      }
       if (tab.kind === "gui") {
         if (tab.path && (await api.exists(tab.path).catch(() => false))) await openDesigner(tab.path, tab.group);
         continue;

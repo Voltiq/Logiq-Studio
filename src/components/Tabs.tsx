@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { AppWindow, ClipboardCopy, Columns2, FolderOpen, GitCompare, ListVideo, Network, Pin, PinOff, X } from "lucide-react";
+import { AppWindow, ClipboardCopy, Columns2, FolderOpen, GitCompare, ListVideo, Network, Pin, PinOff, Rows3, X } from "lucide-react";
 import { get, openMenu, useStore, type Group, type Tab } from "../lib/store";
 import * as A from "../lib/actions";
 import { FileIcon } from "./FileIcon";
@@ -144,7 +144,7 @@ export function Tabs({ group }: { group: Group }) {
             endEditorDrag();
           }}
         >
-          {tab.kind === "uml" ? <Network size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "sequence" ? <ListVideo size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "diff" ? <GitCompare size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "gui" ? <AppWindow size={15} className="tab-uml-icon" aria-hidden="true" /> : <FileIcon name={tab.title} />}
+          {tab.kind === "uml" ? <Network size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "sequence" ? <ListVideo size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "diff" ? <GitCompare size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "gui" ? <AppWindow size={15} className="tab-uml-icon" aria-hidden="true" /> : tab.kind === "nsd" ? <Rows3 size={15} className="tab-uml-icon" aria-hidden="true" /> : <FileIcon name={tab.title} />}
           <span className="tab-title">{tab.title}</span>
           {tab.pinned ? (
             <button

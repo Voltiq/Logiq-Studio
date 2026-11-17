@@ -58,6 +58,7 @@ To find a mistake, set a breakpoint with `F9` and start the debugger with `F6`: 
 - Double-click a class or a member to jump to its code.
 - Right-click a Java class to add attributes, methods and constructors, or to create an object of it on the **object bench** below the diagram and call its methods.
 - **New class** creates a class with a wizard; the inheritance and association tools draw links that are written into the code.
+- **Aggregation and composition**: right-click an association and choose whether it is an aggregation (a part that can exist on its own, hollow diamond) or a composition (a part owned by its whole, filled diamond). The choice is kept for the project and shows in every diagram and in the PlantUML and Mermaid export.
 - **Export** saves the diagram as SVG, PNG, PlantUML or Mermaid.
 
 With the keyboard: `Tab` moves into the diagram, the arrow keys go from class to class, `Enter` opens the code, and the menu key opens the class's menu.
@@ -67,6 +68,14 @@ With the keyboard: `Tab` moves into the diagram, the arrow keys go from class to
 **File → New Swing window** creates a window class and opens it in the GUI designer. Drag buttons, labels and text fields from the left into the window, move and resize them (they snap to each other), and set their properties on the right.
 
 To say what a button does, double-click it: a method like `okButton_ActionPerformed` is written for you to fill in. The designer writes only the code between the `// GUI-BEGIN` and `// GUI-END` comments; the rest of the class is yours, and what you change in the code shows in the designer.
+
+## Nassi–Shneiderman diagrams
+
+A Nassi–Shneiderman diagram (structogram) shows how a method works: sequences, decisions, loops and choices as nested boxes.
+
+- **From code**: put the cursor in a Java method and choose **View → Nassi–Shneiderman diagram of this method** (`Ctrl+Alt+N`). It opens beside the code and follows it as you type.
+- **Without code**: **File → New Nassi–Shneiderman diagram** creates a `.nsd` file. Select a block and add statements, decisions, loops, choices, calls and exits after it; double-click a block to change its text, click ∅ to fill an empty branch. **Edit a copy** turns a diagram made from code into one you can change.
+- **Export** as PNG or SVG, or copy it as an image.
 
 ## Git
 
@@ -80,7 +89,7 @@ Changed lines are marked at the left edge of the editor; click a mark to see the
 
 ## Settings
 
-`Ctrl+,` opens the settings: theme (Graphite is dark, Porcelain light), language, text size, saving and formatting, the terminal's shell, the tools for each language, the JDK, and updates. **Export settings** writes them to a file you can import on another computer.
+`Ctrl+,` opens the settings: theme (Graphite is dark, Porcelain light), language, text size, saving and formatting, the terminal's shell, the tools for each language, the JDK, and updates. **Export settings** writes them to a file you can import on another computer. Choose a section on the left, or search for a setting by name.
 
 ## When something goes wrong
 
