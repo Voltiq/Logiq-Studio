@@ -2,6 +2,16 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.1.1
+
+A visual polish release.
+
+- **Corners that fit**: every panel has the same rounded corners, and what sits in a corner (tabs, the panel's tab switcher, the drop preview, the class diagram, the web preview) follows its curve.
+- **Nothing cut off**: menus taller than the window scroll; search results keep the match in view; when the tabs don't fit, the active one is scrolled into view and the edges fade; long variable names and values in the debugger end in an ellipsis; the warning marker next to a line is whole again.
+- **Top bar**: the menus and buttons no longer slide under the search field in a small window.
+- **Debugger**: the call stack shows each method with its file name.
+- **Contrast**: red badges and buttons, and in the light theme hint text, success messages and error counts, are easier to read.
+
 ## 1.1.0
 
 - **Drag files into a split view**: drag a file from the explorer, or a tab, onto the editor. A preview shows where it will land before you let go: in this editor, or (over the right part) in a new editor at the side. Files dropped on the tab bar open at that place among the tabs. Dropping a file on the code now opens it instead of typing its path in.
