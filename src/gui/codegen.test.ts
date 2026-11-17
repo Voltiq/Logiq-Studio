@@ -130,6 +130,7 @@ if (!javac) {
   }
 }
 
+// javac's first start on a cold machine (a CI runner) takes several seconds: these tests get a minute.
 describe.skipIf(!javac)("with the real javac", () => {
   it("compiles the Swing window template, its button already answering", () => {
     const src = swingTemplate();
@@ -145,7 +146,7 @@ describe.skipIf(!javac)("with the real javac", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
   it("compiles a window with every component, event and property", () => {
     const src = withComponents(newWindowSource("Everything", "", "All", TEXTS), (p) => {
@@ -176,5 +177,5 @@ describe.skipIf(!javac)("with the real javac", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 });

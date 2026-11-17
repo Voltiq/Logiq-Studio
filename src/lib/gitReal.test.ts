@@ -3,12 +3,15 @@
  * blame, against a real repository in a temporary folder, read with the
  * app's own parsers. Skipped when git isn't installed.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseBlame, parseConflicts, parseStashes, parseStatus, parseTags, resolveConflict, STASH_FORMAT, TAG_FORMAT, isConflict } from "./gitParse";
+
+// Each test runs git several times; a cold CI runner needs more than the default 5 seconds.
+vi.setConfig({ testTimeout: 60_000 });
 
 let hasGit = true;
 try {
