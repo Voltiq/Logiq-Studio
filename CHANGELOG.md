@@ -2,6 +2,13 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.2.0
+
+- **Java problems while you write**: a moment after you stop typing (and after saving), your Java code is checked in the background with what is in the editors, saved or not. A mistake you fix is no longer marked, and a new one shows up, without pressing Run. Opening a folder shows its problems right away. (Maven and Gradle projects are still checked when you build.)
+- **The message next to the line**: a line with a problem says what is wrong after its code, so you don't have to point at the underline; "cannot find symbol" says which name it is.
+- **No false syntax errors**: once the compiler has accepted the code, the quick syntax check no longer marks newer Java that it doesn't know.
+- **New classes appear in the diagram**: classes you add while writing are brought into view in the class diagram, without opening it again.
+
 ## 1.1.1
 
 A visual polish release.
