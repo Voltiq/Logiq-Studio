@@ -3,7 +3,7 @@ import { CaseSensitive, ChevronRight, Regex, Search, WholeWord, X } from "lucide
 import { api, errorText } from "../lib/api";
 import { useStore } from "../lib/store";
 import { openFile } from "../lib/actions";
-import { basename, dirname, relative } from "../lib/paths";
+import { basename, dirname, relative, samePath } from "../lib/paths";
 import type { SearchHit, SearchResult } from "../lib/types";
 import { IconButton } from "./ui/Button";
 import { Spinner } from "./ui/Feedback";
@@ -120,17 +120,20 @@ export function SearchPanel() {
               </span>
               <FileIcon name={path} />
               <span className="search-file-name">{basename(path)}</span>
-              <span className="search-file-dir">{root ? relative(root, dirname(path)) : ""}</span>
+              <span className="search-file-dir">{root && !samePath(root, dirname(path)) ? relative(root, dirname(path)) : ""}</span>
               <span className="badge">{hits.length}</span>
             </button>
             {!collapsed[path] &&
               hits.slice(0, 200).map((h, i) => {
                 const at = h.column - h.previewStart;
+                // A match late in a long line stays in view: only a little of what comes before it is kept.
+                const before = h.preview.slice(0, Math.max(0, at)).trimStart();
+                const lead = before.length > 12 ? "…" + before.slice(-10) : before;
                 return (
                   <button key={i} type="button" className="search-hit" onClick={() => void openFile(h.path, { line: h.line, col: h.column + 1, length: h.length })}>
                     <span className="search-hit-line">{h.line}</span>
                     <span className="search-hit-text">
-                      {h.preview.slice(0, Math.max(0, at)).trimStart()}
+                      {lead}
                       <mark>{h.preview.slice(at, at + h.length)}</mark>
                       {h.preview.slice(at + h.length)}
                     </span>

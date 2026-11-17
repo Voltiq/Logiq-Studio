@@ -185,8 +185,9 @@ export const graphiqTheme = EditorView.theme({
     textUnderlineOffset: "3px",
   },
   ".cm-lint-marker": { width: "0.9em", height: "0.9em" },
-  ".cm-gutter-lint": { width: "1.1em" },
-  ".cm-gutter-lint .cm-gutterElement": { padding: "0 0 0 6px" },
+  // The marker whole and centred on its line (it was pushed partly out of its column).
+  ".cm-gutter-lint": { width: "1.3em" },
+  ".cm-gutter-lint .cm-gutterElement": { padding: "0 2px", display: "flex", alignItems: "center", justifyContent: "center" },
 });
 
 export const graphiqHighlight = syntaxHighlighting(

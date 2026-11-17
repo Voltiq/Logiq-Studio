@@ -10,7 +10,8 @@
   background:
     linear-gradient(var(--fill), var(--fill)) padding-box,
     linear-gradient(180deg, var(--shine-top), var(--shine-bot)) border-box;
-  border-radius: var(--r-xl);
+  /* Every panel the same; controls in its corners keep concentric with it (radius less their inset). */
+  border-radius: var(--r-lg);
   box-shadow: var(--sh-2), var(--inset-hi);
 }
 
@@ -108,7 +109,7 @@
 }
 
 .titlebar-sep {
-  opacity: 0.5;
+  color: var(--text-subtlest);
 }
 
 .titlebar-dirty {
@@ -831,13 +832,28 @@ button.outline-row:hover {
   align-items: center;
   gap: 4px;
   flex: none;
-  padding: 8px 8px 0;
+  padding: 6px 6px 0;
   overflow-x: auto;
+  /* A tab brought into view clears the faded edge. */
+  scroll-padding-inline: 32px;
   scrollbar-width: none;
 }
 
 .tabs::-webkit-scrollbar {
   display: none;
+}
+
+/* More tabs beyond an edge: that edge fades out instead of cutting a tab off. */
+.tabs.has-more-start {
+  mask-image: linear-gradient(to right, transparent, #000 32px);
+}
+
+.tabs.has-more-end {
+  mask-image: linear-gradient(to left, transparent, #000 32px);
+}
+
+.tabs.has-more-start.has-more-end {
+  mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
 }
 
 .tab {
@@ -848,7 +864,8 @@ button.outline-row:hover {
   height: 2rem;
   max-width: 15rem;
   padding: 0 4px 0 10px;
-  border-radius: 10px;
+  /* Concentric with the editor panel's corner, 7px away (the strip's padding and the border). */
+  border-radius: calc(var(--r-lg) - 7px);
   color: var(--text-subtle);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
@@ -887,7 +904,8 @@ button.outline-row:hover {
   height: 1.375rem;
   padding: 0;
   border: 0;
-  border-radius: 7px;
+  /* Concentric with the tab around it (9px, 4px in). */
+  border-radius: 5px;
   background: transparent;
   color: var(--icon-subtle);
 }
@@ -1079,7 +1097,7 @@ button.outline-row:hover {
   display: grid;
   place-items: center;
   overflow: auto;
-  border-radius: 16px;
+  border-radius: var(--r-in-panel);
   background-color: var(--bg-2);
   background-image:
     linear-gradient(45deg, var(--wash) 25%, transparent 25%, transparent 75%, var(--wash) 75%),
@@ -1321,6 +1339,15 @@ button.outline-row:hover {
   padding: 6px var(--space-100) 4px 6px;
 }
 
+/* In the panel's corner, 7px in: concentric with it. */
+.bottom-head .segmented {
+  border-radius: calc(var(--r-lg) - 7px);
+}
+
+.bottom-head .segment {
+  border-radius: calc(var(--r-lg) - 10px);
+}
+
 .bottom-head .segment .badge {
   margin-left: 2px;
 }
@@ -1399,7 +1426,8 @@ button.outline-row:hover {
   height: 2.125rem;
   padding: 0 4px 0 10px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  /* In the panel's bottom corners, 7px in. */
+  border-radius: calc(var(--r-lg) - 7px);
   background: var(--surface-2);
   box-shadow: var(--inset-lo);
   transition:
@@ -1540,7 +1568,7 @@ button.outline-row:hover {
   flex: 1;
   min-height: 0;
   margin: 0 8px 8px;
-  border-radius: 16px;
+  border-radius: var(--r-in-panel);
   background-color: var(--bg-2);
   background-image: radial-gradient(var(--wash-2) 1px, transparent 1.5px);
   background-size: 18px 18px;
@@ -1553,7 +1581,7 @@ button.outline-row:hover {
   min-width: 0;
   height: 100%;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-in-panel);
   background: #fff;
 }
 
@@ -1649,7 +1677,7 @@ button.status-item:hover {
   min-height: 0;
   margin: 8px;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: var(--r-in-panel);
   background-color: var(--bg-2);
   background-image: radial-gradient(var(--wash-2) 1px, transparent 1.5px);
   background-size: 18px 18px;
@@ -2212,7 +2240,7 @@ button.status-item:hover {
   flex: none;
   max-height: 46%;
   margin: 0 8px 8px;
-  border-radius: 14px;
+  border-radius: var(--r-in-panel);
   background: var(--surface-2);
   box-shadow: var(--inset-hi), var(--sh-1);
   overflow: hidden;
@@ -3017,7 +3045,8 @@ button.status-item:hover {
   content: "";
   position: absolute;
   inset: 6px;
-  border-radius: var(--r-md);
+  /* Concentric with the editor panel it lies in: its radius less the inset. */
+  border-radius: calc(var(--r-lg) - 6px);
   border: 1.5px solid var(--accent-line);
   background:
     radial-gradient(120% 80% at 50% 50%, color-mix(in oklab, var(--accent) 16%, transparent), color-mix(in oklab, var(--accent) 7%, transparent));

@@ -1,4 +1,4 @@
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { AppWindow, ClipboardCopy, Columns2, FolderOpen, GitCompare, ListVideo, Network, Pin, PinOff, X } from "lucide-react";
 import { get, openMenu, useStore, type Group, type Tab } from "../lib/store";
 import * as A from "../lib/actions";
@@ -43,11 +43,33 @@ export function Tabs({ group }: { group: Group }) {
   const tabs = all.filter((x) => x.group === group);
   const strip = useRef<HTMLDivElement>(null);
   const [dropBefore, setDropBefore] = useState<string | null | undefined>(undefined);
+  // When the tabs don't all fit: which ends have more beyond them (those edges fade out).
+  const [more, setMore] = useState({ start: false, end: false });
+  const measure = () => {
+    const el = strip.current;
+    if (!el) return;
+    const start = el.scrollLeft > 1;
+    const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setMore((m) => (m.start === start && m.end === end ? m : { start, end }));
+  };
+  useEffect(() => {
+    const el = strip.current;
+    if (!el) return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // The active tab is kept in view.
+  useEffect(() => {
+    strip.current?.querySelector<HTMLElement>(".tab.is-on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    measure();
+  }, [activeId, tabs.length]);
 
   return (
     <div
       ref={strip}
-      className={cx("tabs", focused && "is-focused", dropBefore === null && "is-drop-end")}
+      className={cx("tabs", focused && "is-focused", dropBefore === null && "is-drop-end", more.start && "has-more-start", more.end && "has-more-end")}
+      onScroll={measure}
       role="tablist"
       aria-label={t("Open files")}
       onWheel={(e) => {

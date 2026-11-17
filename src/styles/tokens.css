@@ -148,9 +148,9 @@
   --bg-brand-bold-pressed: var(--accent-lo);
   --bg-danger: color-mix(in oklab, var(--danger) 13%, transparent);
   --bg-danger-hovered: color-mix(in oklab, var(--danger) 20%, transparent);
-  --bg-danger-bold: #e5484d;
-  --bg-danger-bold-hovered: #ef5a5f;
-  --bg-danger-bold-pressed: #c1323a;
+  --bg-danger-bold: #d13438;
+  --bg-danger-bold-hovered: #dc3e42;
+  --bg-danger-bold-pressed: #b52d32;
   --bg-warning: color-mix(in oklab, var(--warning) 13%, transparent);
   --bg-warning-bold: #f5b740;
   --bg-warning-bold-hovered: #f7c25c;
@@ -205,6 +205,8 @@
   --r-md: 12px;
   --r-lg: 16px;
   --r-xl: 22px;
+  /* An area set into a panel, 9px from its edge (8px margin and the border): concentric with its corners. */
+  --r-in-panel: calc(var(--r-lg) - 9px);
 
   /* Spacing (4px base, 8px rhythm) */
   --space-025: 0.125rem;
@@ -260,7 +262,7 @@
   --surface-4: #e2e5ea;
   --text-1: #111318;
   --text-2: #4a505e;
-  --text-3: #646b79;
+  --text-3: #5f6573;
   --line: rgba(17, 19, 24, 0.08);
   --line-2: rgba(17, 19, 24, 0.14);
   --shine-top: rgba(255, 255, 255, 1);
@@ -276,7 +278,7 @@
 
   --accent-text: var(--accent-lo);
 
-  --success: #0b7a47;
+  --success: #08703f;
   --warning: #9a5f00;
   --danger: #d9363e;
   --info: #2563eb;
@@ -290,6 +292,7 @@
   --icon-disabled: rgba(17, 19, 24, 0.32);
   /* Red text on the light surfaces: darker than the red of fills, for 4.5:1 contrast. */
   --text-danger: #b8202c;
+  --lozenge-danger-text: var(--text-danger);
   --text-warning-inverse: #1b1406;
 
   --accent-yellow: #b38600;

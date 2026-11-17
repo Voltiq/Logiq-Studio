@@ -45,16 +45,18 @@ export function Menu({ request, onClose }: { request: MenuRequest; onClose: () =
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    const { width } = el.getBoundingClientRect();
+    // A menu taller than the window scrolls (the stylesheet caps it); place it by the height it shows.
+    const height = Math.min(el.getBoundingClientRect().height, vh - 16);
     let left: number;
     let top: number;
     if (request.anchor) {
       const r = request.anchor.getBoundingClientRect();
       left = request.align === "end" ? r.right - width : r.left;
       top = r.bottom + 4;
-      if (top + height > vh - 8) top = r.top - height - 4;
+      if (top + height > vh - 8) top = r.top - height - 4 >= 8 ? r.top - height - 4 : Math.max(8, vh - height - 8);
     } else {
       left = request.x ?? 0;
       top = request.y ?? 0;
@@ -67,6 +69,11 @@ export function Menu({ request, onClose }: { request: MenuRequest; onClose: () =
     });
     el.focus();
   }, [request]);
+
+  // The item chosen with the keyboard stays in view in a menu that scrolls.
+  useEffect(() => {
+    ref.current?.querySelector(".menu-item.is-active")?.scrollIntoView({ block: "nearest" });
+  }, [active]);
 
   useEffect(() => {
     const onDown = (e: PointerEvent) => {
