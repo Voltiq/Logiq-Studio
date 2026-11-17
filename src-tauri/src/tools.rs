@@ -289,7 +289,7 @@ mod tests {
         std::fs::create_dir_all(dir.join("out")).unwrap();
         std::fs::write(dir.join("Hello.java"), "/** Says hello. */\npublic class Hello {\n    /** Starts. @param args unused */\n    public static void main(String[] args) { System.out.println(\"hi\"); }\n}\n").unwrap();
         let javac = Path::new(&jdk.home).join("bin").join(if cfg!(windows) { "javac.exe" } else { "javac" });
-        assert!(Command::new(javac).arg("-d").arg(dir.join("out")).arg(dir.join("Hello.java")).status().unwrap().success());
+        assert!(Command::new(javac).args(["-encoding", "UTF-8", "-d"]).arg(dir.join("out")).arg(dir.join("Hello.java")).status().unwrap().success());
         let root = dir.to_string_lossy().to_string();
         let jar = dir.join("dist").join("hello.jar");
         std::fs::create_dir_all(jar.parent().unwrap()).unwrap();

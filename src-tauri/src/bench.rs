@@ -166,7 +166,7 @@ mod tests {
         )
         .unwrap();
         let javac = Path::new(&jdk.home).join("bin").join(if cfg!(windows) { "javac.exe" } else { "javac" });
-        let ok = Command::new(&javac).arg("-d").arg(&dir).arg(dir.join("LogiqBench.java")).arg(dir.join("Counter.java")).status().unwrap();
+        let ok = Command::new(&javac).args(["-encoding", "UTF-8", "-d"]).arg(&dir).arg(dir.join("LogiqBench.java")).arg(dir.join("Counter.java")).status().unwrap();
         assert!(ok.success());
         let java = Path::new(&jdk.home).join("bin").join(if cfg!(windows) { "java.exe" } else { "java" });
         let mut child = Command::new(java)

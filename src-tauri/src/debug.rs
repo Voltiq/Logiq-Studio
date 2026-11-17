@@ -178,7 +178,7 @@ mod tests {
         )
         .unwrap();
         assert!(Command::new(bin("javac")).args(["-g", "-encoding", "UTF-8", "-d"]).arg(dir.join("out")).arg(dir.join("Main.java")).status().unwrap().success());
-        assert!(Command::new(bin("javac")).arg("-d").arg(&dir).arg(dir.join("LogiqDebug.java")).status().unwrap().success());
+        assert!(Command::new(bin("javac")).args(["-encoding", "UTF-8", "-d"]).arg(&dir).arg(dir.join("LogiqDebug.java")).status().unwrap().success());
 
         let start = |trace: bool, bps: &str| {
             let mut child = Command::new(bin("java"))
