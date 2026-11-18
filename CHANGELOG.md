@@ -2,6 +2,10 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.9.0
+
+- **Layout managers** in the GUI designer: a panel, or the window itself, can lay out what is in it with a **FlowLayout** (rows), **GridLayout** (cells of the same size) or **BorderLayout** (top, bottom, sides and centre), chosen on the right. The designer draws it as Swing will; dragging a component changes its place in the order or its region, and switching layouts keeps everything where it was.
+
 ## 1.8.0
 
 - **Components inside panels** in the GUI designer: drop or draw a component onto a panel and it goes inside it, panels inside panels too. Moving a panel takes what is inside along; drag a component onto another panel or out into the window, or choose **Placed in** on the right, to put it somewhere else. Deleting, copying and duplicating a panel include its contents, and the code adds each component to its panel.
