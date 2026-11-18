@@ -31,3 +31,17 @@ describe("settings as a file", () => {
     expect(() => settingsFromFile('{"name":"package"}')).toThrow("settings file");
   });
 });
+
+describe("snippets in a settings file", () => {
+  it("are taken when they have every part", () => {
+    const text = JSON.stringify({
+      file: "Logiq Studio settings",
+      version: "1.6.0",
+      settings: { snippets: [{ id: "a", lang: "java", words: "hi", description: "d", body: "x" }, { lang: "python", words: "p", body: "print()" }, { lang: "java", words: 3, body: "x" }, "nonsense"] },
+    });
+    const { settings } = settingsFromFile(text);
+    expect(settings.snippets!.map((s) => s.words)).toEqual(["hi", "p"]);
+    expect(settings.snippets![1].id).toMatch(/^imported-/);
+    expect(settings.snippets![1].description).toBe("");
+  });
+});

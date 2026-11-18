@@ -55,6 +55,15 @@ export function settingsFromFile(text: string): { settings: Partial<Settings>; t
       out.uml = { ...DEFAULT_UML_OPTIONS, ...uml };
       continue;
     }
+    if (key === "snippets") {
+      // Only snippets with every part, as text; the id is made anew where one is missing.
+      const str = (x: unknown) => typeof x === "string";
+      out.snippets = (v as unknown[])
+        .filter((x): x is Record<string, unknown> => !!x && typeof x === "object")
+        .filter((x) => str(x.lang) && str(x.words) && str(x.body) && (x.description === undefined || str(x.description)))
+        .map((x, i) => ({ id: str(x.id) && x.id ? (x.id as string) : `imported-${Date.now()}-${i}`, lang: x.lang as string, words: x.words as string, description: (x.description as string) ?? "", body: x.body as string }));
+      continue;
+    }
     const limit = LIMITS[key];
     if (limit && (typeof v !== "number" || !Number.isFinite(v) || v < limit[0] || v > limit[1])) {
       ignored.push(k);

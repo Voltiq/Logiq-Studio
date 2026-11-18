@@ -12,7 +12,7 @@ import { cx } from "../lib/utils";
 import { t } from "../lib/i18n";
 import { fuzzy } from "../lib/fuzzy";
 import { activeView } from "../editor/docs";
-import { SNIPPETS, insertSnippet, snippetSetAt } from "../editor/snippets";
+import { describe, insertSnippet, snippetSetAt, snippetsFor } from "../editor/snippets";
 
 export { fuzzy };
 
@@ -57,11 +57,11 @@ export function Palette() {
       const view = activeView();
       const set = view && snippetSetAt(view.state, view.state.selection.main.head);
       if (!view || !set) return [];
-      return SNIPPETS[set]
-        .map((sn) => ({ sn, score: fuzzy(q, `${sn.prefixes.join(" ")} ${t(sn.d)}`) }))
+      return snippetsFor(set)
+        .map((sn) => ({ sn, score: fuzzy(q, `${sn.prefixes.join(" ")} ${describe(sn)}`) }))
         .filter((x) => x.score !== null)
         .sort((a, b) => (q ? b.score! - a.score! : 0))
-        .map(({ sn }) => ({ key: sn.prefixes[0], label: sn.prefixes.join(", "), detail: t(sn.d), run: () => insertSnippet(view, sn) }));
+        .map(({ sn }) => ({ key: sn.prefixes[0], label: sn.prefixes.join(", "), detail: describe(sn), run: () => insertSnippet(view, sn) }));
     }
     if (mode === "commands") {
       return COMMANDS.filter((c) => !c.enabled || c.enabled())

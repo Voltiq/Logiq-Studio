@@ -116,3 +116,57 @@ describe("completion sources", () => {
     a.forEach((f, i) => expect(f).toBe(b[i]));
   });
 });
+
+describe("your own snippets", () => {
+  const own = (lang: string, words: string, body: string) => ({ id: words, lang, words, description: "mine", body });
+
+  it("come with the built-in ones and win a word both use", async () => {
+    const { snippetsFor } = await import("./snippets");
+    const list = snippetsFor("java", [own("java", "sout hello", 'System.out.println("Hello, ${name}!");')]);
+    const mine = list.find((s) => s.own)!;
+    expect(mine.prefixes).toEqual(["sout", "hello"]);
+    // The built-in print line keeps its other words.
+    expect(list.find((s) => !s.own && s.prefixes.includes("sysout"))!.prefixes).toEqual(["sysout", "syso"]);
+    expect(list.length).toBe(SNIPPETS.java.length + 1);
+  });
+
+  it("are expanded like the built-in ones", async () => {
+    const { setSettings } = await import("../lib/store");
+    setSettings({ snippets: [own("java", "hello", 'System.out.println("Hello, ${name}!");')] });
+    try {
+      expect(expand("java", "class A { void f() { hello| } }")).toContain('System.out.println("Hello, name!");');
+    } finally {
+      setSettings({ snippets: [] });
+    }
+  });
+
+  it("for JavaScript work in TypeScript, and for C in C++", async () => {
+    const { snippetsFor } = await import("./snippets");
+    expect(snippetsFor("typescript", [own("javascript", "yo", "x")]).some((s) => s.own)).toBe(true);
+    expect(snippetsFor("cpp", [own("c", "yo", "x")]).some((s) => s.own)).toBe(true);
+    expect(snippetsFor("python", [own("java", "yo", "x")]).some((s) => s.own)).toBe(false);
+  });
+
+  it("are checked before they are kept", async () => {
+    const { wordsError, bodyError, snippetsFor } = await import("./snippets");
+    expect(wordsError("")).not.toBeNull();
+    expect(wordsError("two words")).toBeNull();
+    expect(wordsError("bad.word")).not.toBeNull();
+    expect(wordsError("!")).toBeNull();
+    expect(bodyError("")).not.toBeNull();
+    expect(bodyError("for (${10})")).not.toBeNull();
+    expect(bodyError("print(${x})")).toBeNull();
+    // A broken one is left out rather than breaking the others.
+    expect(snippetsFor("java", [own("java", "", "x")]).some((s) => s.own)).toBe(false);
+  });
+
+  it("can start from the selected code", async () => {
+    const { bodyFromSelection } = await import("./snippets");
+    const doc = "class A {\n    void f() {\n        if (ok) {\n            go(`${x}`);\n        }\n    }\n}";
+    const from = doc.indexOf("if");
+    const to = doc.indexOf("\n    }\n}");
+    const state = EditorState.create({ doc, selection: { anchor: from, head: to }, extensions: [EditorState.tabSize.of(4)] });
+    // `${x}` in the code stays text, not a field.
+    expect(bodyFromSelection(state)).toBe("if (ok) {\n\tgo(`$\\{x}`);\n}");
+  });
+});

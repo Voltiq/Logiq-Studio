@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Boxes, Coffee, FolderOpen, Palette, Save, Search, SquareTerminal, TextCursorInput, RefreshCw, X, type LucideIcon } from "lucide-react";
+import { Boxes, Braces, Coffee, FolderOpen, Palette, Save, Search, SquareTerminal, TextCursorInput, RefreshCw, X, type LucideIcon } from "lucide-react";
 import { open as pickPath } from "@tauri-apps/plugin-dialog";
 import { closeDialog, openDialog, setSettings, useStore } from "../lib/store";
 import type { Settings } from "../lib/settings";
@@ -8,6 +8,8 @@ import { applyTheme } from "../lib/theme";
 import { loadShells, useTerminals } from "../lib/terminals";
 import { installJavaServer, startJavaServer, useLsp } from "../lsp/clients";
 import { LanguageSettings } from "./LanguageSettings";
+import { SnippetSettings } from "./SnippetSettings";
+import { isSnippetSet } from "../editor/snippets";
 import { MaintenanceSetting, UpdatesSetting } from "./ReleaseDialogs";
 import { Modal } from "./ui/Modal";
 import { Button, IconButton } from "./ui/Button";
@@ -16,7 +18,7 @@ import { SectionMessage } from "./ui/Feedback";
 import { t } from "../lib/i18n";
 import { cx } from "../lib/utils";
 
-type SectionId = "appearance" | "editor" | "saving" | "terminal" | "languages" | "java" | "updates";
+type SectionId = "appearance" | "editor" | "snippets" | "saving" | "terminal" | "languages" | "java" | "updates";
 
 interface Section {
   id: SectionId;
@@ -189,6 +191,8 @@ function JavaSettings() {
 
 function useSections(): Section[] {
   const s = useStore((st) => st.settings);
+  const d = useStore((st) => st.dialog);
+  const draft = d?.kind === "settings" && d.snippetDraft && isSnippetSet(d.snippetDraft.lang) ? { lang: d.snippetDraft.lang, body: d.snippetDraft.body } : undefined;
   return [
     {
       id: "appearance",
@@ -235,6 +239,13 @@ function useSections(): Section[] {
           </div>
         </>
       ),
+    },
+    {
+      id: "snippets",
+      icon: Braces,
+      title: () => t("Snippets"),
+      terms: () => [t("New snippet"), t("Words to type"), "sout", "Ctrl+Space"],
+      body: () => <SnippetSettings draft={draft} />,
     },
     {
       id: "saving",
@@ -314,7 +325,9 @@ function useSections(): Section[] {
 
 export function SettingsDialog() {
   const sections = useSections();
+  const asked = useStore((st) => (st.dialog?.kind === "settings" ? st.dialog.section : undefined));
   const [current, setCurrent] = useState<SectionId>(() => {
+    if (asked && sections.some((x) => x.id === asked)) return asked as SectionId;
     try {
       const saved = localStorage.getItem(REMEMBER) as SectionId | null;
       return saved && sections.some((x) => x.id === saved) ? saved : "appearance";

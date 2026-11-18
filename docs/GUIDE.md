@@ -37,7 +37,7 @@ The editor colours the code, closes brackets, indents, and underlines mistakes a
 
 For Java, **Settings → Java** can install the Java language server once; then completion knows every type, and errors appear without compiling. C and C++ use clangd, Python uses Pyright or pylsp, when they are installed.
 
-**Snippets** write whole pieces of code from a short word: type `sysout` and press `Ctrl+Space` or `Tab` for `System.out.println();`, `fori` for a counting loop, `main` for the main method, or `!` in an HTML file for the page skeleton (there `Tab` belongs to Emmet, so use `Ctrl+Space`). `Tab` then moves on to the next field to fill in. Every language has its own; **Edit → Insert snippet…** lists those of the file.
+**Snippets** write whole pieces of code from a short word: type `sysout` and press `Ctrl+Space` or `Tab` for `System.out.println();`, `fori` for a counting loop, `main` for the main method, or `!` in an HTML file for the page skeleton (there `Tab` belongs to Emmet, so use `Ctrl+Space`). `Tab` then moves on to the next field to fill in. Every language has its own; **Edit → Insert snippet…** lists those of the file. Write your own in **Settings → Snippets**, or select code and use **Edit → Save selection as snippet…**; a word you give one of yours calls it instead of the built-in snippet.
 
 ## Running programs
 

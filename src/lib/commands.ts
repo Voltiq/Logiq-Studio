@@ -197,6 +197,7 @@ export const COMMANDS: Command[] = [
   { id: "edit.organizeImports", label: "Organize imports", category: "Edit", shortcut: "Shift+Alt+O", editorKey: true, enabled: () => hasJava() && hasServer(shownPath()!), run: editor((v) => void organizeImports(v, shownPath()!)) },
   { id: "help.javaServer", label: "Install the Java language server…", category: "Help", enabled: () => useLsp.getState().java === "missing", run: () => openDialog({ kind: "settings" }) },
   { id: "edit.snippet", label: "Insert snippet…", category: "Edit", enabled: hasEditor, run: () => openDialog({ kind: "palette", mode: "snippets" }) },
+  { id: "edit.saveSnippet", label: "Save selection as snippet…", category: "Edit", enabled: hasEditor, run: editor((v) => void import("../editor/snippets").then((m) => openDialog({ kind: "settings", section: "snippets", snippetDraft: { lang: m.snippetSetAt(v.state, v.state.selection.main.head) ?? "java", body: m.bodyFromSelection(v.state) } }))) },
   { id: "edit.emmet", label: "Expand Emmet abbreviation", category: "Edit", shortcut: "Ctrl+E", editorKey: true, enabled: hasWeb, run: editor((v) => void expandAbbreviation(v)) },
 
   { id: "view.explorer", label: "Show explorer", category: "View", icon: PanelLeft, shortcut: "Ctrl+Shift+E", run: () => set({ sidebar: "explorer" }) },

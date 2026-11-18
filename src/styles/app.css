@@ -3949,3 +3949,118 @@ button.status-item:hover {
   color: var(--text-subtlest);
   font-size: var(--font-size-small);
 }
+
+/* ----- Settings → Snippets ----- */
+
+.snippet-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-150);
+}
+
+.snippet-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  list-style: none;
+}
+
+.snippet-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-050);
+  min-width: 0;
+  padding: 6px 6px 6px 10px;
+  border-radius: calc(var(--r-md) - 5px);
+}
+
+.snippet-row:hover {
+  background: var(--wash);
+}
+
+.snippet-row-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.snippet-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-100);
+  min-width: 0;
+}
+
+.snippet-words {
+  flex: none;
+  color: var(--accent-text);
+  font-family: var(--font-code);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+.snippet-lang {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--wash-2);
+  color: var(--text-subtle);
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.125rem;
+}
+
+.snippet-desc,
+.snippet-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet-desc {
+  color: var(--text);
+  font-size: var(--font-size-small);
+}
+
+.snippet-preview {
+  color: var(--text-subtlest);
+  font-family: var(--font-code);
+  font-size: 0.6875rem;
+}
+
+.snippet-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-150);
+  padding: 14px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.snippet-code {
+  min-height: 9rem;
+  font-family: var(--font-code);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.textarea.is-invalid {
+  border-color: color-mix(in oklab, var(--danger) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 16%, transparent);
+}
+
+.snippet-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-100);
+}

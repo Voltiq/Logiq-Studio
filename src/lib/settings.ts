@@ -1,6 +1,17 @@
 import type { ThemePreference } from "./types";
 import { DEFAULT_UML_OPTIONS, type UmlOptions } from "../uml/diagram";
 
+/** A snippet you wrote (Settings → Snippets). */
+export interface OwnSnippet {
+  id: string;
+  /** Which language's files it is for (a snippet set: java, python, cpp …). */
+  lang: string;
+  /** The words that call it, separated by spaces. */
+  words: string;
+  description: string;
+  body: string;
+}
+
 export interface Settings {
   theme: ThemePreference;
   fontSize: number;
@@ -37,6 +48,8 @@ export interface Settings {
   cFlags: string;
   /** Rows a SQL result shows at most. */
   sqlMaxRows: number;
+  /** Your own snippets, next to the built-in ones. */
+  snippets: OwnSnippet[];
   uml: UmlOptions;
   recent: string[];
   sidebarWidth: number;
@@ -69,6 +82,7 @@ export const DEFAULT_SETTINGS: Settings = {
   languageServers: true,
   cFlags: "",
   sqlMaxRows: 10000,
+  snippets: [],
   uml: DEFAULT_UML_OPTIONS,
   recent: [],
   sidebarWidth: 272,

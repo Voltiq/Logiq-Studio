@@ -20,6 +20,8 @@ import { phpLanguage } from "@codemirror/lang-php";
 import { commonmarkLanguage, markdownLanguage } from "@codemirror/lang-markdown";
 import { SQLite } from "@codemirror/lang-sql";
 import { t } from "../lib/i18n";
+import { get } from "../lib/store";
+import type { OwnSnippet } from "../lib/settings";
 
 export interface Snippet {
   /** The words that expand it; the first is its name. */
@@ -27,6 +29,8 @@ export interface Snippet {
   /** What it is, in a few words (translated where shown). */
   d: string;
   body: string;
+  /** One of your own (Settings → Snippets): its description is shown as written. */
+  own?: boolean;
 }
 
 function s(prefixes: string, d: string, body: string): Snippet {
@@ -379,6 +383,96 @@ function dedupe(list: Snippet[]): Snippet[] {
   return out;
 }
 
+/* ----- Your own snippets -------------------------------------------------------------------------- */
+
+/** The names languages are shown by, in the order they are offered. */
+export const SET_NAMES: Record<SnippetSet, string> = {
+  java: "Java",
+  kotlin: "Kotlin",
+  python: "Python",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+  html: "HTML",
+  xml: "XML",
+  css: "CSS",
+  c: "C",
+  cpp: "C++",
+  php: "PHP",
+  sql: "SQL",
+  markdown: "Markdown",
+};
+
+/** Your JavaScript snippets work in TypeScript too, and your C ones in C++, as the built-in ones do. */
+const ALSO: Partial<Record<SnippetSet, SnippetSet>> = { typescript: "javascript", cpp: "c" };
+
+export const isSnippetSet = (x: unknown): x is SnippetSet => typeof x === "string" && x in SET_NAMES;
+
+export const wordsOf = (words: string) => words.trim().split(/\s+/).filter(Boolean);
+
+/** What is wrong with the words that call a snippet, or null. */
+export function wordsError(words: string): string | null {
+  const list = wordsOf(words);
+  if (!list.length) return t("Give it a word to type, such as sout.");
+  if (list.some((w) => !/^(?:[A-Za-z_$][\w$-]*|!)$/.test(w))) return t("A word starts with a letter and has only letters, digits, _, $ and -.");
+  return null;
+}
+
+/** What is wrong with a snippet's code, or null. */
+export function bodyError(body: string): string | null {
+  if (!body.trim()) return t("Write the code it puts in.");
+  if (/[#$]\{\d+\}/.test(body)) return t("A field's name can't be only digits: write ${count} instead of ${10}.");
+  return null;
+}
+
+let ownCache: { from: OwnSnippet[]; by: Map<SnippetSet, Snippet[]> } | null = null;
+
+/** The built-in snippets of a language with yours; yours win a word both use. */
+export function snippetsFor(set: SnippetSet, own: OwnSnippet[] = get().settings.snippets): Snippet[] {
+  if (ownCache?.from !== own) ownCache = { from: own, by: new Map() };
+  let list = ownCache.by.get(set);
+  if (!list) {
+    const mine = own
+      .filter((o) => (o.lang === set || o.lang === ALSO[set]) && !wordsError(o.words) && !bodyError(o.body))
+      .map((o) => ({ prefixes: wordsOf(o.words), d: o.description.trim(), body: o.body.replace(/\r\n/g, "\n"), own: true }));
+    list = mine.length ? dedupe([...SNIPPETS[set], ...mine]) : SNIPPETS[set];
+    ownCache.by.set(set, list);
+  }
+  return list;
+}
+
+/** The built-in snippet a word calls in a language, which one of yours with that word replaces. */
+export function builtInFor(set: SnippetSet, word: string): Snippet | undefined {
+  return SNIPPETS[set].find((sn) => sn.prefixes.includes(word));
+}
+
+/** A snippet's description as shown: yours as written, the built-in ones translated. */
+export const describe = (sn: Snippet) => (sn.own ? sn.d : t(sn.d));
+
+/**
+ * The selected code as a snippet body: its indentation made relative to the first line (one tab per
+ * level, which becomes the file's indent where it is written), and `${` kept as text.
+ */
+export function bodyFromSelection(state: EditorState): string {
+  const sel = state.selection.main;
+  if (sel.empty) return "";
+  const first = state.doc.lineAt(sel.from);
+  const base = /^\s*/.exec(first.text)![0];
+  const unit = state.tabSize;
+  const lines = state.sliceDoc(sel.from, sel.to).split("\n");
+  const out = lines.map((line, i) => {
+    if (i === 0) return line.trimStart();
+    const rest = line.startsWith(base) ? line.slice(base.length) : line.trimStart();
+    const lead = /^[ \t]*/.exec(rest)![0];
+    const width = [...lead].reduce((w, c) => (c === "\t" ? w + unit - (w % unit) : w + 1), 0);
+    return "\t".repeat(Math.floor(width / unit)) + " ".repeat(width % unit) + rest.slice(lead.length);
+  });
+  return out
+    .join("\n")
+    .replace(/\s+$/, "")
+    .replace(/\\([{}])/g, "\\\\$1")
+    .replace(/([#$])\{/g, "$1\\{");
+}
+
 /** The file's language (set per editor), which picks C or C++, JavaScript or TypeScript, HTML or XML. */
 export const fileLanguage = Facet.define<string, string>({ combine: (v) => v[0] ?? "text" });
 
@@ -434,15 +528,15 @@ export function snippetCompletions(set: SnippetSet) {
     const word = wordBefore(ctx.state, ctx.pos, at);
     if (!word || (!word.text && !ctx.explicit)) return null;
     const typed = word.text.toLowerCase();
-    const options: Completion[] = SNIPPETS[at].map((sn) => {
+    const options: Completion[] = snippetsFor(at).map((sn) => {
       // The name that fits what is typed: `sys` finds sysout.
       const label = sn.prefixes.find((p) => p.toLowerCase().startsWith(typed)) ?? sn.prefixes[0];
       return {
         label,
-        detail: t(sn.d),
+        detail: describe(sn),
         type: "snippet",
         info: info(sn),
-        boost: label.toLowerCase() === typed ? 3 : 1,
+        boost: (label.toLowerCase() === typed ? 3 : 1) + (sn.own ? 1 : 0),
         apply: (view: EditorView, _c: Completion, from: number, to: number) => snippet(sn.body)(view, null, from, to),
       };
     });
@@ -459,7 +553,7 @@ export function snippetAtCursor(state: EditorState): { from: number; to: number;
   const word = wordBefore(state, sel.head, set);
   if (!word?.text) return null;
   const typed = word.text.toLowerCase();
-  const list = SNIPPETS[set];
+  const list = snippetsFor(set);
   const found = list.find((sn) => sn.prefixes.includes(word.text)) ?? list.find((sn) => sn.prefixes.some((p) => p.toLowerCase() === typed));
   if (!found) return null;
   // A snippet of several lines starts a line: `int main` + Tab stays as it is.

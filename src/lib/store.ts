@@ -55,7 +55,7 @@ export interface ToastData {
 
 export type Dialog =
   | { kind: "newProject"; template?: TemplateId }
-  | { kind: "settings" }
+  | { kind: "settings"; section?: string; snippetDraft?: { lang: string; body: string } }
   | { kind: "about" }
   | { kind: "shortcuts" }
   | { kind: "newJavaFile"; dir: string }
