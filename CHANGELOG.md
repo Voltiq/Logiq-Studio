@@ -2,6 +2,11 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.12.0
+
+- **JavaFX windows run**: **Run** in a JavaFX window's designer (or Run → Add JavaFX to the project) downloads OpenJFX 21 (about 9.4 MB) from Maven Central into the project's `lib/javafx` folder, after asking; then compiling, running, debugging, the object bench, JUnit and JShell all find it. The first JavaFX window of a project gets a class that opens it, and there is a **JavaFX window** project template.
+- Compiling copies FXML files, style sheets and images next to the classes, so `getResource` finds them (the images of Swing windows too).
+
 ## 1.11.0
 
 - **JavaFX layout panes** in the GUI designer: a JavaFX window and its panes can be a **VBox**, **HBox**, **FlowPane**, **GridPane**, **BorderPane** or **StackPane**, drawn as JavaFX lays them out. Dragging a component in picks its place, its cell in a GridPane (a new row or column past the last) or its region; the arrow keys move it to the next cell or place.
