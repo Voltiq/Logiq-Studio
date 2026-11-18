@@ -2,6 +2,10 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.7.0
+
+- **Your own snippets**: Settings → Snippets lets you write snippets yourself: the language, the words that call one, a description and the code, with `${name}` for a field to fill in and `${}` where the cursor ends up. Edit → Save selection as snippet starts one from the code you selected. They expand with `Ctrl+Space` or `Tab` like the built-in ones, come first when both use a word, and go along when you export your settings.
+
 ## 1.6.0
 
 - **Snippets for every language**: type a short word and press `Ctrl+Space` or `Tab` to write out the whole piece of code: `sysout` becomes `System.out.println();`, `fori` a counting loop, `main` the main method, and `!` in an HTML file the page skeleton. `Tab` then moves through the fields to fill in. About 330 of them for Java, Kotlin, Python, JavaScript and TypeScript, HTML, CSS, C, C++, PHP, SQL and Markdown; they also show in the suggestion list with a preview, and Edit → Insert snippet lists them all.
