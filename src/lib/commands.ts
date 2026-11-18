@@ -61,7 +61,7 @@ import * as G from "./git";
 import * as B from "./build";
 import { hasServer, organizeImports, quickFix, refactor, useLsp } from "../lsp/clients";
 import * as A from "./actions";
-import { activeIdOf, activeTab, get, openDialog, openMenu, set } from "./store";
+import { activeIdOf, activeTab, get, openDialog, openMenu, set, toast } from "./store";
 import { t } from "./i18n";
 import { PLUGINS } from "../languages";
 import { undoTarget as umlUndo } from "../uml/history";
@@ -136,6 +136,7 @@ export const COMMANDS: Command[] = [
   { id: "file.newFile", label: "New file…", category: "File", icon: FilePlus, shortcut: "Ctrl+N", enabled: hasFolder, run: () => A.newFile(currentDir()) },
   { id: "file.newClass", label: "New Java class…", category: "File", icon: Code, enabled: hasFolder, run: () => openDialog({ kind: "classWizard", dir: currentDir() }) },
   { id: "file.newWindow", label: "New Swing window…", category: "File", icon: AppWindow, enabled: hasFolder, run: () => A.newSwingWindow(currentDir()) },
+  { id: "run.addJavaFX", label: "Add JavaFX to the project…", category: "Run", enabled: hasFolder, run: () => void import("./javafx").then(async (m) => (await m.hasJavaFX(get().root!)) ? toast("info", t("JavaFX is already in the project"), t("In lib/javafx.")) : m.ensureJavaFX()) },
   { id: "file.newFxWindow", label: "New JavaFX window…", category: "File", icon: AppWindow, enabled: hasFolder, run: () => A.newFxWindow(currentDir()) },
   { id: "file.newNsd", label: "New Nassi–Shneiderman diagram…", category: "File", icon: Rows3, enabled: hasFolder, run: () => void import("../nsd/open").then((m) => m.newNsd(currentDir())) },
   {

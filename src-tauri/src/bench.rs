@@ -69,7 +69,9 @@ pub async fn bench_start(app: AppHandle, root: String, jdk_home: Option<String>)
         let cp = format!("{}{}{}", class_path(&root, &root.join("out")), if cfg!(windows) { ";" } else { ":" }, dir.to_string_lossy());
         let mut cmd = Command::new(java_bin(&jdk_home, "java"));
         cmd.current_dir(&root)
-            .args(["-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-cp"])
+            .args(["-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8"])
+            .args(crate::runner::javafx_run_args(&root, &jdk_home))
+            .arg("-cp")
             .arg(cp)
             .arg("LogiqBench")
             .stdin(Stdio::piped())

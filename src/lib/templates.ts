@@ -1,6 +1,6 @@
 /* Starting points for a new project. */
 
-export type TemplateId = "java-console" | "java-classes" | "swing" | "web" | "maven" | "gradle" | "python" | "c" | "cpp" | "php" | "kotlin" | "sql";
+export type TemplateId = "java-console" | "java-classes" | "swing" | "javafx" | "web" | "maven" | "gradle" | "python" | "c" | "cpp" | "php" | "kotlin" | "sql";
 
 export interface Template {
   id: TemplateId;
@@ -595,6 +595,14 @@ export const TEMPLATES: Template[] = [
     description: "A window with a text field and a button, made in the GUI designer: drag components, set their properties, and write what a click does.",
     open: "GreetingWindow.java",
     // The class is made by the designer's code generator when the project is created.
+    files: {},
+  },
+  {
+    id: "javafx",
+    title: "JavaFX window",
+    description: "A JavaFX window drawn in the GUI designer (an FXML file and its controller), with a greeting form whose button already answers. JavaFX is downloaded into the project the first time it runs.",
+    open: "GreetingWindow.fxml",
+    // Made by the designer's code generator when the project is created.
     files: {},
   },
   {

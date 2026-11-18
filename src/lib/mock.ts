@@ -391,6 +391,10 @@ export function installMock() {
         case "term_close":
           terms.delete(a.id);
           return null;
+        case "javafx_find":
+          return false;
+        case "javafx_download":
+          return "C:\\lib\\javafx";
         case "junit_find":
           return "C:\\lib\\junit-platform-console-standalone-1.12.2.jar";
         case "junit_run":

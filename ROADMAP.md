@@ -443,7 +443,7 @@ UML class diagram draws itself from your Java code while you type, like in the R
       compile with the real javac without a warning; the designer tried in the browser stand-in
 
 ### Still open, moved on
-- [ ] JavaFX windows (FXML) → 1.10 (in progress)
+- [x] JavaFX windows (FXML) (done in 1.10 to 1.12)
 - [x] Containers with their own layout (components inside a panel, layout managers) (done in 1.8 and 1.9)
 
 ## v1.0 — Release (2026-11-17)
@@ -549,7 +549,7 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - [x] The code: `setLayout(new FlowLayout(…))`, `setPreferredSize(…)` instead of `setBounds` (nothing in a grid),
       `add(x, BorderLayout.NORTH)`; Swing's other ways of writing them read too; tested with the real javac
 
-## 1.10 — JavaFX windows (in progress)
+## 1.10 to 1.12 — JavaFX windows (2026-11-18)
 
 ### FXML in the designer
 - [x] **File → New JavaFX window** (and the explorer's menu) makes `Name.fxml` and `NameController.java`; a `.fxml`
@@ -571,4 +571,12 @@ UML class diagram draws itself from your Java code while you type, like in the R
       past the last) or the region; arrow keys move to the next cell; switching panes keeps things where they were
       (into a GridPane by rows and columns of where they are); `GridPane.rowIndex`, BorderPane's `<top>`…,
       `spacing`, `hgap` and `<padding>` read and written, constraints and other settings kept
-- [ ] Running a JavaFX window: a launcher and a template, and getting JavaFX (OpenJFX) for a project
+- [x] Running a JavaFX window (1.12): **Run** in the designer, or **Run → Add JavaFX to the project**, downloads
+      OpenJFX 21 (base, graphics, controls, fxml with this system's native code, about 9.4 MB) from Maven Central
+      into `lib/javafx`, each file checked against Maven's SHA-1; compiling, running, debugging, the object bench,
+      JUnit and JShell then put it on the module path (`--add-modules javafx.controls,javafx.fxml`); a compile that
+      misses JavaFX offers to add it
+- [x] The first JavaFX window of a project gets a launcher (`MainWindowApp extends Application`, loading the FXML);
+      **Run** in the designer starts it; the **JavaFX window** project template has a greeting form that answers
+- [x] FXML, style sheets, images and properties beside the sources are copied next to the classes when compiling,
+      so `getResource` finds them (Swing's icons too)

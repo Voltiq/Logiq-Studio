@@ -51,6 +51,7 @@ pub fn jshell_start(app: AppHandle, state: State<JShell>, root: String, jdk_home
         .args(["-R-Dfile.encoding=UTF-8", "-R-Dstdout.encoding=UTF-8", "-R-Dstderr.encoding=UTF-8"])
         .arg("--class-path")
         .arg(class_path(&root, &root.join("out")))
+        .args(crate::runner::javafx_args(&root))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -172,6 +173,7 @@ pub async fn javadoc_generate(root: String, jdk_home: Option<String>) -> Result<
                 .arg(&doc)
                 .arg("-cp")
                 .arg(class_path(&root, &root.join("out")))
+                .args(crate::runner::javafx_args(&root))
                 .arg(format!("@{}", argfile.to_string_lossy())),
         )
         .output()
@@ -225,6 +227,101 @@ pub async fn junit_download(root: String) -> Result<String, String> {
     .map_err(err)?
 }
 
+// ----- JavaFX ------------------------------------------------------------------------------
+
+/// OpenJFX 21, the long-term release: it runs on Java 17 and newer.
+pub const JAVAFX_VERSION: &str = "21.0.13";
+const JAVAFX_MODULES: [&str; 4] = ["base", "graphics", "controls", "fxml"];
+
+fn javafx_platform() -> &'static str {
+    if cfg!(windows) {
+        "win"
+    } else if cfg!(target_os = "macos") {
+        if cfg!(target_arch = "aarch64") {
+            "mac-aarch64"
+        } else {
+            "mac"
+        }
+    } else {
+        "linux"
+    }
+}
+
+/// Whether the project has JavaFX (in `lib/javafx`).
+#[tauri::command]
+pub fn javafx_find(root: String) -> bool {
+    crate::runner::javafx_dir(Path::new(&root)).is_some()
+}
+
+/// Downloads OpenJFX (base, graphics, controls and fxml, with this system's native code) from Maven Central into
+/// `<root>/lib/javafx`, each checked against Maven's SHA-1. Returns the folder.
+#[tauri::command]
+pub async fn javafx_download(root: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = Path::new(&root).join("lib").join("javafx");
+        std::fs::create_dir_all(&dir).map_err(err)?;
+        for m in JAVAFX_MODULES {
+            let name = format!("javafx-{m}-{JAVAFX_VERSION}-{}.jar", javafx_platform());
+            let url = format!("https://repo1.maven.org/maven2/org/openjfx/javafx-{m}/{JAVAFX_VERSION}/{name}");
+            let resp = ureq::get(&url).call().map_err(|e| format!("The download of {name} failed: {e}"))?;
+            let mut bytes = Vec::new();
+            resp.into_reader().take(40 * 1024 * 1024).read_to_end(&mut bytes).map_err(err)?;
+            if bytes.len() < 10_000 || &bytes[..2] != b"PK" {
+                return Err(format!("The download of {name} didn't give a JAR file."));
+            }
+            let want = ureq::get(&format!("{url}.sha1")).call().map_err(|e| format!("The checksum of {name} couldn't be read: {e}"))?.into_string().map_err(err)?;
+            let got = sha1_hex(&bytes);
+            if !want.trim().to_ascii_lowercase().starts_with(&got) {
+                return Err(format!("{name} isn't what Maven Central says it is (its checksum differs)."));
+            }
+            std::fs::write(dir.join(&name), bytes).map_err(err)?;
+        }
+        Ok(dir.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(err)?
+}
+
+/// SHA-1, as hex: what Maven Central publishes beside each file.
+fn sha1_hex(data: &[u8]) -> String {
+    let mut h: [u32; 5] = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0];
+    let mut msg = data.to_vec();
+    let bits = (data.len() as u64).wrapping_mul(8);
+    msg.push(0x80);
+    while msg.len() % 64 != 56 {
+        msg.push(0);
+    }
+    msg.extend_from_slice(&bits.to_be_bytes());
+    for chunk in msg.chunks(64) {
+        let mut w = [0u32; 80];
+        for i in 0..16 {
+            w[i] = u32::from_be_bytes([chunk[4 * i], chunk[4 * i + 1], chunk[4 * i + 2], chunk[4 * i + 3]]);
+        }
+        for i in 16..80 {
+            w[i] = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]).rotate_left(1);
+        }
+        let [mut a, mut b, mut c, mut d, mut e] = h;
+        for (i, wi) in w.iter().enumerate() {
+            let (f, k) = match i {
+                0..=19 => ((b & c) | (!b & d), 0x5A827999),
+                20..=39 => (b ^ c ^ d, 0x6ED9EBA1),
+                40..=59 => ((b & c) | (b & d) | (c & d), 0x8F1BBCDC),
+                _ => (b ^ c ^ d, 0xCA62C1D6),
+            };
+            let t = a.rotate_left(5).wrapping_add(f).wrapping_add(e).wrapping_add(k).wrapping_add(*wi);
+            e = d;
+            d = c;
+            c = b.rotate_left(30);
+            b = a;
+            a = t;
+        }
+        for (x, y) in h.iter_mut().zip([a, b, c, d, e]) {
+            *x = x.wrapping_add(y);
+        }
+    }
+    h.iter().map(|x| format!("{x:08x}")).collect()
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestRun {
@@ -243,7 +340,9 @@ pub async fn junit_run(root: String, jdk_home: Option<String>, launcher: String,
         let _ = std::fs::remove_dir_all(&reports);
         let mut cmd = Command::new(java_bin(&jdk_home, "java"));
         cmd.current_dir(&root)
-            .args(["-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-jar"])
+            .args(["-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8"])
+            .args(crate::runner::javafx_run_args(&root, &jdk_home))
+            .arg("-jar")
             .arg(&launcher)
             .arg("execute")
             .arg("--class-path")
@@ -280,6 +379,14 @@ pub async fn junit_run(root: String, jdk_home: Option<String>, launcher: String,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sha1_matches_known_values() {
+        assert_eq!(sha1_hex(b""), "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+        assert_eq!(sha1_hex(b"abc"), "a9993e364706816aba3e25717850c26c9cd0d89d");
+        // Longer than one block.
+        assert_eq!(sha1_hex(&[b'a'; 1000]), "291e9a6c66994949b57ba5e650361e98fc36b1ba");
+    }
 
     /// Builds a runnable JAR and Javadoc with the installed JDK.
     #[test]

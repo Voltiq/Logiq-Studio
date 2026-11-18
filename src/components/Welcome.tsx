@@ -11,6 +11,7 @@ const TEMPLATE_ICON = {
   "java-classes": Network,
   "java-console": Coffee,
   swing: AppWindow,
+  javafx: AppWindow,
   web: Globe,
   maven: Package,
   gradle: Boxes,

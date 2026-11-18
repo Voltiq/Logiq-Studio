@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { newControllerSource, syncController } from "./fxController";
+import { fxTemplate } from "./fxApp";
 import { parseXml, writeXml } from "./xml";
 import { newFxmlSource, parseFxml, writeFxml } from "./fxml";
 import { COMPONENTS, newComponent } from "./model";
@@ -314,3 +315,57 @@ function findJavac(): string | null {
     return null;
   }
 }
+
+describe("the JavaFX window project", () => {
+  it("has a window, a controller whose button answers, and a class that opens it", () => {
+    const files = fxTemplate();
+    expect(Object.keys(files)).toEqual(["GreetingWindow.fxml", "GreetingController.java", "GreetingApp.java"]);
+    const p = parseFxml(files["GreetingWindow.fxml"])!;
+    expect(p.controller).toBe("GreetingController");
+    expect(p.form.components.map((c) => c.name)).toEqual(["nameLabel", "nameField", "greetButton", "answerLabel"]);
+    expect(files["GreetingController.java"]).toContain("answerLabel.setText(");
+    expect(files["GreetingController.java"]).toContain("greetButton_Action(event);");
+    expect(files["GreetingApp.java"]).toContain('FXMLLoader.load(GreetingApp.class.getResource("GreetingWindow.fxml"))');
+  });
+
+  it("compiles with javac against JavaFX's classes", () => {
+    const javac = findJavac();
+    if (!javac) return;
+    const dir = mkdtempSync(join(tmpdir(), "logiq-fxapp-"));
+    try {
+      const stubs: Record<string, string> = {
+        "javafx/fxml/FXML.java": "package javafx.fxml; import java.lang.annotation.*; @Retention(RetentionPolicy.RUNTIME) public @interface FXML {}",
+        "javafx/fxml/FXMLLoader.java": "package javafx.fxml; public class FXMLLoader { public static <T> T load(java.net.URL u) throws java.io.IOException { return null; } }",
+        "javafx/event/ActionEvent.java": "package javafx.event; public class ActionEvent {}",
+        "javafx/application/Application.java": "package javafx.application; public abstract class Application { public abstract void start(javafx.stage.Stage s) throws Exception; public static void launch(String... a) {} }",
+        "javafx/stage/Stage.java": "package javafx.stage; public class Stage { public void setTitle(String t) {} public void setScene(javafx.scene.Scene s) {} public void show() {} }",
+        "javafx/scene/Parent.java": "package javafx.scene; public class Parent {}",
+        "javafx/scene/Scene.java": "package javafx.scene; public class Scene { public Scene(Parent p) {} }",
+        "javafx/scene/layout/Pane.java": "package javafx.scene.layout; public class Pane {}",
+        "javafx/scene/control/Label.java": "package javafx.scene.control; public class Label { public void setText(String s) {} }",
+        "javafx/scene/control/Button.java": "package javafx.scene.control; public class Button {}",
+        "javafx/scene/control/TextField.java": "package javafx.scene.control; public class TextField { public String getText() { return \"\"; } }",
+        ...fxTemplate(),
+      };
+      for (const [file, text] of Object.entries(stubs)) {
+        if (file.endsWith(".fxml")) continue;
+        mkdirSync(join(dir, dirname(file)), { recursive: true });
+        writeFileSync(join(dir, file), text);
+      }
+      const sources = Object.keys(stubs).filter((f) => f.endsWith(".java"));
+      execFileSync(javac, ["-encoding", "UTF-8", "-Xlint:all", "-Werror", "-d", join(dir, "out"), ...sources.map((f) => join(dir, f))], { stdio: "pipe" });
+    } catch (e) {
+      throw new Error(String((e as { stderr?: Buffer }).stderr ?? e));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 60_000);
+});
+
+describe("what the real FXMLLoader accepts", () => {
+  it("gives a pane no tooltip (only controls have one)", () => {
+    const p = parseFxml(newFxmlSource("app.C"))!;
+    p.form.components.push({ ...newComponent(p.form, "JPanel", 0, 0), tooltip: "tip" });
+    expect(writeFxml(p)).not.toContain("<tooltip>");
+  });
+});

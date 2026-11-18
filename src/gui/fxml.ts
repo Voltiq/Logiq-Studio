@@ -403,7 +403,7 @@ function writeComponent(p: FxParsed, c: GuiComponent): XmlElement {
   if (style) a.push(["style", style]);
   a.push(...(p.attrs.get(c.name) ?? []));
   const kids: XmlNode[] = [];
-  if (c.tooltip) kids.push(el("tooltip", [], [el("Tooltip", [["text", c.tooltip]])]));
+  if (c.tooltip && props.includes("tooltip")) kids.push(el("tooltip", [], [el("Tooltip", [["text", c.tooltip]])]));
   if (c.items && (type === "JComboBox" || type === "JList")) kids.push(el("items", [], [el("FXCollections", [["fx:factory", "observableArrayList"]], c.items.map((i) => el("String", [["fx:value", i]])))]));
   if (isContainer(c) && c.padding) kids.push(paddingEl(c.padding));
   kids.push(...(p.props.get(c.name) ?? []));

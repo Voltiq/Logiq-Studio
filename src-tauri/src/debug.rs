@@ -103,6 +103,8 @@ pub async fn debug_start(
             }
         });
         let cp = class_path(&root, &root.join("out"));
+        // JavaFX's modules for the program being debugged, before the user's own options.
+        let vm_options = [crate::runner::javafx_options(&root, &jdk_home), vm_options].iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(" ");
         let mut fields = vec![
             "launch".to_string(),
             main_class,

@@ -134,6 +134,8 @@ pub fn run() {
             tools::javadoc_generate,
             tools::junit_find,
             tools::junit_download,
+            tools::javafx_find,
+            tools::javafx_download,
             tools::junit_run,
             lsp::lsp_send,
             lsp::lsp_stop,

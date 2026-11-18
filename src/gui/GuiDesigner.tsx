@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { undo, redo } from "@codemirror/commands";
 import { getDoc } from "../editor/docs";
-import { changeDoc, focusGroup, moveToGroup, openFile, runActive, runOnDoc, watchDoc } from "../lib/actions";
+import { changeDoc, focusGroup, moveToGroup, openFile, runActive, runFxWindow, runOnDoc, watchDoc } from "../lib/actions";
 import { get, openMenu, toast } from "../lib/store";
 import { t } from "../lib/i18n";
 import { cx } from "../lib/utils";
@@ -654,11 +654,9 @@ export function GuiDesigner({ path }: { path: string }) {
         <Button spacing="compact" iconBefore={Code} onClick={() => void showCode()}>
           {t("Code")}
         </Button>
-        {!fx && (
-          <Button spacing="compact" appearance="primary" iconBefore={Play} onClick={() => void runActive()}>
-            {t("Run")}
-          </Button>
-        )}
+        <Button spacing="compact" appearance="primary" iconBefore={Play} onClick={() => void (fx ? runFxWindow(path) : runActive())}>
+          {t("Run")}
+        </Button>
       </div>
       <div className="gd-body">
         <div className="gd-palette" role="toolbar" aria-label={t("Components")}>

@@ -192,7 +192,8 @@ export const FX_COMPONENTS: Record<ComponentType, { fx: string; events: EventKin
   JSpinner: { fx: "Spinner", events: ["mouseClicked"], props: ["min", "max", "value", "step", "tooltip", "enabled"] },
   JSlider: { fx: "Slider", events: ["mouseClicked"], props: ["min", "max", "value", "ticks", "tooltip", "enabled"] },
   JProgressBar: { fx: "ProgressBar", events: [], props: ["value", "tooltip"] },
-  JPanel: { fx: "Pane", events: ["mouseClicked"], props: ["tooltip", "background"] },
+  // Only controls have a tooltip property in FXML (a pane needs Tooltip.install in code).
+  JPanel: { fx: "Pane", events: ["mouseClicked"], props: ["background"] },
 };
 
 /** A free name for a new component: button1, button2… */

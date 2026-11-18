@@ -67,6 +67,11 @@ class StructureIndex {
     return this.files.get(key(path));
   }
 
+  /** The text a file was indexed from. */
+  text(path: string): string | undefined {
+    return this.texts.get(key(path));
+  }
+
   types(): JType[] {
     return [...this.files.values()].flatMap((f) => f.types);
   }

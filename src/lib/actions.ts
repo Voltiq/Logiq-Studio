@@ -738,6 +738,12 @@ export function newFxWindow(dir: string) {
       const fxmlPath = join(dir, `${name}.fxml`);
       await api.createFile(join(dir, `${controller}.java`), newControllerSource(controller, pkg, { fields: t("the designer writes this part"), initialize: t("Runs once the window is loaded.") }));
       await api.createFile(fxmlPath, newFxmlSource(pkg ? `${pkg}.${controller}` : controller));
+      // The first JavaFX window of the project gets a class that opens it (later ones are opened from code).
+      if (!javaIndex.types().some((x) => x.extends.some((e) => e === "Application" || e.endsWith(".Application")))) {
+        const { newFxAppSource } = await import("../gui/fxApp");
+        const app = `${name}App`;
+        if (!(await api.exists(join(dir, `${app}.java`)))) await api.createFile(join(dir, `${app}.java`), newFxAppSource(app, pkg, `${name}.fxml`, name.replace(/([a-z])([A-Z])/g, "$1 $2")));
+      }
       await afterCreate(dir);
       await openDesigner(fxmlPath);
     },
@@ -947,11 +953,15 @@ export async function createProject(parent: string, name: string, template: Temp
     const { swingTemplate } = await import("../gui/template");
     await api.createFile(join(root, tpl.open), swingTemplate());
   }
+  if (template === "javafx") {
+    const { fxTemplate } = await import("../gui/fxApp");
+    for (const [file, text] of Object.entries(fxTemplate())) await api.createFile(join(root, file), text);
+  }
   await openFolder(root);
   await openFile(join(root, tpl.open));
   if (template === "web") openPreview();
   if (template === "java-classes" || template === "python") openUml(1);
-  if (template === "swing") await openDesigner(join(root, tpl.open));
+  if (template === "swing" || template === "javafx") await openDesigner(join(root, tpl.open));
   if (template === "php") openPreview(join(root, "index.php"));
 }
 
@@ -1106,6 +1116,11 @@ export async function compileJava(quiet = false): Promise<boolean> {
     if (!result.ok) {
       set({ panelOpen: true, panelTab: "output" });
       appendOutput("stderr", result.output.trimEnd() + "\n");
+      // JavaFX code without JavaFX in the project: offer to add it.
+      const fx = await import("./javafx");
+      if (fx.missesJavaFX(result.output) && !(await fx.hasJavaFX(root))) {
+        toast("warning", t("JavaFX is missing"), t("The code uses JavaFX, which doesn't come with the JDK."), { label: t("Add JavaFX"), run: () => void fx.ensureJavaFX() });
+      }
       appendOutput("error", t("Compiling failed (errors: {0}, warnings: {1}).", errors, warnings) + "\n");
       set({ run: { status: "idle" } });
       const first = problems.find((p) => p.severity === "error");
@@ -1175,7 +1190,13 @@ export async function runActive() {
     }
     return;
   }
-  if (lang === "java" || (!lang && javaIndex.types().some((x) => x.hasMain))) {
+  if (lang === "java" || (!lang && javaIndex.types().some((x) => x.hasMain))) return runJava(path);
+  toast("info", t("Nothing to run here"), t("Open a program (Java, Python, C, C++, Kotlin, PHP, JavaScript), an HTML page or a SQL script."));
+}
+
+/** Compiles the project and runs the main class of a file (or the project's). */
+export async function runJava(path: string | null) {
+  {
     if (!(await compileJava())) return;
     const main = mainClassFor(path);
     if (!main) {
@@ -1191,9 +1212,21 @@ export async function runActive() {
     } catch (e) {
       appendOutput("error", errorText(e) + "\n");
     }
-    return;
   }
-  toast("info", t("Nothing to run here"), t("Open a program (Java, Python, C, C++, Kotlin, PHP, JavaScript), an HTML page or a SQL script."));
+}
+
+/**
+ * Runs a JavaFX window: JavaFX added to the project first (asked), then the class that opens it: the
+ * Application beside the .fxml that loads it (`HelloApp` for Hello.fxml), else the project's main class.
+ */
+export async function runFxWindow(fxmlPath: string) {
+  const { ensureJavaFX } = await import("./javafx");
+  if (!(await ensureJavaFX())) return;
+  const file = basename(fxmlPath);
+  const own = join(dirname(fxmlPath), `${stem(fxmlPath)}App.java`);
+  const loads = javaIndex.types().find((x) => x.hasMain && (getDoc(x.path)?.state.doc.toString() ?? javaIndex.text(x.path) ?? "").includes(`"${file}"`));
+  const launcher = javaIndex.file(own)?.types.some((x) => x.hasMain) ? own : (loads?.path ?? null);
+  await runJava(launcher);
 }
 
 export async function stopRun() {

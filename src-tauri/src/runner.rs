@@ -157,6 +157,92 @@ pub(crate) fn java_bin(jdk_home: &Option<String>, tool: &str) -> PathBuf {
     }
 }
 
+/// JavaFX (OpenJFX) in the project: its jars in `lib/javafx`, apart from `lib/*.jar` on the class path.
+pub(crate) fn javafx_dir(root: &Path) -> Option<PathBuf> {
+    let dir = root.join("lib").join("javafx");
+    let has = std::fs::read_dir(&dir).ok()?.filter_map(|e| e.ok()).any(|e| e.path().extension().map(|x| x.eq_ignore_ascii_case("jar")).unwrap_or(false));
+    has.then_some(dir)
+}
+
+/// What `java`, `javac` and `jshell` need for a project with JavaFX: its jars on the module path, with the
+/// modules the designer's windows use. Nothing for other projects.
+pub(crate) fn javafx_args(root: &Path) -> Vec<String> {
+    match javafx_dir(root) {
+        Some(dir) => vec!["--module-path".into(), dir.to_string_lossy().to_string(), "--add-modules".into(), "javafx.controls,javafx.fxml".into()],
+        None => Vec::new(),
+    }
+}
+
+/// For running: the module path, and what keeps newer JDKs from warning about JavaFX 21's native code
+/// (`--enable-native-access`, and from Java 23 on `--sun-misc-unsafe-memory-access`, which older ones refuse).
+pub(crate) fn javafx_run_args(root: &Path, jdk_home: &Option<String>) -> Vec<String> {
+    let mut args = javafx_args(root);
+    if args.is_empty() {
+        return args;
+    }
+    args.push("--enable-native-access=javafx.graphics".into());
+    if jdk_major(jdk_home) >= 23 {
+        args.push("--sun-misc-unsafe-memory-access=allow".into());
+    }
+    args
+}
+
+/// The chosen JDK's version (the newest found when none is chosen); 0 when unknown.
+fn jdk_major(jdk_home: &Option<String>) -> u32 {
+    let jdk = match jdk_home {
+        Some(h) => jdk_at(Path::new(h)),
+        None => detect_jdks().into_iter().next(),
+    };
+    jdk.map(|j| parse_major(&j.version)).unwrap_or(0)
+}
+
+/// The same as one string of JVM options (the debugger's launch), the path quoted.
+pub(crate) fn javafx_options(root: &Path, jdk_home: &Option<String>) -> String {
+    javafx_run_args(root, jdk_home)
+        .iter()
+        .map(|a| if a.contains(' ') { format!("\"{a}\"") } else { a.clone() })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Files a program loads with `getResource` (FXML, style sheets, images…), copied from beside the sources into
+/// `out`, where the classes are: into the folder of the package of a source file beside them, else at the same
+/// place relative to `src` (or the project).
+fn copy_resources(root: &Path, out: &Path) -> usize {
+    const KINDS: [&str; 11] = ["fxml", "css", "png", "jpg", "jpeg", "gif", "bmp", "svg", "wav", "mp3", "properties"];
+    let mut copied = 0;
+    let mut package_of: std::collections::HashMap<PathBuf, Option<String>> = std::collections::HashMap::new();
+    let src = root.join("src");
+    crate::fs::walk(root, 20_000, &mut |p| {
+        let Some(ext) = p.extension().map(|e| e.to_string_lossy().to_ascii_lowercase()) else { return };
+        if !KINDS.contains(&ext.as_str()) || p.starts_with(out) || p.starts_with(root.join("lib")) {
+            return;
+        }
+        let Some(dir) = p.parent() else { return };
+        let pkg = package_of
+            .entry(dir.to_path_buf())
+            .or_insert_with(|| {
+                let java = std::fs::read_dir(dir).ok()?.filter_map(|e| e.ok()).map(|e| e.path()).find(|f| f.extension().map(|e| e.eq_ignore_ascii_case("java")).unwrap_or(false))?;
+                let text = std::fs::read_to_string(java).ok()?;
+                Some(text.lines().find_map(|l| l.trim().strip_prefix("package ").map(|r| r.trim_end_matches(';').trim().to_string())).unwrap_or_default())
+            })
+            .clone();
+        let target_dir = match pkg {
+            Some(pkg) => out.join(pkg.replace('.', "/")),
+            None => {
+                let base = if dir.starts_with(&src) { &src } else { root };
+                out.join(dir.strip_prefix(base).unwrap_or(Path::new("")))
+            }
+        };
+        let target = target_dir.join(p.file_name().unwrap_or_default());
+        let fresh = std::fs::metadata(&target).and_then(|t| Ok(t.modified()? >= std::fs::metadata(p)?.modified()?)).unwrap_or(false);
+        if !fresh && std::fs::create_dir_all(&target_dir).is_ok() && std::fs::copy(p, &target).is_ok() {
+            copied += 1;
+        }
+    });
+    copied
+}
+
 /// The folder itself plus every jar in its `lib` folder.
 pub(crate) fn class_path(root: &Path, out: &Path) -> String {
     let sep = if cfg!(windows) { ";" } else { ":" };
@@ -316,6 +402,7 @@ pub async fn java_compile(root: String, jdk_home: Option<String>) -> Result<Comp
                 .arg(&out_dir)
                 .arg("-cp")
                 .arg(class_path(&root, &out_dir))
+                .args(javafx_args(&root))
                 .arg(format!("@{}", argfile.to_string_lossy())),
         )
         .output()
@@ -327,6 +414,7 @@ pub async fn java_compile(root: String, jdk_home: Option<String>) -> Result<Comp
             }
         })?;
         let _ = std::fs::remove_file(&argfile);
+        copy_resources(&root, &out_dir);
         let text = format!(
             "{}{}",
             crate::fs::decode(&output.stdout),
@@ -421,6 +509,7 @@ pub async fn java_check(root: String, jdk_home: Option<String>, buffers: Vec<Buf
                 .arg(&out_dir)
                 .arg("-cp")
                 .arg(cp.join(sep))
+                .args(javafx_args(&root))
                 .arg(format!("@{}", argfile.to_string_lossy())),
         )
         .output();
@@ -580,6 +669,7 @@ pub fn run_java(
     cmd.current_dir(&root)
         .args(["-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8"])
         .args(split_options(vm_options.as_deref().unwrap_or("")))
+        .args(javafx_run_args(&root, &jdk_home))
         .arg("-cp")
         .arg(class_path(&root, &out))
         .arg(&main_class)
@@ -653,6 +743,53 @@ pub fn run_stop(runner: State<Runner>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn javafx_goes_on_the_module_path_when_the_project_has_it() {
+        let dir = std::env::temp_dir().join(format!("logiq-fx-args-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("lib")).unwrap();
+        assert!(javafx_args(&dir).is_empty());
+        assert_eq!(javafx_options(&dir, &None), "");
+        std::fs::create_dir_all(dir.join("lib").join("javafx")).unwrap();
+        // An empty folder isn't JavaFX yet.
+        assert!(javafx_dir(&dir).is_none());
+        std::fs::write(dir.join("lib").join("javafx").join("javafx-base-21-win.jar"), b"PK").unwrap();
+        let args = javafx_args(&dir);
+        assert_eq!(args[0], "--module-path");
+        assert!(args[1].ends_with("javafx"));
+        assert_eq!(&args[2..], ["--add-modules", "javafx.controls,javafx.fxml"]);
+        let run = javafx_run_args(&dir, &None);
+        assert!(run.contains(&"--enable-native-access=javafx.graphics".to_string()));
+        assert!(javafx_options(&dir, &None).starts_with("--module-path "));
+        // Not on the class path as well: lib/* doesn't reach into lib/javafx.
+        assert!(!class_path(&dir, &dir.join("out")).contains("javafx"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resources_are_copied_beside_their_classes() {
+        let dir = std::env::temp_dir().join(format!("logiq-resources-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let pkg = dir.join("src").join("app");
+        std::fs::create_dir_all(&pkg).unwrap();
+        std::fs::write(pkg.join("Hello.java"), "package app;\npublic class Hello {}\n").unwrap();
+        std::fs::write(pkg.join("Hello.fxml"), "<AnchorPane/>").unwrap();
+        std::fs::write(pkg.join("style.css"), ".root {}").unwrap();
+        std::fs::create_dir_all(dir.join("src").join("images")).unwrap();
+        std::fs::write(dir.join("src").join("images").join("logo.png"), [137u8, 80, 78, 71]).unwrap();
+        std::fs::write(dir.join("README.md"), "not a resource").unwrap();
+        let out = dir.join("out");
+        assert_eq!(copy_resources(&dir, &out), 3);
+        assert!(out.join("app").join("Hello.fxml").is_file());
+        assert!(out.join("app").join("style.css").is_file());
+        // No source beside it: where it is under src.
+        assert!(out.join("images").join("logo.png").is_file());
+        assert!(!out.join("README.md").exists());
+        // Already there and not changed: not copied again.
+        assert_eq!(copy_resources(&dir, &out), 0);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn reads_javac_diagnostics() {
