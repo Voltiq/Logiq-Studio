@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { badName, componentInfo, eventsOf, EVENT_INFO, FX_COMPONENTS, FX_EVENTS, handlerName, type GuiComponent, type GuiForm } from "./model";
 import type { AlignKind } from "./geometry";
-import { REGIONS, defaultLayout, type Layout, type LayoutKind, type Region } from "./layout";
+import { FX_PANES, REGIONS, defaultFxLayout, defaultLayout, type Layout, type LayoutKind, type Region } from "./layout";
 import { IconButton } from "../components/ui/Button";
 import { Checkbox } from "../components/ui/Field";
 import { t } from "../lib/i18n";
@@ -96,9 +96,10 @@ export interface InspectorProps {
 const REGION_LABELS: Record<Region, () => string> = { NORTH: () => t("Top (north)"), SOUTH: () => t("Bottom (south)"), WEST: () => t("Left (west)"), EAST: () => t("Right (east)"), CENTER: () => t("Centre") };
 
 /** How a panel or the window lays out what is in it. */
-function LayoutEditor({ layout, onChange, hidden = [] }: { layout: Layout | undefined; onChange: (l: Layout | undefined) => void; hidden?: string[] }) {
+/** How a panel or the window lays out what is in it: Swing's layout managers, or JavaFX's panes. */
+function LayoutEditor({ layout, onChange, hidden = [], fx = false }: { layout: Layout | undefined; onChange: (l: Layout | undefined) => void; hidden?: string[]; fx?: boolean }) {
   const kind = layout?.kind ?? "";
-  const gaps = layout && (
+  const gaps = layout && "hgap" in layout && !(fx && layout.kind === "border") && (
     <div className="gi-row">
       <Field label={t("Gap across")} type="number" value={String(layout.hgap)} onCommit={(v) => onChange({ ...layout, hgap: Math.max(0, num(v, layout.hgap)) })} />
       <Field label={t("Gap down")} type="number" value={String(layout.vgap)} onCommit={(v) => onChange({ ...layout, vgap: Math.max(0, num(v, layout.vgap)) })} />
@@ -107,15 +108,29 @@ function LayoutEditor({ layout, onChange, hidden = [] }: { layout: Layout | unde
   return (
     <>
       <label className="gi-field">
-        <span className="gi-label">{t("Layout")}</span>
-        <select className="gi-input" value={kind} onChange={(e) => onChange(e.target.value ? defaultLayout(e.target.value as LayoutKind) : undefined)}>
-          <option value="">{t("None: place each one freely")}</option>
-          <option value="flow">{t("Flow: in rows, one after another")}</option>
-          <option value="grid">{t("Grid: cells of the same size")}</option>
-          <option value="border">{t("Border: top, bottom, sides and centre")}</option>
+        <span className="gi-label">{fx ? t("Pane") : t("Layout")}</span>
+        <select className="gi-input" value={kind} onChange={(e) => onChange(e.target.value ? (fx ? defaultFxLayout : defaultLayout)(e.target.value as LayoutKind) : undefined)}>
+          {fx ? (
+            <>
+              <option value="">{t("Pane: place each one freely")}</option>
+              <option value="vbox">{t("VBox: one below the other")}</option>
+              <option value="hbox">{t("HBox: one beside the other")}</option>
+              <option value="flow">{t("FlowPane: in rows, one after another")}</option>
+              <option value="gridpane">{t("GridPane: rows and columns")}</option>
+              <option value="border">{t("BorderPane: top, bottom, sides and centre")}</option>
+              <option value="stack">{t("StackPane: on top of each other")}</option>
+            </>
+          ) : (
+            <>
+              <option value="">{t("None: place each one freely")}</option>
+              <option value="flow">{t("Flow: in rows, one after another")}</option>
+              <option value="grid">{t("Grid: cells of the same size")}</option>
+              <option value="border">{t("Border: top, bottom, sides and centre")}</option>
+            </>
+          )}
         </select>
       </label>
-      {layout?.kind === "flow" && (
+      {layout?.kind === "flow" && !fx && (
         <div className="gi-field">
           <span className="gi-label">{t("Rows lined up")}</span>
           <div className="segmented gi-segmented" role="group">
@@ -132,6 +147,12 @@ function LayoutEditor({ layout, onChange, hidden = [] }: { layout: Layout | unde
           <Field label={t("Rows")} type="number" value={String(layout.rows)} onCommit={(v) => onChange({ ...layout, rows: Math.max(0, num(v, layout.rows)) || (layout.cols ? 0 : 1) })} />
           <Field label={t("Columns")} type="number" value={String(layout.cols)} onCommit={(v) => onChange({ ...layout, cols: Math.max(0, num(v, layout.cols)) || (layout.rows ? 0 : 1) })} />
         </div>
+      )}
+      {(layout?.kind === "vbox" || layout?.kind === "hbox") && (
+        <>
+          <Field label={t("Space between")} type="number" value={String(layout.spacing)} onCommit={(v) => onChange({ ...layout, spacing: Math.max(0, num(v, layout.spacing)) })} />
+          <Checkbox label={layout.kind === "vbox" ? t("Text fields and lists fill the width") : t("Text areas and lists fill the height")} checked={layout.fill} onChange={(v) => onChange({ ...layout, fill: v })} />
+        </>
       )}
       {gaps}
       {hidden.length > 0 && <p className="gi-note is-warning">{t("Hidden behind another one in the same region: {0}. A border layout shows one component in each region.", hidden.join(", "))}</p>}
@@ -176,7 +197,7 @@ export function Inspector(p: InspectorProps) {
       <div className="gi">
         <div className="gi-head">
           <span className="gi-title">{t("Window")}</span>
-          <span className="gi-type">{fx ? `AnchorPane · ${form.className}` : `JFrame · ${form.className}`}</span>
+          <span className="gi-type">{fx ? `FXML · ${form.className}` : `JFrame · ${form.className}`}</span>
         </div>
         {!fx && <Field label={t("Title")} value={form.title} onCommit={(v) => p.onForm({ title: v })} />}
         <div className="gi-row">
@@ -185,7 +206,7 @@ export function Inspector(p: InspectorProps) {
         </div>
         {!fx && <Checkbox label={t("Resizable")} checked={form.resizable} onChange={(v) => p.onForm({ resizable: v })} />}
         <ColorField label={t("Background")} value={form.background} onChange={(v) => p.onForm({ background: v })} />
-        {!fx && <LayoutEditor layout={form.layout} onChange={(l) => p.onLayout(null, l)} hidden={p.hidden} />}
+        <LayoutEditor layout={form.layout} onChange={(l) => p.onLayout(null, l)} hidden={p.hidden} fx={fx} />
         {fx && <p className="gi-note">{t("The fields and event handlers go into the controller, {0}. The window's title is set where the window is opened.", form.className)}</p>}
         <p className="gi-note">{t("Drag components from the left into the window. Double-click one to write what happens when it is used.")}</p>
       </div>
@@ -201,7 +222,7 @@ export function Inspector(p: InspectorProps) {
     <div className="gi">
       <div className="gi-head">
         <span className="gi-title">{c.name}</span>
-        <span className="gi-type">{fx ? FX_COMPONENTS[c.type].fx : c.type}</span>
+        <span className="gi-type">{fx ? (c.layout ? FX_PANES.find((x) => x.kind === c.layout!.kind)!.fx : FX_COMPONENTS[c.type].fx) : c.type}</span>
         <span className="spacer" />
         <IconButton icon={Trash2} label={t("Delete")} spacing="compact" onClick={p.onDelete} />
       </div>
@@ -217,7 +238,7 @@ export function Inspector(p: InspectorProps) {
       {has("text") && <Field label={t("Text")} value={c.text ?? ""} multiline={c.type === "JTextArea"} onCommit={(v) => set({ text: v })} />}
       {has("items") && <Field label={t("Items (one per line)")} value={(c.items ?? []).join("\n")} multiline onCommit={(v) => set({ items: v.split("\n").filter((x, i, all) => x !== "" || i < all.length - 1) })} />}
       {has("border") && <Field label={t("Title of the border")} value={c.border ?? ""} placeholder={t("(no border)")} onCommit={(v) => set({ border: v })} />}
-      {c.type === "JPanel" && !fx && <LayoutEditor layout={c.layout} onChange={(l) => p.onLayout(c.name, l)} hidden={p.hidden} />}
+      {c.type === "JPanel" && <LayoutEditor layout={c.layout} onChange={(l) => p.onLayout(c.name, l)} hidden={p.hidden} fx={fx} />}
 
       <div className="gi-section">{t("Position and size")}</div>
       {(p.containers.length > 0 || c.parent) && (
@@ -246,13 +267,24 @@ export function Inspector(p: InspectorProps) {
       ) : (
         <>
           <p className="gi-note">
-            {p.parentLayout.kind === "grid"
-              ? t("The grid gives it a cell; its size is the cell's.")
-              : p.parentLayout.kind === "flow"
-                ? t("The flow layout places it after the one before; it asks for this size.")
-                : t("The border layout places it in its region; it asks for this size (the height at the top and bottom, the width at the sides).")}
+            {
+              {
+                grid: () => t("The grid gives it a cell; its size is the cell's."),
+                flow: () => t("The flow layout places it after the one before; it asks for this size."),
+                border: () => t("The border layout places it in its region; it asks for this size (the height at the top and bottom, the width at the sides)."),
+                vbox: () => t("The VBox places it below the one before, at this size; text fields and lists fill the width."),
+                hbox: () => t("The HBox places it beside the one before, at this size; text areas and lists fill the height."),
+                gridpane: () => t("The GridPane places it in its cell; each column is as wide, each row as high, as what is in it."),
+                stack: () => t("The StackPane centres it, on top of the ones before."),
+              }[p.parentLayout.kind]()
+            }
           </p>
-          {p.parentLayout.kind === "border" ? (
+          {p.parentLayout.kind === "gridpane" ? (
+            <div className="gi-row">
+              <Field label={t("Row")} type="number" value={String(c.cell?.row ?? 0)} onCommit={(v) => set({ cell: { row: Math.max(0, num(v, c.cell?.row ?? 0)), col: c.cell?.col ?? 0 } })} />
+              <Field label={t("Column")} type="number" value={String(c.cell?.col ?? 0)} onCommit={(v) => set({ cell: { row: c.cell?.row ?? 0, col: Math.max(0, num(v, c.cell?.col ?? 0)) } })} />
+            </div>
+          ) : p.parentLayout.kind === "border" ? (
             <label className="gi-field">
               <span className="gi-label">{t("Region")}</span>
               <select className="gi-input" value={c.region ?? "CENTER"} onChange={(e) => p.onRegion(c.name, e.target.value as Region)}>

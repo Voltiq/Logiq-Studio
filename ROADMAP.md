@@ -565,5 +565,10 @@ UML class diagram draws itself from your Java code while you type, like in the R
       rules, handlers of other names; JavaFX's painting order (the last child on top) kept
 - [x] Tested: reading Scene Builder's FXML, writing every component and reading it back, the controller compiled
       by javac against stand-ins for JavaFX's classes (JavaFX itself isn't on this machine)
-- [ ] Layout panes: VBox, HBox, FlowPane, BorderPane, GridPane, StackPane
+- [x] Layout panes (1.11): the window and its panes can be a VBox, HBox, FlowPane, GridPane, BorderPane or
+      StackPane, laid out as JavaFX does (what can grow, a button keeping its size; GridPane columns and rows as big
+      as what is in them; padding); dragging in picks the place in the column or row, the cell (a new row or column
+      past the last) or the region; arrow keys move to the next cell; switching panes keeps things where they were
+      (into a GridPane by rows and columns of where they are); `GridPane.rowIndex`, BorderPane's `<top>`…,
+      `spacing`, `hgap` and `<padding>` read and written, constraints and other settings kept
 - [ ] Running a JavaFX window: a launcher and a template, and getting JavaFX (OpenJFX) for a project

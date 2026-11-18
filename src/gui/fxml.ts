@@ -8,7 +8,8 @@
  */
 import { attr, elements, parseXml, writeXml, type XmlElement, type XmlNode } from "./xml";
 import { componentInfo, COMPONENTS, FX_COMPONENTS, FX_EVENTS, freeName, handlerName, type Align, type ComponentType, type EventKind, type GuiComponent, type GuiForm } from "./model";
-import { childrenOf, isContainer } from "./tree";
+import { childrenOf, isContainer, layoutOf, parentOf } from "./tree";
+import { FX_PANES, defaultFxLayout, type FlowAlign, type Insets, type Layout, type Region } from "./layout";
 
 export interface FxParsed {
   form: GuiForm;
@@ -27,11 +28,81 @@ export interface FxParsed {
   foreign: Map<string, XmlElement[]>;
   /** Other things in `<fx:define>` than toggle groups. */
   defines: XmlElement[];
+  /** The element names of panes without a layout (AnchorPane or Pane), by name ("" for the root). */
+  paneNames: Map<string, string>;
 }
 
 const BY_FX = new Map<string, ComponentType>(Object.entries(FX_COMPONENTS).map(([k, v]) => [v.fx, k as ComponentType]));
-// Panes the designer treats as a free-placement panel.
-for (const pane of ["AnchorPane", "Pane"]) BY_FX.set(pane, "JPanel");
+// Panes: free placement (AnchorPane, Pane) or with their layout (VBox, GridPane…).
+for (const pane of ["AnchorPane", "Pane", ...FX_PANES.map((x) => x.fx)]) BY_FX.set(pane, "JPanel");
+const PANE_LAYOUT = new Map(FX_PANES.map((x) => [x.fx, x.kind]));
+const FLOW_ALIGN: Record<string, FlowAlign> = { TOP_LEFT: "left", TOP_CENTER: "center", TOP_RIGHT: "right" };
+const REGION_EL: Record<Region, string> = { NORTH: "top", SOUTH: "bottom", WEST: "left", EAST: "right", CENTER: "center" };
+const EL_REGION = new Map(Object.entries(REGION_EL).map(([r, e]) => [e, r as Region]));
+
+/** A pane's layout from its element (its name and attributes), and the attributes that said it. */
+function readLayout(e: XmlElement): { layout?: Layout; used: Set<string> } {
+  const used = new Set<string>();
+  const kind = PANE_LAYOUT.get(e.name);
+  if (!kind) return { used };
+  const l = defaultFxLayout(kind);
+  const n = (k: string) => {
+    const v = num(attr(e, k));
+    if (v !== undefined) used.add(k);
+    return v;
+  };
+  if (l.kind === "vbox" || l.kind === "hbox") {
+    l.spacing = n("spacing") ?? 0;
+    const key = l.kind === "vbox" ? "fillWidth" : "fillHeight";
+    const f = attr(e, key);
+    if (f !== undefined) {
+      used.add(key);
+      l.fill = f !== "false";
+    }
+  }
+  if (l.kind === "flow" || l.kind === "gridpane") {
+    l.hgap = n("hgap") ?? 0;
+    l.vgap = n("vgap") ?? 0;
+  }
+  if (l.kind === "flow") {
+    const a = attr(e, "alignment");
+    if (a && FLOW_ALIGN[a]) {
+      l.align = FLOW_ALIGN[a];
+      used.add("alignment");
+    }
+  }
+  return { layout: l, used };
+}
+
+function layoutAttrs(l: Layout | undefined): [string, string][] {
+  if (!l) return [];
+  const out: [string, string][] = [];
+  if (l.kind === "vbox" || l.kind === "hbox") {
+    if (l.spacing) out.push(["spacing", dec(l.spacing)]);
+    if (!l.fill) out.push([l.kind === "vbox" ? "fillWidth" : "fillHeight", "false"]);
+  }
+  if (l.kind === "flow" || l.kind === "gridpane") {
+    if (l.hgap) out.push(["hgap", dec(l.hgap)]);
+    if (l.vgap) out.push(["vgap", dec(l.vgap)]);
+  }
+  if (l.kind === "flow" && l.align !== "left") out.push(["alignment", l.align === "center" ? "TOP_CENTER" : "TOP_RIGHT"]);
+  return out;
+}
+
+/** `<padding><Insets top=… right=… bottom=… left=…/></padding>`, when it says only that. */
+function readInsets(e: XmlElement): Insets | null {
+  const i = elements(e);
+  if (i.length !== 1 || i[0].name !== "Insets" || !i[0].attrs.every(([k, v]) => ["top", "right", "bottom", "left"].includes(k) && num(v) !== undefined)) return null;
+  const v = (k: string) => num(attr(i[0], k)) ?? 0;
+  return { top: v("top"), right: v("right"), bottom: v("bottom"), left: v("left") };
+}
+
+const paddingEl = (i: Insets): XmlElement => el("padding", [], [el("Insets", [["bottom", dec(i.bottom)], ["left", dec(i.left)], ["right", dec(i.right)], ["top", dec(i.top)]])]);
+
+/** The element name of a pane: by its layout, or as it was (AnchorPane, Pane). */
+function paneName(p: FxParsed, name: string, layout: Layout | undefined, fallback = "Pane"): string {
+  return layout ? FX_PANES.find((x) => x.kind === layout.kind)!.fx : (p.paneNames.get(name) ?? fallback);
+}
 
 const num = (s: string | undefined) => (s === undefined || s === "" || !Number.isFinite(Number(s)) ? undefined : Number(s));
 const int = (s: string | undefined) => (num(s) === undefined ? undefined : Math.round(num(s)!));
@@ -96,10 +167,13 @@ export function parseFxml(text: string, fallbackName = "Window"): FxParsed | nul
   const imports = nodes.filter((n) => n.kind === "pi" && n.target === "import").map((n) => (n as { data: string }).data);
   const controller = attr(root, "fx:controller");
   const form: GuiForm = { className: controller?.split(".").pop() ?? fallbackName, title: "", width: int(attr(root, "prefWidth")) ?? 600, height: int(attr(root, "prefHeight")) ?? 400, resizable: true, components: [], toolkit: "fx" };
-  const out: FxParsed = { form, rootName: root.name, rootAttrs: [], controller, imports, attrs: new Map(), style: new Map(), props: new Map(), foreign: new Map(), defines: [] };
+  const out: FxParsed = { form, rootName: root.name, rootAttrs: [], controller, imports, attrs: new Map(), style: new Map(), props: new Map(), foreign: new Map(), defines: [], paneNames: new Map() };
   const rootStyle: Partial<GuiComponent> = {};
+  const rootLayout = readLayout(root);
+  if (rootLayout.layout) form.layout = rootLayout.layout;
+  else out.paneNames.set("", root.name);
   for (const [k, v] of root.attrs) {
-    if (k === "prefWidth" || k === "prefHeight" || k === "fx:controller") continue;
+    if (k === "prefWidth" || k === "prefHeight" || k === "fx:controller" || rootLayout.used.has(k)) continue;
     if (k === "style") out.style.set("", readStyle(v, rootStyle));
     else out.rootAttrs.push([k, v]);
   }
@@ -115,16 +189,41 @@ export function parseFxml(text: string, fallbackName = "Window"): FxParsed | nul
         }
         continue;
       }
+      const isBorder = pane.name === "BorderPane";
+      if (isBorder && EL_REGION.has(p.name)) {
+        // A BorderPane's regions: one component each.
+        for (const e of elements(p)) {
+          const type = BY_FX.get(e.name);
+          if (!type) {
+            out.props.set(parent ?? "", [...(out.props.get(parent ?? "") ?? []), p]);
+            continue;
+          }
+          const c = readComponent(e, type, parent);
+          c.region = EL_REGION.get(p.name);
+          form.components.push(c);
+          if (type === "JPanel") readPane(e, c.name);
+        }
+        continue;
+      }
+      if (p.name === "padding" && readInsets(p)) {
+        const padding = readInsets(p)!;
+        if (parent) form.components.find((c) => c.name === parent)!.padding = padding;
+        else form.padding = padding;
+        continue;
+      }
       if (p.name !== "children") {
-        // Something else on the pane (padding, stylesheets…): kept.
+        // Something else on the pane (stylesheets, constraints…): kept.
         out.props.set(parent ?? "", [...(out.props.get(parent ?? "") ?? []), p]);
         continue;
       }
-      // JavaFX paints the last child on top, Swing the first: read from the end.
-      for (const e of [...elements(p)].reverse()) {
+      // JavaFX paints the last child on top, Swing the first: a free pane is read from the end. In a pane with a
+      // layout the order is the layout's, and stays.
+      const laid = parent ? form.components.find((c) => c.name === parent)?.layout : form.layout;
+      for (const e of laid ? elements(p) : [...elements(p)].reverse()) {
         const type = BY_FX.get(e.name);
         if (!type) {
-          out.foreign.set(parent ?? "", [e, ...(out.foreign.get(parent ?? "") ?? [])]);
+          const kept = out.foreign.get(parent ?? "") ?? [];
+          out.foreign.set(parent ?? "", laid ? [...kept, e] : [e, ...kept]);
           continue;
         }
         const c = readComponent(e, type, parent);
@@ -147,9 +246,19 @@ export function parseFxml(text: string, fallbackName = "Window"): FxParsed | nul
     const keep: [string, string][] = [];
     const events = new Map<string, EventKind>(Object.entries(FX_EVENTS).map(([k, v]) => [v!.attr, k as EventKind]));
     let showTicks = false;
+    const pane = type === "JPanel" ? readLayout(e) : { used: new Set<string>() };
+    if (pane.layout) c.layout = pane.layout;
+    else if (type === "JPanel") out.paneNames.set(name, e.name);
     for (const [k, v] of e.attrs) {
+      if (pane.used.has(k)) continue;
       switch (k) {
         case "fx:id":
+          continue;
+        case "GridPane.rowIndex":
+        case "GridPane.columnIndex":
+          if (int(v) !== undefined && int(v)! >= 0) {
+            c.cell = { row: c.cell?.row ?? 0, col: c.cell?.col ?? 0, [k === "GridPane.rowIndex" ? "row" : "col"]: int(v)! };
+          } else keep.push([k, v]);
           continue;
         case "layoutX":
           c.x = int(v) ?? 0;
@@ -232,7 +341,8 @@ export function parseFxml(text: string, fallbackName = "Window"): FxParsed | nul
     if (type === "JSlider" && !showTicks) delete c.ticks;
     if (keep.length) out.attrs.set(name, keep);
     for (const p of elements(e)) {
-      if (p.name === "children" && type === "JPanel") continue;
+      // A pane's elements are read with what is in it (readPane).
+      if (type === "JPanel" && p.name !== "tooltip") continue;
       if (p.name === "tooltip" && elements(p)[0]?.name === "Tooltip" && attr(elements(p)[0], "text") !== undefined && elements(p)[0].attrs.length === 1) {
         c.tooltip = attr(elements(p)[0], "text");
         continue;
@@ -259,7 +369,17 @@ const el = (name: string, attrs: [string, string][] = [], children: XmlNode[] = 
 function writeComponent(p: FxParsed, c: GuiComponent): XmlElement {
   const f = p.form;
   const type = c.type;
-  const a: [string, string][] = [["fx:id", c.name], ["layoutX", dec(Math.round(c.x))], ["layoutY", dec(Math.round(c.y))], ["prefWidth", dec(Math.round(c.w))], ["prefHeight", dec(Math.round(c.h))]];
+  const parent = parentOf(f, c) ?? null;
+  const inLayout = layoutOf(f, parent);
+  // A pane with a layout places what is in it: no layoutX and layoutY then; in a GridPane, the cell.
+  const a: [string, string][] = [["fx:id", c.name]];
+  if (inLayout?.kind === "gridpane") {
+    if (c.cell?.col) a.push(["GridPane.columnIndex", String(c.cell.col)]);
+    if (c.cell?.row) a.push(["GridPane.rowIndex", String(c.cell.row)]);
+  }
+  if (!inLayout) a.push(["layoutX", dec(Math.round(c.x))], ["layoutY", dec(Math.round(c.y))]);
+  a.push(["prefWidth", dec(Math.round(c.w))], ["prefHeight", dec(Math.round(c.h))]);
+  if (isContainer(c)) a.push(...layoutAttrs(c.layout));
   const props = FX_COMPONENTS[type].props;
   if (c.text && props.includes("text")) a.push(["text", c.text]);
   if (c.align && c.align !== "left" && (type === "JLabel" || type === "JTextField")) a.push(["alignment", c.align === "center" ? "CENTER" : "CENTER_RIGHT"]);
@@ -285,13 +405,28 @@ function writeComponent(p: FxParsed, c: GuiComponent): XmlElement {
   const kids: XmlNode[] = [];
   if (c.tooltip) kids.push(el("tooltip", [], [el("Tooltip", [["text", c.tooltip]])]));
   if (c.items && (type === "JComboBox" || type === "JList")) kids.push(el("items", [], [el("FXCollections", [["fx:factory", "observableArrayList"]], c.items.map((i) => el("String", [["fx:value", i]])))]));
+  if (isContainer(c) && c.padding) kids.push(paddingEl(c.padding));
   kids.push(...(p.props.get(c.name) ?? []));
-  if (isContainer(c)) {
-    const inside = [...childrenOf(f, c.name)].reverse().map((x) => writeComponent(p, x));
-    const foreign = p.foreign.get(c.name) ?? [];
-    if (inside.length || foreign.length) kids.push(el("children", [], [...foreign, ...inside]));
+  if (isContainer(c)) kids.push(...paneContent(p, c.name, c.layout));
+  return el(isContainer(c) ? paneName(p, c.name, c.layout) : FX_COMPONENTS[type].fx, a, kids);
+}
+
+/** What is in a pane: its `<children>`, or a BorderPane's regions (top, left, center, right, bottom). */
+function paneContent(p: FxParsed, container: string | null, layout: Layout | undefined): XmlNode[] {
+  const kids = childrenOf(p.form, container);
+  const foreign = p.foreign.get(container ?? "") ?? [];
+  if (layout?.kind === "border") {
+    const out: XmlNode[] = [];
+    for (const r of ["NORTH", "WEST", "CENTER", "EAST", "SOUTH"] as Region[]) {
+      // The last one added to a region is shown: that one is written.
+      const inRegion = kids.filter((k) => (k.region ?? "CENTER") === r);
+      if (inRegion.length) out.push(el(REGION_EL[r], [], [writeComponent(p, inRegion[inRegion.length - 1])]));
+    }
+    if (foreign.length) out.push(el("children", [], foreign));
+    return out;
   }
-  return el(FX_COMPONENTS[type].fx, a, kids);
+  const inside = (layout ? kids : [...kids].reverse()).map((x) => writeComponent(p, x));
+  return inside.length || foreign.length ? [el("children", [], [...foreign, ...inside])] : [];
 }
 
 const NEEDED = ["javafx.scene.control.*", "javafx.scene.layout.*"];
@@ -301,8 +436,9 @@ export function writeFxml(p: FxParsed): string {
   const f = p.form;
   const imports = [...NEEDED];
   if (f.components.some((c) => c.items)) imports.push("java.lang.String", "javafx.collections.FXCollections");
+  if (f.padding || f.components.some((c) => c.padding)) imports.push("javafx.geometry.Insets");
   const all = [...imports, ...p.imports.filter((i) => !imports.includes(i))];
-  const attrs: [string, string][] = [["prefHeight", dec(Math.round(f.height))], ["prefWidth", dec(Math.round(f.width))]];
+  const attrs: [string, string][] = [["prefHeight", dec(Math.round(f.height))], ["prefWidth", dec(Math.round(f.width))], ...layoutAttrs(f.layout)];
   const style = writeStyle({ background: f.background }, true, p.style.get(""));
   if (style) attrs.push(["style", style]);
   const rest = p.rootAttrs.filter(([k]) => k !== "xmlns" && k !== "xmlns:fx");
@@ -312,17 +448,16 @@ export function writeFxml(p: FxParsed): string {
   const kids: XmlNode[] = [];
   const groups = [...new Set(f.components.map((c) => c.group).filter((g): g is string => !!g))];
   if (groups.length || p.defines.length) kids.push(el("fx:define", [], [...groups.map((g) => el("ToggleGroup", [["fx:id", g]])), ...p.defines]));
+  if (f.padding) kids.push(paddingEl(f.padding));
   kids.push(...(p.props.get("") ?? []));
-  const top = [...childrenOf(f, null)].reverse().map((c) => writeComponent(p, c));
-  const foreign = p.foreign.get("") ?? [];
-  if (top.length || foreign.length) kids.push(el("children", [], [...foreign, ...top]));
+  kids.push(...paneContent(p, null, f.layout));
   const head: XmlNode[] = [{ kind: "pi", target: "xml", data: 'version="1.0" encoding="UTF-8"' }, { kind: "text", text: "" }, ...all.map((i): XmlNode => ({ kind: "pi", target: "import", data: i }))];
-  return writeXml(head) + "\n" + writeXml([el(p.rootName, attrs, kids)]);
+  return writeXml(head) + "\n" + writeXml([el(paneName(p, "", f.layout, p.rootName === "AnchorPane" || p.rootName === "Pane" ? p.rootName : "AnchorPane"), attrs, kids)]);
 }
 
 /** A new window's .fxml: an empty AnchorPane with its controller. */
 export function newFxmlSource(controller: string): string {
-  return writeFxml({ form: { className: controller.split(".").pop()!, title: "", width: 420, height: 280, resizable: true, components: [], toolkit: "fx" }, rootName: "AnchorPane", rootAttrs: [], controller, imports: [], attrs: new Map(), style: new Map(), props: new Map(), foreign: new Map(), defines: [] });
+  return writeFxml({ form: { className: controller.split(".").pop()!, title: "", width: 420, height: 280, resizable: true, components: [], toolkit: "fx" }, rootName: "AnchorPane", rootAttrs: [], controller, imports: [], attrs: new Map(), style: new Map(), props: new Map(), foreign: new Map(), defines: [], paneNames: new Map() });
 }
 
 /** The JavaFX class of each kind of component, for the palette. */

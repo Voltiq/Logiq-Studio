@@ -3,8 +3,8 @@
  * panel, as `setBounds` is in Swing. The designer works in window coordinates and converts at the edges.
  */
 import type { Box } from "./geometry";
-import type { GuiComponent, GuiForm } from "./model";
-import { NO_INSETS, TITLED_INSETS, indexAt, layoutItems, regionAt, type Insets, type Layout, type Region } from "./layout";
+import { FX_GROW, type GuiComponent, type GuiForm } from "./model";
+import { NO_INSETS, TITLED_INSETS, indexAt, layoutItems, regionAt, type Insets, type Item, type Layout, type Region } from "./layout";
 
 export const isContainer = (c: GuiComponent | undefined) => c?.type === "JPanel";
 
@@ -47,7 +47,14 @@ export function layoutOf(form: GuiForm, container: string | null): Layout | unde
 /** The room a container's border takes. */
 export function insetsOf(form: GuiForm, container: string | null): Insets {
   const c = container === null ? undefined : form.components.find((x) => x.name === container);
+  if (form.toolkit === "fx") return (container === null ? form.padding : c?.padding) ?? NO_INSETS;
   return c?.border ? TITLED_INSETS : NO_INSETS;
+}
+
+/** A component as its container's layout sees it (in Swing everything can be stretched). */
+function itemOf(form: GuiForm, k: GuiComponent): Item {
+  const grow = form.toolkit === "fx" ? FX_GROW[k.type] : { w: true, h: true };
+  return { name: k.name, w: k.w, h: k.h, region: k.region, cell: k.cell, growW: grow.w, growH: grow.h };
 }
 
 /**
@@ -61,7 +68,7 @@ export function childBoxes(form: GuiForm, container: string | null, size?: { w: 
   // A panel is as big as its own panel's layout makes it (a loop in hand-written code stops somewhere).
   const own = container === null ? { w: form.width, h: form.height } : depth > 40 ? form.components.find((x) => x.name === container)! : relBox(form, form.components.find((x) => x.name === container)!, depth + 1);
   const kids = childrenOf(form, container);
-  const boxes = layoutItems(layout, size ?? { w: own.w, h: own.h }, kids.map((k) => ({ name: k.name, w: k.w, h: k.h, region: k.region })), insetsOf(form, container));
+  const boxes = layoutItems(layout, size ?? { w: own.w, h: own.h }, kids.map((k) => itemOf(form, k)), insetsOf(form, container));
   for (const k of kids) if (!boxes.has(k.name)) boxes.set(k.name, { x: 0, y: 0, w: 0, h: 0 });
   return boxes;
 }
@@ -101,15 +108,21 @@ export function dropInto(form: GuiForm, moves: { name: string; abs: { x: number;
   const layout = layoutOf(form, into);
   const moving = moves.map((m) => form.components.find((c) => c.name === m.name)).filter((c): c is GuiComponent => !!c);
   const siblings = childrenOf(form, into).filter((c) => !moving.includes(c));
-  const index = layout && layout.kind !== "border" ? indexAt(siblings.map((s) => absBox(form, s)), at.x, at.y) : 0;
+  const index = layout && layout.kind !== "border" && layout.kind !== "gridpane" ? indexAt(siblings.map((s) => absBox(form, s)), at.x, at.y, alongOf(layout)) : 0;
   const cb = into === null ? { x: 0, y: 0, w: form.width, h: form.height } : absBox(form, form.components.find((c) => c.name === into)!);
   const pointed = layout?.kind === "border" ? regionAt(cb, at.x - cb.x, at.y - cb.y) : undefined;
+  const cell = layout?.kind === "gridpane" ? cellAt(form, into, at, moving) : undefined;
   moving.forEach((c, i) => {
     const from = parentOf(form, c) ?? null;
     const was = c.region ?? "CENTER";
     moveInto(form, c, into, moves[i].abs);
+    if (layout?.kind !== "gridpane") delete c.cell;
     if (!layout) delete c.region;
-    else if (layout.kind === "border") {
+    else if (layout.kind === "gridpane") {
+      // The cell under the pointer; more than one: the next ones below it.
+      delete c.region;
+      c.cell = { row: cell!.row + i, col: cell!.col };
+    } else if (layout.kind === "border") {
       const want = i === 0 ? pointed! : (freeRegion(form, into, [c]) ?? "CENTER");
       const holder = childrenOf(form, into).find((s) => s !== c && (s.region ?? "CENTER") === want);
       if (holder) {
@@ -139,12 +152,40 @@ export function setLayout(form: GuiForm, container: string | null, layout: Layou
     else delete own.layout;
   }
   const size = own ? { w: own.w, h: own.h } : { w: form.width, h: form.height };
+  if (layout?.kind !== "gridpane") for (const k of kids) delete k.cell;
   if (!layout) {
     for (const k of kids) {
       const b = before.get(k.name)!;
       if (b.w && b.h) Object.assign(k, b);
       delete k.region;
     }
+    return;
+  }
+  if (layout.kind === "gridpane") {
+    // Rows from the top, a new one where the next starts below the last one's middle; columns left to right.
+    for (const k of kids) delete k.region;
+    const byY = [...kids].sort((a, b) => before.get(a.name)!.y - before.get(b.name)!.y);
+    const rows: GuiComponent[][] = [];
+    let bottom = -Infinity;
+    for (const k of byY) {
+      const b = before.get(k.name)!;
+      if (!rows.length || b.y >= bottom) {
+        rows.push([]);
+        bottom = b.y + b.h / 2;
+      }
+      rows[rows.length - 1].push(k);
+    }
+    rows.forEach((r, row) => r.sort((a, b) => before.get(a.name)!.x - before.get(b.name)!.x).forEach((k, col) => (k.cell = { row, col })));
+    return;
+  }
+  if (layout.kind === "vbox" || layout.kind === "hbox") {
+    for (const k of kids) delete k.region;
+    const key = (k: GuiComponent) => (layout.kind === "vbox" ? before.get(k.name)!.y : before.get(k.name)!.x);
+    [...kids].sort((a, b) => key(a) - key(b)).forEach((k, i) => placeInOrder(form, k, i));
+    return;
+  }
+  if (layout.kind === "stack") {
+    for (const k of kids) delete k.region;
     return;
   }
   if (layout.kind === "border") {
@@ -174,6 +215,39 @@ export function setLayout(form: GuiForm, container: string | null, layout: Layou
     });
     reading.forEach((k, i) => placeInOrder(form, k, i));
   }
+}
+
+/** A column or a row goes by one direction when something is dropped into it. */
+function alongOf(layout: Layout): "down" | "across" | undefined {
+  return layout.kind === "vbox" ? "down" : layout.kind === "hbox" ? "across" : undefined;
+}
+
+/**
+ * GridPane: the cell under a point (in window coordinates), past the last column or row a new one. Widths and
+ * heights come from what is in the grid now (but the components being moved).
+ */
+export function cellAt(form: GuiForm, container: string | null, at: { x: number; y: number }, moving: GuiComponent[] = []): { row: number; col: number } {
+  const layout = layoutOf(form, container);
+  const kids = childrenOf(form, container).filter((k) => !moving.includes(k));
+  const cb = container === null ? { x: 0, y: 0 } : absBox(form, form.components.find((c) => c.name === container)!);
+  const ins = insetsOf(form, container);
+  const gap = layout?.kind === "gridpane" ? layout : { hgap: 0, vgap: 0 };
+  const cols: number[] = [];
+  const rows: number[] = [];
+  for (const k of kids) {
+    const { row, col } = k.cell ?? { row: 0, col: 0 };
+    cols[col] = Math.max(cols[col] ?? 0, k.w);
+    rows[row] = Math.max(rows[row] ?? 0, k.h);
+  }
+  const find = (sizes: number[], g: number, from: number, p: number) => {
+    let edge = from;
+    for (let i = 0; i < sizes.length; i++) {
+      edge += (sizes[i] ?? 0) + g;
+      if (p < edge - g / 2) return i;
+    }
+    return sizes.length;
+  };
+  return { row: find(rows, gap.vgap, cb.y + ins.top, at.y), col: find(cols, gap.hgap, cb.x + ins.left, at.x) };
 }
 
 /** The components directly in a panel (or in the window, for null), in the code's order. */
@@ -280,6 +354,9 @@ export function pasteComponents(
       if (layout?.kind === "border") c.region = freeRegion(form, into, [c]) ?? "CENTER";
       else delete c.region;
       if (layout && layout.kind !== "border") placeInOrder(form, c, Number.MAX_SAFE_INTEGER);
+      // In a GridPane: a new row below the others.
+      if (layout?.kind === "gridpane") c.cell = { row: Math.max(-1, ...childrenOf(form, into).filter((k) => k !== c).map((k) => k.cell?.row ?? 0)) + 1, col: 0 };
+      else delete c.cell;
     }
   }
   return outer;

@@ -72,7 +72,7 @@ Mit der Tastatur: `Tab` führt ins Diagramm, die Pfeiltasten gehen von Klasse zu
 
 Um festzulegen, was ein Button tut, klick ihn doppelt an: Eine Methode wie `okButton_ActionPerformed` wird für dich geschrieben, die du ausfüllst. Der Designer schreibt nur den Code zwischen den Kommentaren `// GUI-BEGIN` und `// GUI-END`; der Rest der Klasse gehört dir, und was du im Code änderst, zeigt sich im Designer.
 
-**Datei → Neues JavaFX-Fenster** legt stattdessen ein JavaFX-Fenster an: eine `.fxml`-Datei, die der Designer im Aussehen von JavaFX zeichnet, und ihre Controller-Klasse. Der Designer schreibt das FXML und die `@FXML`-Felder des Controllers; ein Event-Handler wie `okButton_Action` kommt in den Controller, damit du ihn ausfüllst. Eine `.fxml`-Datei öffnet sich als Text mit **Design** darüber.
+**Datei → Neues JavaFX-Fenster** legt stattdessen ein JavaFX-Fenster an: eine `.fxml`-Datei, die der Designer im Aussehen von JavaFX zeichnet, und ihre Controller-Klasse. Der Designer schreibt das FXML und die `@FXML`-Felder des Controllers; ein Event-Handler wie `okButton_Action` kommt in den Controller, damit du ihn ausfüllst. Das Fenster und seine Panes können eine **VBox**, **HBox**, ein **FlowPane**, **GridPane**, **BorderPane** oder **StackPane** sein (rechts unter **Pane**), gezeichnet so, wie JavaFX sie anordnet. Eine `.fxml`-Datei öffnet sich als Text mit **Design** darüber.
 
 ## Struktogramme
 

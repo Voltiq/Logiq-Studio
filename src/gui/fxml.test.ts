@@ -7,6 +7,7 @@ import { newControllerSource, syncController } from "./fxController";
 import { parseXml, writeXml } from "./xml";
 import { newFxmlSource, parseFxml, writeFxml } from "./fxml";
 import { COMPONENTS, newComponent } from "./model";
+import { absBox, childrenOf, dropInto, setLayout } from "./tree";
 
 /** What Scene Builder writes, more or less, with things the designer doesn't know mixed in. */
 const SCENE_BUILDER = `<?xml version="1.0" encoding="UTF-8"?>
@@ -117,9 +118,121 @@ describe("FXML", () => {
     for (const c of p.form.components) expect(plain(back.find((x) => x.name === c.name)!), c.name).toEqual(plain(c));
   });
 
-  it("isn't read when its root isn't a pane the designer places freely", () => {
-    expect(parseFxml('<VBox xmlns:fx="http://javafx.com/fxml/1"/>')).toBeNull();
+  it("isn't read when its root isn't a pane the designer knows", () => {
+    expect(parseFxml('<ScrollPane xmlns:fx="http://javafx.com/fxml/1"/>')).toBeNull();
     expect(parseFxml("not xml <")).toBeNull();
+  });
+});
+
+/** A form as Scene Builder lays one out: a VBox with padding, a GridPane of labels and fields, a BorderPane below. */
+const PANES = `<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox prefHeight="300.0" prefWidth="400.0" spacing="8.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="app.FormController">
+   <padding>
+      <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+   </padding>
+   <children>
+      <Label fx:id="heading" text="Your details" />
+      <GridPane fx:id="grid" hgap="6.0" vgap="4.0">
+         <columnConstraints>
+            <ColumnConstraints />
+         </columnConstraints>
+         <children>
+            <Label fx:id="nameLabel" text="Name" prefWidth="60.0" prefHeight="24.0" />
+            <TextField fx:id="nameField" GridPane.columnIndex="1" prefWidth="120.0" prefHeight="24.0" />
+            <Label fx:id="mailLabel" GridPane.rowIndex="1" text="Mail" prefWidth="40.0" prefHeight="24.0" />
+            <TextField fx:id="mailField" GridPane.columnIndex="1" GridPane.rowIndex="1" VBox.vgrow="ALWAYS" prefWidth="160.0" prefHeight="24.0" />
+         </children>
+      </GridPane>
+      <BorderPane fx:id="bar" prefHeight="40.0">
+         <left>
+            <Button fx:id="cancel" text="Cancel" prefWidth="80.0" prefHeight="28.0" />
+         </left>
+         <right>
+            <Button fx:id="ok" text="OK" prefWidth="80.0" prefHeight="28.0" BorderPane.alignment="CENTER" />
+         </right>
+      </BorderPane>
+   </children>
+</VBox>
+`;
+
+describe("JavaFX panes", () => {
+  it("are read with their layouts, cells, regions and padding", () => {
+    const p = parseFxml(PANES)!;
+    const f = p.form;
+    const by = (n: string) => f.components.find((c) => c.name === n)!;
+    expect(f.layout).toEqual({ kind: "vbox", spacing: 8, fill: true });
+    expect(f.padding).toEqual({ top: 10, right: 10, bottom: 10, left: 10 });
+    expect(by("grid").layout).toEqual({ kind: "gridpane", hgap: 6, vgap: 4 });
+    expect(by("mailField").cell).toEqual({ row: 1, col: 1 });
+    expect(by("nameLabel").cell).toBeUndefined();
+    expect(by("bar").layout).toEqual({ kind: "border", hgap: 0, vgap: 0 });
+    expect(by("ok").region).toBe("EAST");
+    expect(by("cancel")).toMatchObject({ parent: "bar", region: "WEST" });
+    expect(p.attrs.get("mailField")).toContainEqual(["VBox.vgrow", "ALWAYS"]);
+    expect(p.props.get("grid")!.map((e) => e.name)).toEqual(["columnConstraints"]);
+  });
+
+  it("are written back the same", () => {
+    const p = parseFxml(PANES)!;
+    const out = writeFxml(p);
+    expect(out).toContain('<VBox prefHeight="300.0" prefWidth="400.0" spacing="8.0"');
+    expect(out).toContain('<GridPane fx:id="grid" prefWidth="220.0" prefHeight="140.0" hgap="6.0" vgap="4.0">');
+    expect(out).toContain('GridPane.columnIndex="1" GridPane.rowIndex="1"');
+    expect(out).toContain("<left>");
+    expect(out).toContain("<right>");
+    expect(out).toContain('<Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />');
+    expect(out).not.toContain("layoutX");
+    const again = parseFxml(out)!;
+    expect(again.form).toEqual(p.form);
+    expect(writeFxml(again)).toBe(out);
+  });
+
+  it("place their components as JavaFX does", () => {
+    const f = parseFxml(PANES)!.form;
+    const by = (n: string) => absBox(f, f.components.find((c) => c.name === n)!);
+    // The VBox: inside the padding, the label at its size, the grid and the bar across (panes can grow).
+    expect(by("heading")).toEqual({ x: 10, y: 10, w: 104, h: 20 });
+    expect(by("grid")).toEqual({ x: 10, y: 38, w: 380, h: 140 });
+    // The grid: the first column as wide as its widest label (60), then the fields; text fields fill their column.
+    expect(by("nameLabel")).toEqual({ x: 10, y: 38, w: 60, h: 24 });
+    expect(by("nameField")).toEqual({ x: 76, y: 38, w: 160, h: 24 });
+    expect(by("mailField")).toEqual({ x: 76, y: 66, w: 160, h: 24 });
+    // The bar: buttons keep their size, at the left and the right.
+    expect(by("cancel")).toEqual({ x: 10, y: 186, w: 80, h: 28 });
+    expect(by("ok")).toEqual({ x: 310, y: 186, w: 80, h: 28 });
+  });
+
+  it("take what is dropped in: a GridPane the cell under the pointer, a VBox the place in the column", () => {
+    const f = parseFxml(PANES)!.form;
+    const box = (n: string) => absBox(f, f.components.find((c) => c.name === n)!);
+    // Below the last row of the grid, in the second column: a new row.
+    const field = box("mailField");
+    dropInto(f, [{ name: "heading", abs: { x: 0, y: 0 } }], "grid", { x: field.x + 10, y: field.y + field.h + 8 });
+    expect(f.components.find((c) => c.name === "heading")).toMatchObject({ parent: "grid", cell: { row: 2, col: 1 } });
+    // Into the VBox between the grid and the bar.
+    const bar = box("bar");
+    dropInto(f, [{ name: "heading", abs: { x: 0, y: 0 } }], null, { x: 50, y: bar.y - 2 });
+    expect(childrenOf(f, null).map((c) => c.name)).toEqual(["grid", "heading", "bar"]);
+    expect(f.components.find((c) => c.name === "heading")!.cell).toBeUndefined();
+  });
+
+  it("change to a GridPane by rows and columns of where things are", () => {
+    const p = parseFxml(newFxmlSource("app.C"))!;
+    const f = p.form;
+    const at = (x: number, y: number) => ({ ...newComponent(f, "JButton", x, y) });
+    for (const [x, y] of [[10, 10], [150, 12], [12, 60], [160, 58]]) f.components.push(at(x, y));
+    setLayout(f, null, { kind: "gridpane", hgap: 0, vgap: 0 });
+    expect(f.components.map((c) => c.cell)).toEqual([
+      { row: 0, col: 0 },
+      { row: 0, col: 1 },
+      { row: 1, col: 0 },
+      { row: 1, col: 1 },
+    ]);
   });
 });
 

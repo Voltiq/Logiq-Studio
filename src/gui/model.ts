@@ -1,4 +1,4 @@
-import type { Layout, Region } from "./layout";
+import type { Insets, Layout, Region } from "./layout";
 
 /*
  * The model of a Swing window in the designer: the frame (title, size of its
@@ -67,6 +67,10 @@ export interface GuiComponent {
   layout?: Layout;
   /** In a BorderLayout: the region it is in (the centre when none). */
   region?: Region;
+  /** In a JavaFX GridPane: its cell. */
+  cell?: { row: number; col: number };
+  /** JavaFX panes: the room kept free inside the edge (`<padding>`). */
+  padding?: Insets;
   /** Labels and buttons: an image next to the class (`getResource`). */
   icon?: string;
   events: EventKind[];
@@ -86,6 +90,8 @@ export interface GuiForm {
   components: GuiComponent[];
   /** A JavaFX window (an .fxml file and its controller class) rather than a Swing one. */
   toolkit?: "fx";
+  /** JavaFX: the root pane's padding. */
+  padding?: Insets;
 }
 
 export interface ComponentInfo {
@@ -151,6 +157,26 @@ export function eventsOf(type: ComponentType, toolkit?: "fx"): EventKind[] {
   const fx = FX_COMPONENTS[type].events;
   return fx;
 }
+
+/**
+ * JavaFX: what can grow beyond its preferred size when its pane offers room (a VBox's width, a cell): text inputs,
+ * lists and sliders across, text areas and lists down too, panes both ways. Buttons, labels and boxes keep theirs.
+ */
+export const FX_GROW: Record<ComponentType, { w: boolean; h: boolean }> = {
+  JButton: { w: false, h: false },
+  JLabel: { w: false, h: false },
+  JTextField: { w: true, h: false },
+  JPasswordField: { w: true, h: false },
+  JTextArea: { w: true, h: true },
+  JCheckBox: { w: false, h: false },
+  JRadioButton: { w: false, h: false },
+  JComboBox: { w: false, h: false },
+  JList: { w: true, h: true },
+  JSpinner: { w: false, h: false },
+  JSlider: { w: true, h: false },
+  JProgressBar: { w: false, h: false },
+  JPanel: { w: true, h: true },
+};
 
 /** JavaFX: each component's class, and what it offers. */
 export const FX_COMPONENTS: Record<ComponentType, { fx: string; events: EventKind[]; props: (keyof GuiComponent)[] }> = {

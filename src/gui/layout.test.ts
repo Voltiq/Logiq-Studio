@@ -117,3 +117,31 @@ describe("the code of a layout", () => {
     expect(parseRegion("BorderLayout.PAGE_START")).toBeNull();
   });
 });
+
+describe("JavaFX's panes", () => {
+  const fx = (name: string, w: number, h: number, grow = { w: false, h: false }) => ({ name, w, h, growW: grow.w, growH: grow.h });
+
+  it("HBox: side by side with the spacing, what can grow filling the height", () => {
+    const b = layoutItems({ kind: "hbox", spacing: 6, fill: true }, { w: 300, h: 80 }, [fx("button", 80, 28), fx("list", 100, 50, { w: true, h: true })]);
+    expect(b.get("button")).toEqual({ x: 0, y: 0, w: 80, h: 28 });
+    expect(b.get("list")).toEqual({ x: 86, y: 0, w: 100, h: 80 });
+  });
+
+  it("StackPane: each centred, as big as it may be", () => {
+    const b = layoutItems({ kind: "stack" }, { w: 200, h: 100 }, [fx("label", 60, 20), fx("field", 120, 24, { w: true, h: false })]);
+    expect(b.get("label")).toEqual({ x: 70, y: 40, w: 60, h: 20 });
+    expect(b.get("field")).toEqual({ x: 0, y: 38, w: 200, h: 24 });
+  });
+
+  it("FlowPane: no gaps at the edges, only between", () => {
+    const b = layoutItems({ kind: "flow", align: "left", hgap: 10, vgap: 4, edges: false }, { w: 100, h: 100 }, [fx("a", 40, 20), fx("b", 40, 20), fx("c", 40, 20)]);
+    expect(b.get("a")).toMatchObject({ x: 0, y: 0 });
+    expect(b.get("b")).toMatchObject({ x: 50, y: 0 });
+    expect(b.get("c")).toMatchObject({ x: 0, y: 24 });
+  });
+
+  it("BorderPane: a button in the centre keeps its size, in the middle", () => {
+    const b = layoutItems(defaultLayout("border"), { w: 200, h: 100 }, [fx("ok", 80, 28)]);
+    expect(b.get("ok")).toEqual({ x: 60, y: 36, w: 80, h: 28 });
+  });
+});

@@ -46,7 +46,7 @@ import { COMPONENTS, componentInfo, eventsOf, freeName, handlerName, newComponen
 type Editable = ParsedForm | FxParsed;
 import { align, bounds, clampInto, intersects, snapMove, snapResize, type AlignKind, type Box, type Guide, type Handle } from "./geometry";
 import { ComponentView } from "./render";
-import { childBoxes, childrenOf, codeOrder, containerAt, copyComponents, descendants, dropInto, isContainer, layoutOf, moveInto, originOf, parentOf, pasteComponents, placeInOrder, setLayout, topmost } from "./tree";
+import { cellAt, childBoxes, childrenOf, codeOrder, containerAt, copyComponents, descendants, dropInto, isContainer, layoutOf, moveInto, originOf, parentOf, pasteComponents, placeInOrder, setLayout, topmost } from "./tree";
 import { indexAt, regionAt, type Layout, type Region } from "./layout";
 import { Inspector } from "./Inspector";
 
@@ -245,7 +245,7 @@ export function GuiDesigner({ path }: { path: string }) {
       <div className="gd gd-empty">
         {fx ? (
           <EmptyState icon={AppWindow} title={t("This FXML can't be shown yet")} actions={<Button onClick={() => void showCode()}>{t("Open the code")}</Button>}>
-            {t("The designer shows FXML whose root is an AnchorPane or a Pane, and that is well-formed XML.")}
+            {t("The designer shows FXML whose root is a pane (AnchorPane, Pane, VBox, HBox, FlowPane, GridPane, BorderPane or StackPane) and that is well-formed XML.")}
           </EmptyState>
         ) : (
           <EmptyState icon={AppWindow} title={t("No designer regions in this class")} actions={<Button onClick={() => void showCode()}>{t("Open the code")}</Button>}>
@@ -285,10 +285,26 @@ export function GuiDesigner({ path }: { path: string }) {
       const q = { w: cb.w / 4, h: cb.h / 4 };
       return r === "NORTH" ? { ...cb, h: q.h } : r === "SOUTH" ? { ...cb, y: cb.y + cb.h - q.h, h: q.h } : r === "WEST" ? { x: cb.x, y: cb.y + q.h, w: q.w, h: cb.h / 2 } : r === "EAST" ? { x: cb.x + cb.w - q.w, y: cb.y + q.h, w: q.w, h: cb.h / 2 } : { x: cb.x + q.w, y: cb.y + q.h, w: cb.w / 2, h: cb.h / 2 };
     }
-    const boxes = childrenOf(form, into).filter((c) => !moving.includes(c.name)).map((c) => absOf(c));
+    if (layout.kind === "stack") return cb;
+    const stay = childrenOf(form, into).filter((c) => !moving.includes(c.name));
+    if (layout.kind === "gridpane") {
+      // The cell under the pointer: where the column and row are now, or a new one past them.
+      const cell = cellAt(form, into, { x, y }, stay.length === childrenOf(form, into).length ? [] : childrenOf(form, into).filter((c) => moving.includes(c.name)));
+      const inCol = stay.filter((c) => (c.cell?.col ?? 0) === cell.col).map(absOf);
+      const inRow = stay.filter((c) => (c.cell?.row ?? 0) === cell.row).map(absOf);
+      const cx = inCol.length ? Math.min(...inCol.map((b) => b.x)) : stay.length ? Math.max(...stay.map((c) => absOf(c).x + absOf(c).w)) + 4 : cb.x;
+      const cy = inRow.length ? Math.min(...inRow.map((b) => b.y)) : stay.length ? Math.max(...stay.map((c) => absOf(c).y + absOf(c).h)) + 4 : cb.y;
+      const w = inCol.length ? Math.max(...inCol.map((b) => b.w)) : 60;
+      const h = inRow.length ? Math.max(...inRow.map((b) => b.h)) : 24;
+      return { x: cx, y: cy, w, h };
+    }
+    const boxes = stay.map((c) => absOf(c));
     if (!boxes.length) return cb;
-    const i = indexAt(boxes, x, y);
+    const along = layout.kind === "vbox" ? "down" : layout.kind === "hbox" ? "across" : undefined;
+    const i = indexAt(boxes, x, y, along);
     const b = boxes[Math.min(i, boxes.length - 1)];
+    // A column: a bar above (or below the last); else a bar left of it (or right of the last).
+    if (along === "down") return { x: b.x, y: i < boxes.length ? b.y - 3 : b.y + b.h + 1, w: Math.max(12, b.w), h: 2 };
     return { x: i < boxes.length ? b.x - 3 : b.x + b.w + 1, y: b.y, w: 2, h: Math.max(12, b.h) };
   };
   const shown = form.components.map((c) => ({ ...c, ...absOf(c) }));
@@ -445,7 +461,7 @@ export function GuiDesigner({ path }: { path: string }) {
     setSelection(names);
   };
 
-  /** Arrow keys: free components move; in a flow or grid layout they go earlier or later in the order. */
+  /** Arrow keys: free components move; in a GridPane to the next cell; in other layouts earlier or later in the order. */
   const nudge = (dx: number, dy: number) =>
     edit((p) => {
       const moving = topmost(p.form, selection);
@@ -455,6 +471,7 @@ export function GuiDesigner({ path }: { path: string }) {
         const parent = parentOf(p.form, c) ?? null;
         const layout = layoutOf(p.form, parent);
         if (!layout) Object.assign(c, { x: c.x + dx, y: c.y + dy });
+        else if (layout.kind === "gridpane") c.cell = { row: Math.max(0, (c.cell?.row ?? 0) + Math.sign(dy)), col: Math.max(0, (c.cell?.col ?? 0) + Math.sign(dx)) };
         else if (layout.kind !== "border") {
           const i = childrenOf(p.form, parent).indexOf(c);
           placeInOrder(p.form, c, Math.max(0, i + Math.sign(dx + dy)));
