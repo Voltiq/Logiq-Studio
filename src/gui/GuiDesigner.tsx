@@ -39,7 +39,8 @@ import { methodLine, minimalChange, parseForm, renameInCode, writeForm, type Par
 import { COMPONENTS, componentInfo, freeName, handlerName, newComponent, type ComponentType, type EventKind, type GuiComponent } from "./model";
 import { align, bounds, clampInto, intersects, snapMove, snapResize, type AlignKind, type Box, type Guide, type Handle } from "./geometry";
 import { ComponentView } from "./render";
-import { childrenOf, codeOrder, containerAt, copyComponents, descendants, isContainer, moveInto, originOf, parentOf, pasteComponents, topmost } from "./tree";
+import { childBoxes, childrenOf, codeOrder, containerAt, copyComponents, descendants, dropInto, isContainer, layoutOf, moveInto, originOf, parentOf, pasteComponents, placeInOrder, setLayout, topmost } from "./tree";
+import { indexAt, regionAt, type Layout, type Region } from "./layout";
 import { Inspector } from "./Inspector";
 
 /*
@@ -98,6 +99,8 @@ interface Preview {
   moving?: boolean;
   /** The panel they would go into. */
   target?: string | null;
+  /** In a laid-out panel: where in its order (a bar), or which region, they would go. */
+  slot?: Box;
   guides: Guide[];
   marquee?: Box;
   creating?: Box;
@@ -221,14 +224,36 @@ export function GuiDesigner({ path }: { path: string }) {
   // dragged where it is going.
   const byName = new Map(form.components.map((c) => [c.name, c]));
   const absCache = new Map<string, Box>();
+  const laidCache = new Map<string | null, Map<string, Box> | null>();
   const absOf = (c: GuiComponent, depth = 0): Box => {
     const known = absCache.get(c.name);
     if (known) return known;
-    const parent = parentOf(form, c);
-    const o = parent && depth < 50 ? absOf(byName.get(parent)!, depth + 1) : { x: 0, y: 0 };
-    const b = preview?.boxes.get(c.name) ?? { x: c.x + o.x, y: c.y + o.y, w: c.w, h: c.h };
+    const parent = parentOf(form, c) ?? null;
+    const o = parent && depth < 50 ? absOf(byName.get(parent)!, depth + 1) : { x: 0, y: 0, w: form.width, h: form.height };
+    // In a laid-out panel (or window) the layout places it, at the size the panel has now.
+    if (!laidCache.has(parent)) laidCache.set(parent, childBoxes(form, parent, { w: o.w, h: o.h }));
+    const rel = laidCache.get(parent)?.get(c.name) ?? { x: c.x, y: c.y, w: c.w, h: c.h };
+    const b = preview?.boxes.get(c.name) ?? { x: rel.x + o.x, y: rel.y + o.y, w: rel.w, h: rel.h };
     absCache.set(c.name, b);
     return b;
+  };
+  /** The box of a container (or the window, null), in window coordinates. */
+  const containerBox = (name: string | null): Box => (name && byName.has(name) ? absOf(byName.get(name)!) : { x: 0, y: 0, w: form.width, h: form.height });
+  /** Where a drop at a point goes in a laid-out container: the marker to show. */
+  const slotAt = (into: string | null, x: number, y: number, moving: string[]): Box | undefined => {
+    const layout = layoutOf(form, into);
+    if (!layout) return undefined;
+    const cb = containerBox(into);
+    if (layout.kind === "border") {
+      const r = regionAt(cb, x - cb.x, y - cb.y);
+      const q = { w: cb.w / 4, h: cb.h / 4 };
+      return r === "NORTH" ? { ...cb, h: q.h } : r === "SOUTH" ? { ...cb, y: cb.y + cb.h - q.h, h: q.h } : r === "WEST" ? { x: cb.x, y: cb.y + q.h, w: q.w, h: cb.h / 2 } : r === "EAST" ? { x: cb.x + cb.w - q.w, y: cb.y + q.h, w: q.w, h: cb.h / 2 } : { x: cb.x + q.w, y: cb.y + q.h, w: cb.w / 2, h: cb.h / 2 };
+    }
+    const boxes = childrenOf(form, into).filter((c) => !moving.includes(c.name)).map((c) => absOf(c));
+    if (!boxes.length) return cb;
+    const i = indexAt(boxes, x, y);
+    const b = boxes[Math.min(i, boxes.length - 1)];
+    return { x: i < boxes.length ? b.x - 3 : b.x + b.w + 1, y: b.y, w: 2, h: Math.max(12, b.h) };
   };
   const shown = form.components.map((c) => ({ ...c, ...absOf(c) }));
   const selected = selection.map((n) => shown.find((c) => c.name === n)).filter((c): c is GuiComponent => !!c);
@@ -291,7 +316,10 @@ export function GuiDesigner({ path }: { path: string }) {
       const ox = free.box.x - all.x;
       const oy = free.box.y - all.y;
       const boxes = new Map([...d.origin].map(([n, b]) => [n, clampInto({ ...b, x: Math.round(b.x + ox), y: Math.round(b.y + oy) }, frame)]));
-      setPreview({ boxes, guides: free.guides, moving: true, target: containerAt(form, p.x, p.y, [...d.origin.keys()]) });
+      const target = containerAt(form, p.x, p.y, [...d.origin.keys()]);
+      const slot = slotAt(target, p.x, p.y, [...d.origin.keys()]);
+      // Into a layout: it decides the place, so no guides.
+      setPreview({ boxes, guides: slot ? [] : free.guides, moving: true, target, slot });
     } else if (d.kind === "resize") {
       const r = snapResize(d.origin, d.handle, dx, dy, others(new Set([d.name])), frame, e.altKey ? { grid: 1, smart: false } : opts);
       setPreview({ boxes: new Map([[d.name, { ...r.box, x: Math.round(r.box.x), y: Math.round(r.box.y), w: Math.round(r.box.w), h: Math.round(r.box.h) }]]), guides: r.guides });
@@ -319,11 +347,8 @@ export function GuiDesigner({ path }: { path: string }) {
       const at = point(e);
       edit((p) => {
         const names = [...pv.boxes.keys()];
-        const into = containerAt(p.form, at.x, at.y, names);
-        for (const n of names) {
-          const c = p.form.components.find((x) => x.name === n);
-          if (c) moveInto(p.form, c, into, pv.boxes.get(n)!);
-        }
+        // In a laid-out panel the pointer picks the place in its order, or its region.
+        dropInto(p.form, names.map((n) => ({ name: n, abs: pv.boxes.get(n)! })), containerAt(p.form, at.x, at.y, names), at);
       });
     } else if (d.kind === "resize" && pv) {
       const b = pv.boxes.get(d.name);
@@ -331,6 +356,8 @@ export function GuiDesigner({ path }: { path: string }) {
         edit((p) => {
           const c = p.form.components.find((x) => x.name === d.name);
           if (!c) return;
+          // In a layout only the size it asks for counts.
+          if (layoutOf(p.form, parentOf(p.form, c) ?? null)) return Object.assign(c, { w: b.w, h: b.h });
           const o = originOf(p.form, c);
           Object.assign(c, { x: b.x - o.x, y: b.y - o.y, w: b.w, h: b.h });
         });
@@ -350,7 +377,7 @@ export function GuiDesigner({ path }: { path: string }) {
       if (at.w && at.h) Object.assign(c, { w: at.w, h: at.h });
       name = c.name;
       insert(p.form.components, c);
-      moveInto(p.form, c, containerAt(p.form, pointer.x, pointer.y, [c.name]), { x: Math.max(0, at.x), y: Math.max(0, at.y) });
+      dropInto(p.form, [{ name: c.name, abs: { x: Math.max(0, at.x), y: Math.max(0, at.y) } }], containerAt(p.form, pointer.x, pointer.y, [c.name]), pointer);
     });
     if (name) setSelection([name]);
   };
@@ -379,10 +406,30 @@ export function GuiDesigner({ path }: { path: string }) {
     setSelection(names);
   };
 
+  /** Arrow keys: free components move; in a flow or grid layout they go earlier or later in the order. */
   const nudge = (dx: number, dy: number) =>
     edit((p) => {
       const moving = topmost(p.form, selection);
-      for (const c of p.form.components) if (moving.includes(c.name)) Object.assign(c, { x: c.x + dx, y: c.y + dy });
+      for (const n of moving) {
+        const c = p.form.components.find((x) => x.name === n);
+        if (!c) continue;
+        const parent = parentOf(p.form, c) ?? null;
+        const layout = layoutOf(p.form, parent);
+        if (!layout) Object.assign(c, { x: c.x + dx, y: c.y + dy });
+        else if (layout.kind !== "border") {
+          const i = childrenOf(p.form, parent).indexOf(c);
+          placeInOrder(p.form, c, Math.max(0, i + Math.sign(dx + dy)));
+        }
+      }
+    });
+
+  /** Moves a component in its layout's order by one. */
+  const reorderOne = (name: string, by: number) =>
+    edit((p) => {
+      const c = p.form.components.find((x) => x.name === name);
+      if (!c) return;
+      const i = childrenOf(p.form, parentOf(p.form, c) ?? null).indexOf(c);
+      placeInOrder(p.form, c, Math.max(0, i + by));
     });
 
   /** Puts a component into another panel (or the window), where it is now in the window, but inside the panel's area. */
@@ -412,9 +459,11 @@ export function GuiDesigner({ path }: { path: string }) {
     });
 
   const doAlign = (kind: AlignKind) => {
-    const boxes = align(selected, kind);
+    // A layout places its own components: only the free ones are lined up.
+    const free = selected.filter((s) => !layoutOf(form, parentOf(form, s) ?? null));
+    const boxes = align(free, kind);
     edit((p) => {
-      const own = selected.map((s) => p.form.components.find((c) => c.name === s.name)!);
+      const own = free.map((s) => p.form.components.find((c) => c.name === s.name)!);
       // Window coordinates back to each one's panel, all worked out before any moves.
       const origins = own.map((c) => originOf(p.form, c));
       own.forEach((c, i) => Object.assign(c, { x: boxes[i].x - origins[i].x, y: boxes[i].y - origins[i].y, w: boxes[i].w, h: boxes[i].h }));
@@ -631,10 +680,12 @@ export function GuiDesigner({ path }: { path: string }) {
                   const b = absOf(byName.get(preview.target)!);
                   return <div className="gd-drop-target" style={{ left: b.x, top: b.y, width: b.w, height: b.h }} />;
                 })()}
+                {preview?.moving && preview.slot && <div className="gd-slot" style={{ left: preview.slot.x, top: preview.slot.y, width: preview.slot.w, height: preview.slot.h }} />}
                 {selected.map((c) => (
                   <div key={"sel" + c.name} className="gd-selection" style={{ left: c.x, top: c.y, width: c.w, height: c.h }} />
                 ))}
                 {single &&
+                  layoutOf(form, parentOf(form, single) ?? null)?.kind !== "grid" &&
                   HANDLES.map((h) => (
                     <span
                       key={h}
@@ -677,6 +728,27 @@ export function GuiDesigner({ path }: { path: string }) {
                 : []
             }
             onContainer={putInto}
+            parentLayout={single ? layoutOf(form, parentOf(form, single) ?? null) : undefined}
+            onLayout={(container: string | null, layout: Layout | undefined) => edit((p) => setLayout(p.form, container, layout))}
+            onRegion={(name: string, region: Region) =>
+              edit((p) => {
+                const c = p.form.components.find((x) => x.name === name);
+                if (!c) return;
+                // Whoever was there takes this one's old region.
+                const holder = childrenOf(p.form, parentOf(p.form, c) ?? null).find((s) => s !== c && (s.region ?? "CENTER") === region);
+                if (holder) holder.region = c.region ?? "CENTER";
+                c.region = region;
+              })
+            }
+            onOrder={reorderOne}
+            hidden={(() => {
+              // The container shown: the selected panel, or the window when nothing is selected.
+              const shownContainer = single && isContainer(single) ? single.name : selected.length ? undefined : null;
+              if (shownContainer === undefined || layoutOf(form, shownContainer)?.kind !== "border") return [];
+              // Covered by one added later to the same region (Swing shows the last).
+              const kids = childrenOf(form, shownContainer);
+              return kids.filter((k, i) => kids.slice(i + 1).some((o) => (o.region ?? "CENTER") === (k.region ?? "CENTER"))).map((k) => k.name);
+            })()}
             onForm={(patch) => edit((p) => Object.assign(p.form, patch))}
             onComponent={(name, patch) =>
               edit((p) => {

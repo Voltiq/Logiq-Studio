@@ -1,3 +1,5 @@
+import type { Layout, Region } from "./layout";
+
 /*
  * The model of a Swing window in the designer: the frame (title, size of its
  * content, background) and its components with their bounds, properties and
@@ -61,6 +63,10 @@ export interface GuiComponent {
   showText?: boolean;
   /** Panels: a titled border. */
   border?: string;
+  /** Panels: how what is inside is laid out; none: where each one's bounds say. */
+  layout?: Layout;
+  /** In a BorderLayout: the region it is in (the centre when none). */
+  region?: Region;
   /** Labels and buttons: an image next to the class (`getResource`). */
   icon?: string;
   events: EventKind[];
@@ -74,6 +80,8 @@ export interface GuiForm {
   height: number;
   resizable: boolean;
   background?: string;
+  /** How the window's content is laid out; none: where each one's bounds say. */
+  layout?: Layout;
   /** In the order they are added (Swing paints the first on top). */
   components: GuiComponent[];
 }

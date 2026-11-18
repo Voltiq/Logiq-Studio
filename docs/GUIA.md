@@ -68,7 +68,7 @@ Con el teclado: `Tab` entra en el diagrama, las flechas van de clase en clase, `
 
 ## Diseñar ventanas
 
-**Archivo → Nueva ventana Swing…** crea una clase de ventana y la abre en el diseñador de interfaces. Arrastra botones, etiquetas y campos de texto desde la izquierda hasta la ventana, muévelos y cambia su tamaño (se ajustan unos a otros), y establece sus propiedades a la derecha. Los componentes que sueltas sobre un **panel** quedan dentro y se mueven con él; arrastra uno fuera, o elige **Colocado en** a la derecha, para ponerlo en otro sitio.
+**Archivo → Nueva ventana Swing…** crea una clase de ventana y la abre en el diseñador de interfaces. Arrastra botones, etiquetas y campos de texto desde la izquierda hasta la ventana, muévelos y cambia su tamaño (se ajustan unos a otros), y establece sus propiedades a la derecha. Los componentes que sueltas sobre un **panel** quedan dentro y se mueven con él; arrastra uno fuera, o elige **Colocado en** a la derecha, para ponerlo en otro sitio. Un panel, o la propia ventana, también puede tener una **disposición** (a la derecha; para la ventana, sin nada seleccionado): **Flow** coloca sus componentes en filas, **Grid** en celdas del mismo tamaño, **Border** arriba, abajo, a los lados y en el centro; el diseñador los dibuja donde los pondrá Swing, y arrastrar uno cambia su lugar en el orden o su región.
 
 Para decir qué hace un botón, haz doble clic en él: se escribe un método como `okButton_ActionPerformed` para que lo rellenes. El diseñador solo escribe el código entre los comentarios `// GUI-BEGIN` y `// GUI-END`; el resto de la clase es tuyo, y lo que cambies en el código se ve en el diseñador.
 

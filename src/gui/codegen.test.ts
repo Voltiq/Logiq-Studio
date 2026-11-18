@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { hasDesignerRegions, methodLine, minimalChange, newWindowSource, parseForm, renameInCode, statements, writeForm, type ParsedForm } from "./codegen";
 import { COMPONENTS, freeName, newComponent, type GuiComponent } from "./model";
 import { swingTemplate } from "./template";
-import { absBox, codeOrder, containerAt, copyComponents, descendants, moveInto, pasteComponents, topmost } from "./tree";
+import { absBox, childrenOf, codeOrder, containerAt, copyComponents, descendants, dropInto, moveInto, pasteComponents, placeInOrder, setLayout, topmost } from "./tree";
 
 const TEXTS = { fields: "the designer writes this part", components: "the designer writes this part", lookFallback: "The default look stays." };
 
@@ -133,6 +133,137 @@ function nested(): string {
   });
 }
 
+/** A window with a BorderLayout: a toolbar panel (FlowLayout) at the top, a grid of buttons in the centre, a label below. */
+function laidOut(): string {
+  return withComponents(sample(), (p) => {
+    const f = p.form;
+    f.layout = { kind: "border", hgap: 4, vgap: 4 };
+    const bar = { ...newComponent(f, "JPanel", 0, 0), layout: { kind: "flow", align: "left", hgap: 5, vgap: 5 } as const, region: "NORTH" as const, h: 40 };
+    f.components.push(bar);
+    f.components.push({ ...newComponent(f, "JButton", 0, 0), parent: bar.name, w: 80, h: 26 });
+    f.components.push({ ...newComponent(f, "JTextField", 0, 0), parent: bar.name, w: 120 });
+    const grid = { ...newComponent(f, "JPanel", 0, 0), layout: { kind: "grid", rows: 2, cols: 2, hgap: 6, vgap: 6 } as const, region: "CENTER" as const };
+    f.components.push(grid);
+    for (let i = 0; i < 4; i++) f.components.push({ ...newComponent(f, "JButton", 0, 0), parent: grid.name });
+    f.components.push({ ...newComponent(f, "JLabel", 0, 0), region: "SOUTH" as const });
+    f.components.push({ ...newComponent(f, "JTextArea", 0, 0), region: "EAST" as const, w: 120 });
+  });
+}
+
+describe("layout managers", () => {
+  it("are written for the window and the panels, the components asking for their size", () => {
+    const src = laidOut();
+    expect(src).toContain("cp.setLayout(new BorderLayout(4, 4));");
+    expect(src).toContain("panel1.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5));");
+    expect(src).toContain("panel2.setLayout(new GridLayout(2, 2, 6, 6));");
+    expect(src).toContain("cp.add(panel1, BorderLayout.NORTH);");
+    expect(src).toContain("cp.add(panel2, BorderLayout.CENTER);");
+    expect(src).toContain("cp.add(label1, BorderLayout.SOUTH);");
+    expect(src).toContain("cp.add(textArea1ScrollPane, BorderLayout.EAST);");
+    expect(src).toContain("textArea1ScrollPane.setPreferredSize(new Dimension(120, 110));");
+    expect(src).toContain("button1.setPreferredSize(new Dimension(80, 26));");
+    expect(src).toContain("panel1.add(button1);");
+    // In a grid every cell is the same: no size, no bounds.
+    expect(src).not.toMatch(/button[2-5]\.set(Bounds|PreferredSize)/);
+    expect(src).not.toContain("setBounds(");
+  });
+
+  it("are read back, and writing what was read changes nothing", () => {
+    const src = laidOut();
+    const p = parseForm(src)!;
+    const by = (n: string) => p.form.components.find((c) => c.name === n)!;
+    expect(p.form.layout).toEqual({ kind: "border", hgap: 4, vgap: 4 });
+    expect(by("panel1")).toMatchObject({ layout: { kind: "flow", align: "left" }, region: "NORTH" });
+    expect(by("panel2")).toMatchObject({ layout: { kind: "grid", rows: 2, cols: 2 } });
+    expect(by("textArea1")).toMatchObject({ region: "EAST", w: 120, h: 110 });
+    expect(by("button1")).toMatchObject({ parent: "panel1", w: 80, h: 26 });
+    expect(p.extra).toEqual([]);
+    expect([...p.extras.values()].flat()).toEqual([]);
+    expect(writeForm(src, p)).toBe(src);
+  });
+
+  it("place the components as Swing would", () => {
+    const f = parseForm(laidOut())!.form;
+    const by = (n: string) => f.components.find((c) => c.name === n)!;
+    // The window is 420 × 280; north 40 high, south the label's 20, east the text area's 120.
+    expect(absBox(f, by("panel1"))).toEqual({ x: 0, y: 0, w: 420, h: 40 });
+    expect(absBox(f, by("label1"))).toEqual({ x: 0, y: 260, w: 420, h: 20 });
+    expect(absBox(f, by("textArea1"))).toEqual({ x: 300, y: 44, w: 120, h: 212 });
+    expect(absBox(f, by("panel2"))).toEqual({ x: 0, y: 44, w: 296, h: 212 });
+    // Flow in the north panel: from the left, 5 gaps.
+    expect(absBox(f, by("button1"))).toMatchObject({ x: 5, w: 80 });
+    expect(absBox(f, by("textField1"))).toMatchObject({ x: 90, w: 120 });
+    // The grid's four buttons share the centre panel.
+    expect(absBox(f, by("button3"))).toEqual({ x: 151, y: 44, w: 145, h: 103 });
+  });
+
+  it("change without anything jumping", () => {
+    const f = parseForm(nested())!.form;
+    const by = (n: string) => f.components.find((c) => c.name === n)!;
+    // The outer panel's components, put in reading order by a flow layout (button1 and panel2 share a row).
+    setLayout(f, "panel1", { kind: "flow", align: "center", hgap: 5, vgap: 5 });
+    expect(childrenOf(f, "panel1").map((c) => c.name)).toEqual(["button1", "panel2", "textArea1"]);
+    // And back to none: each where the flow had it.
+    const flowed = absBox(f, by("button1"));
+    setLayout(f, "panel1", undefined);
+    expect(absBox(f, by("button1"))).toEqual(flowed);
+    // To a border layout: each to the region it is nearest.
+    setLayout(f, null, { kind: "border", hgap: 0, vgap: 0 });
+    expect(by("checkBox1").region).toBe("NORTH");
+    expect(by("panel1").region).toBe("CENTER");
+  });
+
+  it("take what is dropped where the pointer is: a place in the order, or a region", () => {
+    const f = parseForm(laidOut())!.form;
+    const by = (n: string) => f.components.find((c) => c.name === n)!;
+    // The label (south) dropped in the north panel's flow, left of the text field.
+    const field = absBox(f, by("textField1"));
+    dropInto(f, [{ name: "label1", abs: { x: 0, y: 0 } }], "panel1", { x: field.x + 5, y: field.y + 5 });
+    expect(by("label1").parent).toBe("panel1");
+    expect(by("label1").region).toBeUndefined();
+    expect(childrenOf(f, "panel1").map((c) => c.name)).toEqual(["button1", "label1", "textField1"]);
+    // The text area (east) dropped in the window's west: it goes there.
+    dropInto(f, [{ name: "textArea1", abs: { x: 0, y: 0 } }], null, { x: 10, y: 140 });
+    expect(by("textArea1").region).toBe("WEST");
+    // Dropped on the centre, where the grid panel is: they swap.
+    dropInto(f, [{ name: "textArea1", abs: { x: 0, y: 0 } }], null, { x: 210, y: 140 });
+    expect(by("textArea1").region).toBe("CENTER");
+    expect(by("panel2").region).toBe("WEST");
+  });
+
+  it("put a pasted copy at the end of a flow, or in a free region", () => {
+    const f = parseForm(laidOut())!.form;
+    const name = (form: typeof f, c: GuiComponent) => freeName(form, COMPONENTS.find((i) => i.type === c.type)!.prefix);
+    const [copy] = pasteComponents(f, copyComponents(f, ["button1"]), 16, name);
+    expect(childrenOf(f, "panel1").map((c) => c.name)).toEqual(["button1", "textField1", copy]);
+    const [label] = pasteComponents(f, copyComponents(f, ["label1"]), 16, name);
+    expect(f.components.find((c) => c.name === label)).toMatchObject({ region: "WEST" });
+    expect(f.components.find((c) => c.name === label)!.parent).toBeUndefined();
+  });
+
+  it("give each component its own region when switching to a border layout, while there are free ones", () => {
+    const src = withComponents(sample(), (p) => {
+      for (let i = 0; i < 6; i++) p.form.components.push(newComponent(p.form, "JButton", 150 + i, 120 + i));
+    });
+    const f = parseForm(src)!.form;
+    setLayout(f, null, { kind: "border", hgap: 0, vgap: 0 });
+    const regions = f.components.map((c) => c.region);
+    expect(new Set(regions.slice(0, 5)).size).toBe(5);
+    expect(regions[0]).toBe("CENTER");
+    // A sixth can only share the centre, where Swing shows the last added.
+    expect(regions[5]).toBe("CENTER");
+  });
+
+  it("keep their place in the order when moved", () => {
+    const f = parseForm(laidOut())!.form;
+    const field = f.components.find((c) => c.name === "textField1")!;
+    placeInOrder(f, field, 0);
+    expect(childrenOf(f, "panel1").map((c) => c.name)).toEqual(["textField1", "button1"]);
+    placeInOrder(f, field, 5);
+    expect(childrenOf(f, "panel1").map((c) => c.name)).toEqual(["button1", "textField1"]);
+  });
+});
+
 describe("components inside panels", () => {
   it("are added to their panel, which has no layout manager, after it is set up", () => {
     const src = nested();
@@ -239,6 +370,19 @@ describe.skipIf(!javac)("with the real javac", () => {
     writeFileSync(join(dir, "GreetingWindow.java"), src);
     try {
       execFileSync(javac!, ["-encoding", "UTF-8", "-Xlint:unchecked,deprecation", "-Werror", "-d", join(dir, "out"), join(dir, "GreetingWindow.java")], { stdio: "pipe" });
+    } catch (e) {
+      throw new Error(String((e as { stderr: Buffer }).stderr) + "\n" + src);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("compiles a window laid out with border, flow and grid layouts", () => {
+    const src = laidOut().replace(/\bGreeting\b/g, "Laid");
+    const dir = mkdtempSync(join(tmpdir(), "logiq-gui-"));
+    writeFileSync(join(dir, "Laid.java"), src);
+    try {
+      execFileSync(javac!, ["-encoding", "UTF-8", "-Xlint:unchecked,deprecation", "-Werror", "-d", join(dir, "out"), join(dir, "Laid.java")], { stdio: "pipe" });
     } catch (e) {
       throw new Error(String((e as { stderr: Buffer }).stderr) + "\n" + src);
     } finally {

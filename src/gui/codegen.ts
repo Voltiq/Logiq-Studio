@@ -7,7 +7,8 @@
  * and statements the designer doesn't know (`okButton.setMnemonic(…)`) are
  * kept with their component.
  */
-import { codeOrder, childrenOf, parentOf } from "./tree";
+import { codeOrder, childrenOf, layoutOf, parentOf } from "./tree";
+import { layoutCode, parseLayout, parseRegion, type Layout } from "./layout";
 import { componentInfo, COMPONENTS, EVENT_INFO, handlerName, type Align, type ComponentType, type EventKind, type GuiComponent, type GuiForm } from "./model";
 
 export interface ParsedForm {
@@ -203,9 +204,14 @@ function listenerLine(c: GuiComponent, e: EventKind): string {
 }
 
 /** A component's statements; `container` is what it is added to (cp, or its panel), `holds` whether it has components inside. */
-export function componentLines(c: GuiComponent, extras: string[] = [], container = "cp", holds = false): string[] {
+export function componentLines(c: GuiComponent, extras: string[] = [], container = "cp", holds = false, laidOut?: Layout): string[] {
   const n = c.name;
-  const out: string[] = [`${outer(c)}.setBounds(${Math.round(c.x)}, ${Math.round(c.y)}, ${Math.round(c.w)}, ${Math.round(c.h)});`];
+  // Placed by its bounds; in a flow or border layout it asks for its size; a grid gives every one the same.
+  const out: string[] = !laidOut
+    ? [`${outer(c)}.setBounds(${Math.round(c.x)}, ${Math.round(c.y)}, ${Math.round(c.w)}, ${Math.round(c.h)});`]
+    : laidOut.kind === "grid"
+      ? []
+      : [`${outer(c)}.setPreferredSize(new Dimension(${Math.round(c.w)}, ${Math.round(c.h)}));`];
   const hasText = ["JButton", "JLabel", "JTextField", "JTextArea", "JCheckBox", "JRadioButton"].includes(c.type);
   if (hasText && c.text) out.push(`${n}.setText(${javaString(c.text)});`);
   if (c.icon) out.push(`${n}.setIcon(new ImageIcon(getClass().getResource(${javaString(c.icon)})));`);
@@ -236,12 +242,13 @@ export function componentLines(c: GuiComponent, extras: string[] = [], container
     const args = [style, c.fontSize ? `${c.fontSize}f` : ""].filter(Boolean).join(", ");
     out.push(`${n}.setFont(${n}.getFont().deriveFont(${args}));`);
   }
-  if (c.type === "JPanel" && holds) out.push(`${n}.setLayout(null);`);
+  if (c.type === "JPanel" && c.layout) out.push(`${n}.setLayout(${layoutCode(c.layout)});`);
+  else if (c.type === "JPanel" && holds) out.push(`${n}.setLayout(null);`);
   if (c.type === "JPanel" && c.border) out.push(`${n}.setBorder(BorderFactory.createTitledBorder(${javaString(c.border)}));`);
   if (c.group) out.push(`${c.group}.add(${n});`);
   for (const e of c.events) out.push(listenerLine(c, e));
   out.push(...extras.map((x) => (x.endsWith(";") || x.endsWith("}") ? x : x + ";")));
-  out.push(`${container}.add(${outer(c)});`);
+  out.push(laidOut?.kind === "border" ? `${container}.add(${outer(c)}, BorderLayout.${c.region ?? "CENTER"});` : `${container}.add(${outer(c)});`);
   return out;
 }
 
@@ -249,10 +256,13 @@ export function componentsCode(p: ParsedForm): string[] {
   const f = p.form;
   const out = [`setTitle(${javaString(f.title)});`];
   if (!f.resizable) out.push("setResizable(false);");
-  out.push("Container cp = getContentPane();", "cp.setLayout(null);", `cp.setPreferredSize(new Dimension(${Math.round(f.width)}, ${Math.round(f.height)}));`);
+  out.push("Container cp = getContentPane();", `cp.setLayout(${f.layout ? layoutCode(f.layout) : "null"});`, `cp.setPreferredSize(new Dimension(${Math.round(f.width)}, ${Math.round(f.height)}));`);
   if (f.background) out.push(`cp.setBackground(${color(f.background)});`);
   out.push(...p.extra.map((x) => (x.endsWith(";") || x.endsWith("}") ? x : x + ";")));
-  for (const c of codeOrder(f)) out.push("", ...componentLines(c, p.extras.get(c.name) ?? [], parentOf(f, c) ?? "cp", childrenOf(f, c.name).length > 0));
+  for (const c of codeOrder(f)) {
+    const parent = parentOf(f, c) ?? null;
+    out.push("", ...componentLines(c, p.extras.get(c.name) ?? [], parent ?? "cp", childrenOf(f, c.name).length > 0, layoutOf(f, parent)));
+  }
   out.push("", "pack();");
   return out;
 }
@@ -314,6 +324,14 @@ export function parseForm(text: string): ParsedForm | null {
     if ((m = new RegExp(`^setTitle\\(${STRING}\\)$`).exec(s))) form.title = unescapeJava(m[1]);
     else if ((m = /^setResizable\((true|false)\)$/.exec(s))) form.resizable = m[1] === "true";
     else if (/^Container cp=getContentPane\(\)$|^cp\.setLayout\(null\)$|^pack\(\)$/.test(s)) continue;
+    else if ((m = /^cp\.setLayout\((.*)\)$/.exec(s)) && parseLayout(m[1])) form.layout = parseLayout(m[1])!;
+    else if ((m = /^(\w+)\.add\((\w+),(.+)\)$/.exec(s)) && (m[1] === "cp" || byName.get(m[1])?.type === "JPanel") && byName.has(scrollToInner.get(m[2]) ?? m[2]) && parseRegion(m[3])) {
+      // Added to a region of a BorderLayout.
+      const c = byName.get(scrollToInner.get(m[2]) ?? m[2])!;
+      if (m[1] !== "cp") c.parent = m[1];
+      c.region = parseRegion(m[3])!;
+      if (!order.includes(c.name)) order.push(c.name);
+    }
     else if ((m = /^cp\.setPreferredSize\(new Dimension\((\d+),(\d+)\)\)$/.exec(s))) {
       form.width = +m[1];
       form.height = +m[2];
@@ -351,6 +369,12 @@ function applyCall(c: GuiComponent, onScrollPane: boolean, method: string, args:
     const m = /^(-?\d+),(-?\d+),(\d+),(\d+)$/.exec(args);
     if (!m) return false;
     [c.x, c.y, c.w, c.h] = [+m[1], +m[2], +m[3], +m[4]];
+    return true;
+  }
+  if (method === "setPreferredSize") {
+    const m = /^new Dimension\((\d+),(\d+)\)$/.exec(args);
+    if (!m) return false;
+    [c.w, c.h] = [+m[1], +m[2]];
     return true;
   }
   if (onScrollPane) return false;
@@ -408,9 +432,15 @@ function applyCall(c: GuiComponent, onScrollPane: boolean, method: string, args:
       c[key] = v;
       return true;
     }
-    case "setLayout":
-      // A panel with components inside is written with no layout manager.
-      return c.type === "JPanel" && args === "null";
+    case "setLayout": {
+      // No layout manager (each where its bounds say), or one of those the designer knows.
+      if (c.type !== "JPanel") return false;
+      if (args === "null") return true;
+      const l = parseLayout(args);
+      if (!l) return false;
+      c.layout = l;
+      return true;
+    }
     case "setPaintTicks":
     case "setPaintLabels":
     case "setOpaque":

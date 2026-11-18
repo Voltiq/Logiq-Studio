@@ -8,6 +8,7 @@ import {
   AlignStartHorizontal,
   AlignStartVertical,
   AlignVerticalSpaceAround,
+  ArrowLeft,
   ArrowRight,
   MoveHorizontal,
   MoveVertical,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { badName, componentInfo, EVENT_INFO, handlerName, type GuiComponent, type GuiForm } from "./model";
 import type { AlignKind } from "./geometry";
+import { REGIONS, defaultLayout, type Layout, type LayoutKind, type Region } from "./layout";
 import { IconButton } from "../components/ui/Button";
 import { Checkbox } from "../components/ui/Field";
 import { t } from "../lib/i18n";
@@ -79,9 +81,62 @@ export interface InspectorProps {
   onGoToHandler: (method: string) => void;
   onAlign: (kind: AlignKind) => void;
   onDelete: () => void;
+  /** In the shown container's border layout: components another one in their region hides. */
+  hidden: string[];
   /** The panels the selected component can be put into. */
   containers: string[];
   onContainer: (name: string, parent: string | null) => void;
+  /** The layout of the selected component's panel (or the window), if it has one. */
+  parentLayout?: Layout;
+  onLayout: (container: string | null, layout: Layout | undefined) => void;
+  onRegion: (name: string, region: Region) => void;
+  onOrder: (name: string, by: number) => void;
+}
+
+const REGION_LABELS: Record<Region, () => string> = { NORTH: () => t("Top (north)"), SOUTH: () => t("Bottom (south)"), WEST: () => t("Left (west)"), EAST: () => t("Right (east)"), CENTER: () => t("Centre") };
+
+/** How a panel or the window lays out what is in it. */
+function LayoutEditor({ layout, onChange, hidden = [] }: { layout: Layout | undefined; onChange: (l: Layout | undefined) => void; hidden?: string[] }) {
+  const kind = layout?.kind ?? "";
+  const gaps = layout && (
+    <div className="gi-row">
+      <Field label={t("Gap across")} type="number" value={String(layout.hgap)} onCommit={(v) => onChange({ ...layout, hgap: Math.max(0, num(v, layout.hgap)) })} />
+      <Field label={t("Gap down")} type="number" value={String(layout.vgap)} onCommit={(v) => onChange({ ...layout, vgap: Math.max(0, num(v, layout.vgap)) })} />
+    </div>
+  );
+  return (
+    <>
+      <label className="gi-field">
+        <span className="gi-label">{t("Layout")}</span>
+        <select className="gi-input" value={kind} onChange={(e) => onChange(e.target.value ? defaultLayout(e.target.value as LayoutKind) : undefined)}>
+          <option value="">{t("None: place each one freely")}</option>
+          <option value="flow">{t("Flow: in rows, one after another")}</option>
+          <option value="grid">{t("Grid: cells of the same size")}</option>
+          <option value="border">{t("Border: top, bottom, sides and centre")}</option>
+        </select>
+      </label>
+      {layout?.kind === "flow" && (
+        <div className="gi-field">
+          <span className="gi-label">{t("Rows lined up")}</span>
+          <div className="segmented gi-segmented" role="group">
+            {(["left", "center", "right"] as const).map((a) => (
+              <button key={a} type="button" className={`segment${layout.align === a ? " is-selected" : ""}`} aria-pressed={layout.align === a} onClick={() => onChange({ ...layout, align: a })}>
+                {a === "left" ? t("Left") : a === "center" ? t("Centre") : t("Right")}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {layout?.kind === "grid" && (
+        <div className="gi-row">
+          <Field label={t("Rows")} type="number" value={String(layout.rows)} onCommit={(v) => onChange({ ...layout, rows: Math.max(0, num(v, layout.rows)) || (layout.cols ? 0 : 1) })} />
+          <Field label={t("Columns")} type="number" value={String(layout.cols)} onCommit={(v) => onChange({ ...layout, cols: Math.max(0, num(v, layout.cols)) || (layout.rows ? 0 : 1) })} />
+        </div>
+      )}
+      {gaps}
+      {hidden.length > 0 && <p className="gi-note is-warning">{t("Hidden behind another one in the same region: {0}. A border layout shows one component in each region.", hidden.join(", "))}</p>}
+    </>
+  );
 }
 
 export function Inspector(p: InspectorProps) {
@@ -129,6 +184,7 @@ export function Inspector(p: InspectorProps) {
         </div>
         <Checkbox label={t("Resizable")} checked={form.resizable} onChange={(v) => p.onForm({ resizable: v })} />
         <ColorField label={t("Background")} value={form.background} onChange={(v) => p.onForm({ background: v })} />
+        <LayoutEditor layout={form.layout} onChange={(l) => p.onLayout(null, l)} hidden={p.hidden} />
         <p className="gi-note">{t("Drag components from the left into the window. Double-click one to write what happens when it is used.")}</p>
       </div>
     );
@@ -158,6 +214,7 @@ export function Inspector(p: InspectorProps) {
       {has("text") && <Field label={t("Text")} value={c.text ?? ""} multiline={c.type === "JTextArea"} onCommit={(v) => set({ text: v })} />}
       {has("items") && <Field label={t("Items (one per line)")} value={(c.items ?? []).join("\n")} multiline onCommit={(v) => set({ items: v.split("\n").filter((x, i, all) => x !== "" || i < all.length - 1) })} />}
       {has("border") && <Field label={t("Title of the border")} value={c.border ?? ""} placeholder={t("(no border)")} onCommit={(v) => set({ border: v })} />}
+      {c.type === "JPanel" && <LayoutEditor layout={c.layout} onChange={(l) => p.onLayout(c.name, l)} hidden={p.hidden} />}
 
       <div className="gi-section">{t("Position and size")}</div>
       {(p.containers.length > 0 || c.parent) && (
@@ -173,13 +230,53 @@ export function Inspector(p: InspectorProps) {
           </select>
         </label>
       )}
-      {c.parent && <p className="gi-note">{t("x and y count from the top left of {0}.", c.parent)}</p>}
-      <div className="gi-row is-four">
-        <Field label="x" type="number" value={String(c.x)} onCommit={(v) => set({ x: num(v, c.x) })} />
-        <Field label="y" type="number" value={String(c.y)} onCommit={(v) => set({ y: num(v, c.y) })} />
-        <Field label={t("Width")} type="number" value={String(c.w)} onCommit={(v) => set({ w: Math.max(4, num(v, c.w)) })} />
-        <Field label={t("Height")} type="number" value={String(c.h)} onCommit={(v) => set({ h: Math.max(4, num(v, c.h)) })} />
-      </div>
+      {!p.parentLayout ? (
+        <>
+          {c.parent && <p className="gi-note">{t("x and y count from the top left of {0}.", c.parent)}</p>}
+          <div className="gi-row is-four">
+            <Field label="x" type="number" value={String(c.x)} onCommit={(v) => set({ x: num(v, c.x) })} />
+            <Field label="y" type="number" value={String(c.y)} onCommit={(v) => set({ y: num(v, c.y) })} />
+            <Field label={t("Width")} type="number" value={String(c.w)} onCommit={(v) => set({ w: Math.max(4, num(v, c.w)) })} />
+            <Field label={t("Height")} type="number" value={String(c.h)} onCommit={(v) => set({ h: Math.max(4, num(v, c.h)) })} />
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="gi-note">
+            {p.parentLayout.kind === "grid"
+              ? t("The grid gives it a cell; its size is the cell's.")
+              : p.parentLayout.kind === "flow"
+                ? t("The flow layout places it after the one before; it asks for this size.")
+                : t("The border layout places it in its region; it asks for this size (the height at the top and bottom, the width at the sides).")}
+          </p>
+          {p.parentLayout.kind === "border" ? (
+            <label className="gi-field">
+              <span className="gi-label">{t("Region")}</span>
+              <select className="gi-input" value={c.region ?? "CENTER"} onChange={(e) => p.onRegion(c.name, e.target.value as Region)}>
+                {REGIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {REGION_LABELS[r]()}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="gi-field">
+              <span className="gi-label">{t("Place in the order")}</span>
+              <div className="gi-tools">
+                <IconButton icon={ArrowLeft} label={t("Earlier")} spacing="compact" onClick={() => p.onOrder(c.name, -1)} />
+                <IconButton icon={ArrowRight} label={t("Later")} spacing="compact" onClick={() => p.onOrder(c.name, 1)} />
+              </div>
+            </div>
+          )}
+          {p.parentLayout.kind !== "grid" && (
+            <div className="gi-row">
+              <Field label={t("Width")} type="number" value={String(c.w)} onCommit={(v) => set({ w: Math.max(4, num(v, c.w)) })} />
+              <Field label={t("Height")} type="number" value={String(c.h)} onCommit={(v) => set({ h: Math.max(4, num(v, c.h)) })} />
+            </div>
+          )}
+        </>
+      )}
 
       {(has("min") || has("value")) && (
         <>

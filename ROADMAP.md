@@ -444,7 +444,7 @@ UML class diagram draws itself from your Java code while you type, like in the R
 
 ### Still open, moved on
 - [ ] JavaFX windows (FXML) → later
-- [ ] Containers with their own layout (components inside a panel, layout managers) → 1.8
+- [x] Containers with their own layout (components inside a panel, layout managers) (done in 1.8 and 1.9)
 
 ## v1.0 — Release (2026-11-17)
 
@@ -523,7 +523,7 @@ UML class diagram draws itself from your Java code while you type, like in the R
   secret; until the first release is published, the check finds nothing
 - Tried in the browser stand-in and with native tests, and the installer was built; not yet installed and run
 
-## 1.8 — Containers in the GUI designer (in progress)
+## 1.8 and 1.9 — Containers in the GUI designer (2026-11-18)
 
 ### Components inside panels
 - [x] A component dropped or drawn onto a **panel** goes inside it (`panel1.add(…)`, the panel without a layout
@@ -534,4 +534,17 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - [x] Deleting, copying and duplicating a panel include what is inside it; aligning and nudging work across panels;
       Tab goes through the components in the code's order
 - [x] Read back from the code, also by hand (a loop of panels is cut); tested with the real javac
-- [ ] Layout managers for panels and the window (FlowLayout, GridLayout, BorderLayout), drawn as Swing lays out
+
+### Layout managers (1.9)
+- [x] A panel or the window can have a **FlowLayout** (alignment, gaps), **GridLayout** (rows, columns, gaps) or
+      **BorderLayout** (gaps), chosen in the inspector; the designer lays the components out as Swing does
+      (worked out like Swing's own code: rows that wrap and centre, cells sharing what is left, the regions and a
+      titled border's room), panels in panels included
+- [x] Dragging a component into a laid-out panel puts it where the pointer is in the order (a bar shows where) or
+      into the region under it (shown); whoever was in that region moves to where it came from; arrow keys and
+      *Earlier* / *Later* change the order, the inspector the region; a component another one in its region covers
+      is named
+- [x] Changing a layout moves nothing: to none, each stays where the layout had it; to flow or grid, they are
+      ordered as they read; to border, each goes to the region it is nearest (a free one when that is taken)
+- [x] The code: `setLayout(new FlowLayout(…))`, `setPreferredSize(…)` instead of `setBounds` (nothing in a grid),
+      `add(x, BorderLayout.NORTH)`; Swing's other ways of writing them read too; tested with the real javac
