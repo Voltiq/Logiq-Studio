@@ -2,6 +2,10 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.11.0
+
+- **JavaFX layout panes** in the GUI designer: a JavaFX window and its panes can be a **VBox**, **HBox**, **FlowPane**, **GridPane**, **BorderPane** or **StackPane**, drawn as JavaFX lays them out. Dragging a component in picks its place, its cell in a GridPane (a new row or column past the last) or its region; the arrow keys move it to the next cell or place.
+
 ## 1.10.0
 
 - **JavaFX windows** in the GUI designer: **File → New JavaFX window** makes an `.fxml` file and its controller class, and the designer draws the window in JavaFX's look with Button, Label, TextField and the other controls, panes inside panes. Ticking an event writes `onAction` (or a mouse or key event) and a handler in the controller; renaming a component renames it there too. What the designer doesn't know in an FXML file is kept. Running JavaFX windows comes in a later version.
