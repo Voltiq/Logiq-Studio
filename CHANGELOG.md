@@ -2,6 +2,10 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.5.0
+
+- **Undo and redo in the class diagram**: `Ctrl+Z` takes back what you did in the diagram and `Ctrl+Y` (or `Ctrl+Shift+Z`) does it again, also from the Edit menu and the diagram's toolbar. It covers moving boxes, notes and lines, hiding and choosing classes, arranging, and the code the diagram wrote: attributes and methods, inheritance, associations, new classes, aggregations and compositions. Code you changed by hand in the meantime is left alone.
+
 ## 1.4.0
 
 - **Nassi–Shneiderman diagrams (structograms)**: View → Nassi–Shneiderman diagram of this method (`Ctrl+Alt+N`) draws the Java method at the cursor beside its code and follows it as you type: decisions, multiple choices, loops, exits, try/catch and calls. File → New Nassi–Shneiderman diagram lets you draw one without code, block by block. Both can be exported as PNG or SVG or copied as an image.
