@@ -2,6 +2,11 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.6.0
+
+- **Snippets for every language**: type a short word and press `Ctrl+Space` or `Tab` to write out the whole piece of code: `sysout` becomes `System.out.println();`, `fori` a counting loop, `main` the main method, and `!` in an HTML file the page skeleton. `Tab` then moves through the fields to fill in. About 330 of them for Java, Kotlin, Python, JavaScript and TypeScript, HTML, CSS, C, C++, PHP, SQL and Markdown; they also show in the suggestion list with a preview, and Edit → Insert snippet lists them all.
+- **Java suggestions** without the language server show again: keywords, your classes and their methods were left out of the list.
+
 ## 1.5.0
 
 - **Undo and redo in the class diagram**: `Ctrl+Z` takes back what you did in the diagram and `Ctrl+Y` (or `Ctrl+Shift+Z`) does it again, also from the Edit menu and the diagram's toolbar. It covers moving boxes, notes and lines, hiding and choosing classes, arranging, and the code the diagram wrote: attributes and methods, inheritance, associations, new classes, aggregations and compositions. Code you changed by hand in the meantime is left alone.
