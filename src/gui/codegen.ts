@@ -19,8 +19,8 @@ export interface ParsedForm {
   extras: Map<string, string[]>;
 }
 
-const FIELDS_BEGIN = /^([ \t]*)\/\/ GUI-BEGIN fields\b.*$/m;
-const FIELDS_END = /^[ \t]*\/\/ GUI-END fields\b.*$/m;
+export const FIELDS_BEGIN = /^([ \t]*)\/\/ GUI-BEGIN fields\b.*$/m;
+export const FIELDS_END = /^[ \t]*\/\/ GUI-END fields\b.*$/m;
 const COMPONENTS_BEGIN = /^([ \t]*)\/\/ GUI-BEGIN components\b.*$/m;
 const COMPONENTS_END = /^[ \t]*\/\/ GUI-END components\b.*$/m;
 
@@ -31,7 +31,7 @@ interface Region {
   indent: string;
 }
 
-function region(text: string, begin: RegExp, end: RegExp): Region | null {
+export function region(text: string, begin: RegExp, end: RegExp): Region | null {
   const b = begin.exec(text);
   if (!b) return null;
   const rest = text.slice(b.index + b[0].length);
@@ -267,7 +267,7 @@ export function componentsCode(p: ParsedForm): string[] {
   return out;
 }
 
-function indentLines(lines: string[], indent: string): string {
+export function indentLines(lines: string[], indent: string): string {
   return lines.map((l) => (l ? indent + l : "")).join("\n") + (lines.length ? "\n" : "");
 }
 
@@ -529,7 +529,7 @@ function ensureImports(text: string, form: GuiForm): string {
 }
 
 /** Where the class's closing brace is: the last `}` of the text, which for one top-level class is its own. */
-function classEnd(text: string, name: string): number {
+export function classEnd(text: string, name: string): number {
   const start = new RegExp(`\\bclass\\s+${name}\\b`).exec(text);
   if (!start) return text.lastIndexOf("}");
   let depth = 0;

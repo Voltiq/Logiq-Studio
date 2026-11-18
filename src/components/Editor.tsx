@@ -103,7 +103,7 @@ export function Breadcrumbs({ path, focused }: { path: string; focused: boolean 
   const parts = (root ? relative(root, path) : path).split("/");
   const scope = focused && languageFor(path).id === "java" ? scopeAt(path, line) : { types: [], method: null };
   // A Swing window the designer made: a way back to the designer.
-  const designable = languageFor(path).id === "java" && !!getDoc(path)?.state.doc.toString().includes("// GUI-BEGIN fields");
+  const designable = /\.fxml$/i.test(path) || (languageFor(path).id === "java" && !!getDoc(path)?.state.doc.toString().includes("// GUI-BEGIN fields"));
   return (
     <nav className="breadcrumbs" aria-label={t("Breadcrumbs")}>
       {parts.map((p, i) => (

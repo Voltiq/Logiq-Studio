@@ -72,6 +72,8 @@ With the keyboard: `Tab` moves into the diagram, the arrow keys go from class to
 
 To say what a button does, double-click it: a method like `okButton_ActionPerformed` is written for you to fill in. The designer writes only the code between the `// GUI-BEGIN` and `// GUI-END` comments; the rest of the class is yours, and what you change in the code shows in the designer.
 
+**File → New JavaFX window** makes a JavaFX window instead: a `.fxml` file the designer draws in JavaFX's look, and its controller class. The designer writes the FXML and the controller's `@FXML` fields; an event handler such as `okButton_Action` goes into the controller for you to fill in. A `.fxml` file opens as text with **Design** above it.
+
 ## Nassi–Shneiderman diagrams
 
 A Nassi–Shneiderman diagram (structogram) shows how a method works: sequences, decisions, loops and choices as nested boxes.

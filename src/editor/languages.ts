@@ -95,6 +95,7 @@ const BY_EXT: Record<string, LanguageId> = {
   md: "markdown",
   markdown: "markdown",
   xml: "xml",
+  fxml: "xml",
   svg: "xml",
   py: "python",
   pyw: "python",

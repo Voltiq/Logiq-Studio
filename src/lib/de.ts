@@ -1509,4 +1509,16 @@ export const de: Record<string, string> = {
   "Right (east)": "Rechts (Osten)",
   // Layout managers
   "Hidden behind another one in the same region: {0}. A border layout shows one component in each region.": "Von einer anderen im selben Bereich verdeckt: {0}. Ein Border-Layout zeigt in jedem Bereich eine Komponente.",
+  // JavaFX windows
+  "Clicked / Enter (onAction)": "Geklickt / Enter (onAction)",
+  "Key released (onKeyReleased)": "Taste losgelassen (onKeyReleased)",
+  "Mouse clicked (onMouseClicked)": "Mausklick (onMouseClicked)",
+  "Name of the window": "Name des Fensters",
+  "New JavaFX window": "Neues JavaFX-Fenster",
+  "New JavaFX window…": "Neues JavaFX-Fenster…",
+  "Runs once the window is loaded.": "Läuft einmal, wenn das Fenster geladen ist.",
+  "The controller wasn't changed": "Der Controller wurde nicht geändert",
+  "The designer shows FXML whose root is an AnchorPane or a Pane, and that is well-formed XML.": "Der Designer zeigt FXML, dessen Wurzel ein AnchorPane oder Pane ist und das wohlgeformtes XML ist.",
+  "The fields and event handlers go into the controller, {0}. The window's title is set where the window is opened.": "Die Felder und Event-Handler kommen in den Controller, {0}. Den Titel des Fensters setzt der Code, der es öffnet.",
+  "This FXML can't be shown yet": "Dieses FXML kann noch nicht gezeigt werden",
 };

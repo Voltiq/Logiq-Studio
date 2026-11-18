@@ -443,7 +443,7 @@ UML class diagram draws itself from your Java code while you type, like in the R
       compile with the real javac without a warning; the designer tried in the browser stand-in
 
 ### Still open, moved on
-- [ ] JavaFX windows (FXML) → later
+- [ ] JavaFX windows (FXML) → 1.10 (in progress)
 - [x] Containers with their own layout (components inside a panel, layout managers) (done in 1.8 and 1.9)
 
 ## v1.0 — Release (2026-11-17)
@@ -548,3 +548,22 @@ UML class diagram draws itself from your Java code while you type, like in the R
       ordered as they read; to border, each goes to the region it is nearest (a free one when that is taken)
 - [x] The code: `setLayout(new FlowLayout(…))`, `setPreferredSize(…)` instead of `setBounds` (nothing in a grid),
       `add(x, BorderLayout.NORTH)`; Swing's other ways of writing them read too; tested with the real javac
+
+## 1.10 — JavaFX windows (in progress)
+
+### FXML in the designer
+- [x] **File → New JavaFX window** (and the explorer's menu) makes `Name.fxml` and `NameController.java`; a `.fxml`
+      file opens as XML with **Design** above it, and in the designer in JavaFX's look (Modena)
+- [x] The same palette in JavaFX's classes (Button, Label, TextField, PasswordField, TextArea, CheckBox,
+      RadioButton with toggle groups, ComboBox and ListView with items, Spinner, Slider, ProgressBar, Pane), panes
+      inside panes; their properties, styles (background, text colour, font) and tooltips
+- [x] Events FXML can name (`onAction`, `onMouseClicked`, `onKeyReleased`): ticking one writes the attribute and
+      a handler (`okButton_Action(ActionEvent event)`) in the controller; Enter or a double-click goes there
+- [x] The controller's `@FXML` fields in the designer's region; renaming renames the `fx:id`, the field and the
+      handlers; a controller that is missing is made
+- [x] What the designer doesn't know is kept: attributes, elements (an ImageView, padding…), imports, other style
+      rules, handlers of other names; JavaFX's painting order (the last child on top) kept
+- [x] Tested: reading Scene Builder's FXML, writing every component and reading it back, the controller compiled
+      by javac against stand-ins for JavaFX's classes (JavaFX itself isn't on this machine)
+- [ ] Layout panes: VBox, HBox, FlowPane, BorderPane, GridPane, StackPane
+- [ ] Running a JavaFX window: a launcher and a template, and getting JavaFX (OpenJFX) for a project

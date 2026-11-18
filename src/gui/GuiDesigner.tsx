@@ -36,7 +36,14 @@ import { Button, IconButton } from "../components/ui/Button";
 import { EmptyState } from "../components/ui/Feedback";
 import type { MenuItem } from "../components/ui/Menu";
 import { methodLine, minimalChange, parseForm, renameInCode, writeForm, type ParsedForm } from "./codegen";
-import { COMPONENTS, componentInfo, freeName, handlerName, newComponent, type ComponentType, type EventKind, type GuiComponent } from "./model";
+import { FX_NAMES, parseFxml, writeFxml, type FxParsed } from "./fxml";
+import { controllerPath, forgetInFxml, renameInController, renameInFxml, syncControllerFile } from "./fxDesign";
+import { api } from "../lib/api";
+import { stem } from "../lib/paths";
+import { COMPONENTS, componentInfo, eventsOf, freeName, handlerName, newComponent, type ComponentType, type EventKind, type GuiComponent } from "./model";
+
+/** What the designer edits: a Swing class's form, or a JavaFX window's FXML. */
+type Editable = ParsedForm | FxParsed;
 import { align, bounds, clampInto, intersects, snapMove, snapResize, type AlignKind, type Box, type Guide, type Handle } from "./geometry";
 import { ComponentView } from "./render";
 import { childBoxes, childrenOf, codeOrder, containerAt, copyComponents, descendants, dropInto, isContainer, layoutOf, moveInto, originOf, parentOf, pasteComponents, placeInOrder, setLayout, topmost } from "./tree";
@@ -125,8 +132,13 @@ export function GuiDesigner({ path }: { path: string }) {
     read();
     return watchDoc(path, read);
   }, [path]);
-  const parsed = useMemo(() => parseForm(text), [text]);
+  // A JavaFX window (.fxml, with its controller class) or a Swing window class.
+  const fx = /\.fxml$/i.test(path);
+  const parsed = useMemo<Editable | null>(() => (fx ? parseFxml(text, stem(path)) : parseForm(text)), [text, fx, path]);
   const form = parsed?.form ?? null;
+  const toolkit = form?.toolkit;
+  /** The controller's sync after the last change (handlers are jumped to once it is written). */
+  const synced = useRef<Promise<void>>(Promise.resolve());
 
   const [selection, setSelection] = useState<string[]>([]);
   const [tool, setTool] = useState<ComponentType | null>(null);
@@ -158,42 +170,60 @@ export function GuiDesigner({ path }: { path: string }) {
 
   /** Changes the form and writes it into the code (one undo step). */
   const edit = useCallback(
-    (mutate: (p: ParsedForm) => void) => {
+    (mutate: (p: Editable) => void) => {
       const doc = getDoc(path);
       if (!doc) return;
       const src = doc.state.doc.toString();
-      const p = parseForm(src);
+      const p = fx ? parseFxml(src, stem(path)) : parseForm(src);
       if (!p) return;
       mutate(p);
-      const change = minimalChange(src, writeForm(src, p, todo));
+      const out = "rootName" in p ? writeFxml(p) : writeForm(src, p, todo);
+      const change = minimalChange(src, out);
       if (change) changeDoc(path, [change], "input.design");
+      // JavaFX: the controller gets the fields and handlers.
+      if ("rootName" in p) synced.current = synced.current.then(() => syncControllerFile(path, p.form, p.controller, todo)).catch((e) => toast("error", t("The controller wasn't changed"), String(e)));
     },
-    [path, todo],
+    [path, todo, fx],
   );
 
   const rename = (from: string, to: string) => {
     const doc = getDoc(path);
     if (!doc || from === to) return;
     const src = doc.state.doc.toString();
-    const change = minimalChange(src, renameInCode(src, from, to));
+    let out = renameInCode(src, from, to);
+    if (fx) {
+      const p = parseFxml(src, stem(path));
+      if (!p) return;
+      renameInFxml(p, from, to);
+      out = writeFxml(p);
+      synced.current = synced.current.then(() => renameInController(path, p.controller, (text) => renameInCode(text, from, to)));
+    }
+    const change = minimalChange(src, out);
     if (change) changeDoc(path, [change], "input.design");
     setSelection((s) => s.map((n) => (n === from ? to : n)));
   };
 
-  const goToHandler = (method: string) => {
-    const line = methodLine(getDoc(path)?.state.doc.toString() ?? "", method);
-    void showCode(line ?? undefined);
+  /** The file the handlers are in: the class itself, or a JavaFX window's controller. */
+  const handlerFile = () => (fx && parsed && "controller" in parsed && parsed.controller ? controllerPath(path, parsed.controller) : path);
+
+  const goToHandler = async (method: string) => {
+    await synced.current;
+    const file = handlerFile();
+    const text = getDoc(file)?.state.doc.toString() ?? (await api.readText(file).then((f) => f.text).catch(() => ""));
+    void showCode(methodLine(text, method) ?? undefined, file);
   };
 
-  /** Shows the class's code beside the designer (in the other editor group). */
-  const showCode = async (line?: number) => {
+  /** Shows code beside the designer (in the other editor group): the class's, or another file's. */
+  const showCode = async (line?: number, file = path) => {
     const design = get().tabs.find((x) => x.id === `gui:${path}`);
-    const code = get().tabs.find((x) => x.kind === "file" && x.path?.toLowerCase() === path.toLowerCase());
+    const same = (x: { kind: string; path?: string | null }) => x.kind === "file" && x.path?.toLowerCase() === file.toLowerCase();
+    const code = get().tabs.find(same);
     if (design && code && code.group === design.group) moveToGroup(code.id, design.group === 0 ? 1 : 0);
-    const now = get().tabs.find((x) => x.kind === "file" && x.path?.toLowerCase() === path.toLowerCase());
-    // The jump to the line goes to the group the code is in.
+    const now = get().tabs.find(same);
+    // The jump to the line goes to the group the code is in; a file not open yet opens beside the designer.
     if (now) focusGroup(now.group);
-    await openFile(path, line ? { line, col: 1 } : undefined);
+    else if (design) focusGroup(design.group === 0 ? 1 : 0);
+    await openFile(file, line ? { line, col: 1 } : undefined);
   };
 
   const addEvent = (name: string, e: EventKind, on: boolean, jump = false) => {
@@ -202,7 +232,7 @@ export function GuiDesigner({ path }: { path: string }) {
       if (!c) return;
       c.events = on ? [...new Set([...c.events, e])] : c.events.filter((x) => x !== e);
     });
-    if (on && jump) window.setTimeout(() => goToHandler(handlerName(name, e)), 0);
+    if (on && jump) window.setTimeout(() => void goToHandler(handlerName(name, e, toolkit)), 0);
   };
 
   const point = (e: { clientX: number; clientY: number }) => {
@@ -213,9 +243,15 @@ export function GuiDesigner({ path }: { path: string }) {
   if (!form || !parsed) {
     return (
       <div className="gd gd-empty">
-        <EmptyState icon={AppWindow} title={t("No designer regions in this class")} actions={<Button onClick={() => void showCode()}>{t("Open the code")}</Button>}>
-          {t("The designer works on classes it made (File → New Swing window), between the // GUI-BEGIN and // GUI-END comments.")}
-        </EmptyState>
+        {fx ? (
+          <EmptyState icon={AppWindow} title={t("This FXML can't be shown yet")} actions={<Button onClick={() => void showCode()}>{t("Open the code")}</Button>}>
+            {t("The designer shows FXML whose root is an AnchorPane or a Pane, and that is well-formed XML.")}
+          </EmptyState>
+        ) : (
+          <EmptyState icon={AppWindow} title={t("No designer regions in this class")} actions={<Button onClick={() => void showCode()}>{t("Open the code")}</Button>}>
+            {t("The designer works on classes it made (File → New Swing window), between the // GUI-BEGIN and // GUI-END comments.")}
+          </EmptyState>
+        )}
       </div>
     );
   }
@@ -388,7 +424,10 @@ export function GuiDesigner({ path }: { path: string }) {
     edit((p) => {
       const gone = new Set(names.flatMap((n) => [n, ...descendants(p.form, n).map((d) => d.name)]));
       p.form.components = p.form.components.filter((c) => !gone.has(c.name));
-      for (const n of gone) p.extras.delete(n);
+      for (const n of gone) {
+        if ("extras" in p) p.extras.delete(n);
+        else forgetInFxml(p, n);
+      }
     });
     setSelection([]);
   };
@@ -472,9 +511,9 @@ export function GuiDesigner({ path }: { path: string }) {
 
   /** Double-click: the component's main event, written if it isn't yet, and its handler shown. */
   const openDefaultEvent = (c: GuiComponent) => {
-    const e = c.events[0] ?? componentInfo(c.type).events[0];
+    const e = c.events[0] ?? eventsOf(c.type, toolkit)[0];
     if (!e) return;
-    if (c.events.includes(e)) goToHandler(handlerName(c.name, e));
+    if (c.events.includes(e)) void goToHandler(handlerName(c.name, e, toolkit));
     else addEvent(c.name, e, true, true);
   };
 
@@ -521,13 +560,13 @@ export function GuiDesigner({ path }: { path: string }) {
     e.stopPropagation();
     const sel = selection.includes(c.name) ? selection : [c.name];
     setSelection(sel);
-    const events = c.events.map((ev): MenuItem => ({ label: `${handlerName(c.name, ev)}()`, icon: Code, onSelect: () => goToHandler(handlerName(c.name, ev)) }));
+    const events = c.events.map((ev): MenuItem => ({ label: `${handlerName(c.name, ev, toolkit)}()`, icon: Code, onSelect: () => void goToHandler(handlerName(c.name, ev, toolkit)) }));
     openMenu({
       x: e.clientX,
       y: e.clientY,
       items: [
         ...(events.length ? [{ type: "heading" as const, label: t("Event handlers") }, ...events, { type: "separator" as const }] : []),
-        ...(sel.length === 1 && componentInfo(c.type).events.length && !c.events.length ? [{ label: t("Write an event handler"), icon: Code, onSelect: () => openDefaultEvent(c) }, { type: "separator" as const }] : []),
+        ...(sel.length === 1 && eventsOf(c.type, toolkit).length && !c.events.length ? [{ label: t("Write an event handler"), icon: Code, onSelect: () => openDefaultEvent(c) }, { type: "separator" as const }] : []),
         { label: t("Bring to front"), icon: BringToFront, onSelect: () => reorder(true) },
         { label: t("Send to back"), icon: SendToBack, onSelect: () => reorder(false) },
         { label: t("Duplicate"), icon: Copy, shortcut: "Ctrl+D", onSelect: () => paste(copyOf(sel), 16) },
@@ -575,11 +614,11 @@ export function GuiDesigner({ path }: { path: string }) {
   const selBox = selected.length > 1 ? bounds(selected) : null;
 
   return (
-    <div className="gd">
+    <div className={cx("gd", fx && "is-fx")}>
       <div className="gd-toolbar">
         <span className="gd-title">
           <AppWindow size={14} aria-hidden="true" />
-          {form.className}
+          {fx ? `${stem(path)}.fxml` : form.className}
         </span>
         <span className="spacer" />
         <IconButton icon={Undo2} label={t("Undo")} shortcut="Ctrl+Z" spacing="compact" onClick={() => runOnDoc(path, undo)} />
@@ -598,9 +637,11 @@ export function GuiDesigner({ path }: { path: string }) {
         <Button spacing="compact" iconBefore={Code} onClick={() => void showCode()}>
           {t("Code")}
         </Button>
-        <Button spacing="compact" appearance="primary" iconBefore={Play} onClick={() => void runActive()}>
-          {t("Run")}
-        </Button>
+        {!fx && (
+          <Button spacing="compact" appearance="primary" iconBefore={Play} onClick={() => void runActive()}>
+            {t("Run")}
+          </Button>
+        )}
       </div>
       <div className="gd-body">
         <div className="gd-palette" role="toolbar" aria-label={t("Components")}>
@@ -618,10 +659,10 @@ export function GuiDesigner({ path }: { path: string }) {
                   e.dataTransfer.effectAllowed = "copy";
                 }}
                 onClick={() => setTool(tool === c.type ? null : c.type)}
-                data-tooltip={`${c.type} — ${t("drag into the window, or click and then draw it")}`}
+                data-tooltip={`${fx ? FX_NAMES[c.type] : c.type} — ${t("drag into the window, or click and then draw it")}`}
               >
                 <Icon size={15} aria-hidden="true" />
-                <span>{t(LABELS[c.type])}</span>
+                <span>{fx ? FX_NAMES[c.type] : t(LABELS[c.type])}</span>
               </button>
             );
           })}
@@ -652,7 +693,7 @@ export function GuiDesigner({ path }: { path: string }) {
           <div className="gd-window" style={{ width: form.width * zoom + 2 }}>
             <div className="gd-titlebar">
               <AppWindow size={13} aria-hidden="true" />
-              <span className="gd-titlebar-text">{form.title || form.className}</span>
+              <span className="gd-titlebar-text">{fx ? stem(path) : form.title || form.className}</span>
               <span className="gd-titlebar-buttons" aria-hidden="true">
                 <span>&#x2013;</span>
                 <span>{form.resizable ? "□" : ""}</span>

@@ -15,7 +15,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { badName, componentInfo, EVENT_INFO, handlerName, type GuiComponent, type GuiForm } from "./model";
+import { badName, componentInfo, eventsOf, EVENT_INFO, FX_COMPONENTS, FX_EVENTS, handlerName, type GuiComponent, type GuiForm } from "./model";
 import type { AlignKind } from "./geometry";
 import { REGIONS, defaultLayout, type Layout, type LayoutKind, type Region } from "./layout";
 import { IconButton } from "../components/ui/Button";
@@ -141,6 +141,7 @@ function LayoutEditor({ layout, onChange, hidden = [] }: { layout: Layout | unde
 
 export function Inspector(p: InspectorProps) {
   const { form, selected } = p;
+  const fx = form.toolkit === "fx";
   if (selected.length > 1) {
     const a = (kind: AlignKind, icon: typeof X, label: string) => <IconButton icon={icon} label={label} spacing="compact" onClick={() => p.onAlign(kind)} />;
     return (
@@ -175,16 +176,17 @@ export function Inspector(p: InspectorProps) {
       <div className="gi">
         <div className="gi-head">
           <span className="gi-title">{t("Window")}</span>
-          <span className="gi-type">JFrame · {form.className}</span>
+          <span className="gi-type">{fx ? `AnchorPane · ${form.className}` : `JFrame · ${form.className}`}</span>
         </div>
-        <Field label={t("Title")} value={form.title} onCommit={(v) => p.onForm({ title: v })} />
+        {!fx && <Field label={t("Title")} value={form.title} onCommit={(v) => p.onForm({ title: v })} />}
         <div className="gi-row">
           <Field label={t("Width")} type="number" value={String(form.width)} onCommit={(v) => p.onForm({ width: Math.max(80, num(v, form.width)) })} />
           <Field label={t("Height")} type="number" value={String(form.height)} onCommit={(v) => p.onForm({ height: Math.max(40, num(v, form.height)) })} />
         </div>
-        <Checkbox label={t("Resizable")} checked={form.resizable} onChange={(v) => p.onForm({ resizable: v })} />
+        {!fx && <Checkbox label={t("Resizable")} checked={form.resizable} onChange={(v) => p.onForm({ resizable: v })} />}
         <ColorField label={t("Background")} value={form.background} onChange={(v) => p.onForm({ background: v })} />
-        <LayoutEditor layout={form.layout} onChange={(l) => p.onLayout(null, l)} hidden={p.hidden} />
+        {!fx && <LayoutEditor layout={form.layout} onChange={(l) => p.onLayout(null, l)} hidden={p.hidden} />}
+        {fx && <p className="gi-note">{t("The fields and event handlers go into the controller, {0}. The window's title is set where the window is opened.", form.className)}</p>}
         <p className="gi-note">{t("Drag components from the left into the window. Double-click one to write what happens when it is used.")}</p>
       </div>
     );
@@ -192,13 +194,14 @@ export function Inspector(p: InspectorProps) {
 
   const c = selected[0];
   const info = componentInfo(c.type);
-  const has = (k: keyof GuiComponent) => info.props.includes(k);
+  const has = (k: keyof GuiComponent) => (fx ? FX_COMPONENTS[c.type].props : info.props).includes(k);
+  const events = eventsOf(c.type, form.toolkit);
   const set = (patch: Partial<GuiComponent>) => p.onComponent(c.name, patch);
   return (
     <div className="gi">
       <div className="gi-head">
         <span className="gi-title">{c.name}</span>
-        <span className="gi-type">{c.type}</span>
+        <span className="gi-type">{fx ? FX_COMPONENTS[c.type].fx : c.type}</span>
         <span className="spacer" />
         <IconButton icon={Trash2} label={t("Delete")} spacing="compact" onClick={p.onDelete} />
       </div>
@@ -214,7 +217,7 @@ export function Inspector(p: InspectorProps) {
       {has("text") && <Field label={t("Text")} value={c.text ?? ""} multiline={c.type === "JTextArea"} onCommit={(v) => set({ text: v })} />}
       {has("items") && <Field label={t("Items (one per line)")} value={(c.items ?? []).join("\n")} multiline onCommit={(v) => set({ items: v.split("\n").filter((x, i, all) => x !== "" || i < all.length - 1) })} />}
       {has("border") && <Field label={t("Title of the border")} value={c.border ?? ""} placeholder={t("(no border)")} onCommit={(v) => set({ border: v })} />}
-      {c.type === "JPanel" && <LayoutEditor layout={c.layout} onChange={(l) => p.onLayout(c.name, l)} hidden={p.hidden} />}
+      {c.type === "JPanel" && !fx && <LayoutEditor layout={c.layout} onChange={(l) => p.onLayout(c.name, l)} hidden={p.hidden} />}
 
       <div className="gi-section">{t("Position and size")}</div>
       {(p.containers.length > 0 || c.parent) && (
@@ -336,15 +339,15 @@ export function Inspector(p: InspectorProps) {
         {has("lineWrap") && <Checkbox label={t("Wrap lines")} checked={!!c.lineWrap} onChange={(v) => set({ lineWrap: v || undefined })} />}
       </div>
 
-      {info.events.length > 0 && (
+      {events.length > 0 && (
         <>
           <div className="gi-section">{t("Events")}</div>
-          {info.events.map((e) => {
+          {events.map((e) => {
             const on = c.events.includes(e);
-            const method = handlerName(c.name, e);
+            const method = handlerName(c.name, e, form.toolkit);
             return (
               <div key={e} className="gi-event">
-                <Checkbox label={t(EVENT_INFO[e].label)} checked={on} onChange={(v) => p.onEvent(c.name, e, v)} />
+                <Checkbox label={fx ? t(FX_EVENTS[e]!.label) : t(EVENT_INFO[e].label)} checked={on} onChange={(v) => p.onEvent(c.name, e, v)} />
                 {on && (
                   <button type="button" className="gi-link" onClick={() => p.onGoToHandler(method)} data-tooltip={t("Go to {0}()", method)}>
                     {method}

@@ -10,7 +10,7 @@ import { t } from "../lib/i18n";
 
 /** Menus are lists of command ids; "-" draws a separator. */
 const MENUS: Record<string, string[]> = {
-  File: ["file.newProject", "file.newFile", "file.newClass", "file.newWindow", "file.newNsd", "-", "file.openFolder", "git.clone", "file.openFile", "file.quickOpen", "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.close", "file.closeAll", "file.closeFolder", "-", "file.settings"],
+  File: ["file.newProject", "file.newFile", "file.newClass", "file.newWindow", "file.newFxWindow", "file.newNsd", "-", "file.openFolder", "git.clone", "file.openFile", "file.quickOpen", "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.close", "file.closeAll", "file.closeFolder", "-", "file.settings"],
   Edit: ["edit.undo", "edit.redo", "-", "edit.find", "edit.findInFiles", "edit.gotoLine", "-", "edit.definition", "edit.usages", "edit.rename", "edit.quickfix", "edit.refactor", "edit.organizeImports", "-", "edit.comment", "edit.format", "edit.snippet", "edit.saveSnippet", "edit.emmet"],
   View: ["view.palette", "-", "view.explorer", "view.outline", "view.sidebar", "view.panel", "view.terminal", "view.newTerminal", "view.problems", "view.preview", "-", "view.split", "view.focusOther", "-", "uml.open", "uml.side", "uml.layout", "nsd.method", "-", "view.zoomIn", "view.zoomOut", "view.zoomReset"],
   Run: ["run.run", "run.debug", "run.trace", "run.compile", "run.stop", "-", "debug.continue", "debug.over", "debug.into", "debug.out", "debug.breakpoint", "-", "run.tests", "run.jshell", "-", "run.config", "project.libraries", "-", "build.tasks", "build.task", "build.jar", "build.javadoc", "-", "run.output"],

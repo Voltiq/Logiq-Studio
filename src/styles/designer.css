@@ -129,3 +129,21 @@
 .gd-drop-target { position: absolute; outline: 2px solid var(--accent); outline-offset: -1px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 7%, transparent); pointer-events: none; z-index: 2; }
 .gd-slot { position: absolute; border-radius: 2px; background: color-mix(in srgb, var(--accent) 22%, transparent); outline: 2px solid var(--accent); pointer-events: none; z-index: 3; }
 .gi-note.is-warning { color: var(--text-warning, var(--text)); }
+
+/* JavaFX windows, in JavaFX's own look (Modena) */
+.gd.is-fx .gd-content { background-color: #f4f4f4; font-family: "Segoe UI", system-ui, sans-serif; }
+.gd.is-fx .gw { color: #333; }
+.gd.is-fx .gw-button { border: 1px solid #b5b5b5; border-radius: 3px; background: linear-gradient(#fdfdfd, #e2e2e2); box-shadow: inset 0 1px 0 #fff; }
+.gd.is-fx .gw-field, .gd.is-fx .gw-spinner { border: 1px solid #c2c2c2; border-radius: 3px; background: linear-gradient(#ececec, #fff 3px); }
+.gd.is-fx .gw-area, .gd.is-fx .gw-list { border: 1px solid #c2c2c2; border-radius: 3px; }
+.gd.is-fx .gw-box { border: 1px solid #b5b5b5; border-radius: 3px; background: linear-gradient(#fdfdfd, #e9e9e9); }
+.gd.is-fx .gw-radio { border: 1px solid #b5b5b5; background: linear-gradient(#fdfdfd, #e9e9e9); }
+.gd.is-fx .gw-box .gw-mark { border-color: #333; }
+.gd.is-fx .gw-radio .gw-mark { background: #333; }
+.gd.is-fx .gw-combo { border: 1px solid #b5b5b5; border-radius: 3px; background: linear-gradient(#fdfdfd, #e2e2e2); }
+.gd.is-fx .gw-spinner-arrows { border-left-color: #c2c2c2; background: linear-gradient(#fdfdfd, #e2e2e2); }
+.gd.is-fx .gw-slider-track { height: 5px; border-color: #b5b5b5; border-radius: 3px; background: #dcdcdc; }
+.gd.is-fx .gw-slider-thumb { top: 3px; width: 14px; height: 14px; border: 1px solid #b5b5b5; border-radius: 50%; background: linear-gradient(#fdfdfd, #dedede); }
+.gd.is-fx .gw-progress { border-radius: 3px; border-color: #c2c2c2; background: linear-gradient(#e4e4e4, #f2f2f2); }
+.gd.is-fx .gw-progress-fill { border-radius: 2px; background: linear-gradient(#4fa8e9, #0096c9); }
+.gd.is-fx .gw-progress-text { display: none; }

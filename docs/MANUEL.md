@@ -72,6 +72,8 @@ Au clavier : `Tab` entre dans le diagramme, les flèches vont de classe en class
 
 Pour indiquer ce que fait un bouton, double-cliquez dessus : une méthode comme `okButton_ActionPerformed` est écrite pour que vous la complétiez. Le concepteur n'écrit que le code situé entre les commentaires `// GUI-BEGIN` et `// GUI-END` ; le reste de la classe vous appartient, et ce que vous modifiez dans le code se voit dans le concepteur.
 
+**Fichier → Nouvelle fenêtre JavaFX** crée à la place une fenêtre JavaFX : un fichier `.fxml` que le concepteur dessine avec l'apparence de JavaFX, et sa classe contrôleur. Le concepteur écrit le FXML et les champs `@FXML` du contrôleur ; un gestionnaire d'événements comme `okButton_Action` va dans le contrôleur pour que vous le complétiez. Un fichier `.fxml` s'ouvre en texte avec **Conception** au-dessus.
+
 ## Diagrammes de Nassi-Shneiderman
 
 Un diagramme de Nassi-Shneiderman (structogramme) montre comment fonctionne une méthode : séquences, décisions, boucles et choix sous forme de boîtes imbriquées.

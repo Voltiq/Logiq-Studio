@@ -84,6 +84,8 @@ export interface GuiForm {
   layout?: Layout;
   /** In the order they are added (Swing paints the first on top). */
   components: GuiComponent[];
+  /** A JavaFX window (an .fxml file and its controller class) rather than a Swing one. */
+  toolkit?: "fx";
 }
 
 export interface ComponentInfo {
@@ -130,10 +132,42 @@ export const EVENT_INFO: Record<EventKind, { label: string; method: string; para
   keyReleased: { label: "Key released (keyReleased)", method: "KeyReleased", param: "KeyEvent", listener: "Key" },
 };
 
-/** The handler method's name: `okButton_ActionPerformed`. */
-export function handlerName(component: string, event: EventKind): string {
-  return `${component}_${EVENT_INFO[event].method}`;
+/** JavaFX: the FXML attribute that names the handler, and the handler's suffix and event class. */
+export const FX_EVENTS: Partial<Record<EventKind, { attr: string; method: string; param: string; label: string }>> = {
+  actionPerformed: { attr: "onAction", method: "Action", param: "ActionEvent", label: "Clicked / Enter (onAction)" },
+  mouseClicked: { attr: "onMouseClicked", method: "MouseClicked", param: "MouseEvent", label: "Mouse clicked (onMouseClicked)" },
+  keyReleased: { attr: "onKeyReleased", method: "KeyReleased", param: "KeyEvent", label: "Key released (onKeyReleased)" },
+};
+
+/** The handler method's name: `okButton_ActionPerformed` in Swing, `okButton_Action` in JavaFX. */
+export function handlerName(component: string, event: EventKind, toolkit?: "fx"): string {
+  return `${component}_${toolkit === "fx" ? (FX_EVENTS[event]?.method ?? EVENT_INFO[event].method) : EVENT_INFO[event].method}`;
 }
+
+/** The events a component offers: Swing's, or those FXML can name. */
+export function eventsOf(type: ComponentType, toolkit?: "fx"): EventKind[] {
+  const all = componentInfo(type).events;
+  if (toolkit !== "fx") return all;
+  const fx = FX_COMPONENTS[type].events;
+  return fx;
+}
+
+/** JavaFX: each component's class, and what it offers. */
+export const FX_COMPONENTS: Record<ComponentType, { fx: string; events: EventKind[]; props: (keyof GuiComponent)[] }> = {
+  JButton: { fx: "Button", events: ["actionPerformed", "mouseClicked"], props: ["text", "tooltip", "enabled", "foreground", "background", "fontSize", "bold", "italic"] },
+  JLabel: { fx: "Label", events: ["mouseClicked"], props: ["text", "align", "tooltip", "enabled", "foreground", "background", "fontSize", "bold", "italic"] },
+  JTextField: { fx: "TextField", events: ["actionPerformed", "keyReleased"], props: ["text", "align", "editable", "tooltip", "enabled", "foreground", "background", "fontSize", "bold", "italic"] },
+  JPasswordField: { fx: "PasswordField", events: ["actionPerformed", "keyReleased"], props: ["tooltip", "enabled", "fontSize"] },
+  JTextArea: { fx: "TextArea", events: ["keyReleased"], props: ["text", "editable", "lineWrap", "tooltip", "enabled", "foreground", "background", "fontSize", "bold", "italic"] },
+  JCheckBox: { fx: "CheckBox", events: ["actionPerformed"], props: ["text", "selected", "tooltip", "enabled", "foreground", "background", "fontSize", "bold", "italic"] },
+  JRadioButton: { fx: "RadioButton", events: ["actionPerformed"], props: ["text", "selected", "group", "tooltip", "enabled", "foreground", "background", "fontSize", "bold", "italic"] },
+  JComboBox: { fx: "ComboBox", events: ["actionPerformed"], props: ["items", "editable", "tooltip", "enabled", "background"] },
+  JList: { fx: "ListView", events: ["mouseClicked", "keyReleased"], props: ["items", "tooltip", "enabled", "background"] },
+  JSpinner: { fx: "Spinner", events: ["mouseClicked"], props: ["min", "max", "value", "step", "tooltip", "enabled"] },
+  JSlider: { fx: "Slider", events: ["mouseClicked"], props: ["min", "max", "value", "ticks", "tooltip", "enabled"] },
+  JProgressBar: { fx: "ProgressBar", events: [], props: ["value", "tooltip"] },
+  JPanel: { fx: "Pane", events: ["mouseClicked"], props: ["tooltip", "background"] },
+};
 
 /** A free name for a new component: button1, button2… */
 export function freeName(form: GuiForm, prefix: string): string {
@@ -143,7 +177,13 @@ export function freeName(form: GuiForm, prefix: string): string {
 
 export function newComponent(form: GuiForm, type: ComponentType, x: number, y: number): GuiComponent {
   const info = componentInfo(type);
-  return { type, name: freeName(form, info.prefix), x, y, w: info.w, h: info.h, events: [], ...structuredClone(info.defaults) };
+  const c: GuiComponent = { type, name: freeName(form, info.prefix), x, y, w: info.w, h: info.h, events: [], ...structuredClone(info.defaults) };
+  // What only Swing has: a progress bar's percentage text, a panel's titled border.
+  if (form.toolkit === "fx") {
+    delete c.showText;
+    delete c.border;
+  }
+  return c;
 }
 
 const JAVA_KEYWORDS = new Set(

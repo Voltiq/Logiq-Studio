@@ -720,6 +720,30 @@ export function newSwingWindow(dir: string) {
   });
 }
 
+/** A JavaFX window: Name.fxml and its controller NameController.java, opened in the designer. */
+export function newFxWindow(dir: string) {
+  const validate = nameValidator(dir);
+  openDialog({
+    kind: "prompt",
+    title: t("New JavaFX window"),
+    label: t("Name of the window"),
+    value: "MainWindow",
+    confirmLabel: t("Create"),
+    validate: (v) => (!/^[A-Za-z_$][\w$]*$/.test(v) ? t("A class name starts with a letter and has only letters, digits and _.") : (validate(`${v}.fxml`) ?? validate(`${v}Controller.java`))),
+    onSubmit: async (name) => {
+      const { newFxmlSource } = await import("../gui/fxml");
+      const { newControllerSource } = await import("../gui/fxController");
+      const pkg = packageFor(dir);
+      const controller = `${name}Controller`;
+      const fxmlPath = join(dir, `${name}.fxml`);
+      await api.createFile(join(dir, `${controller}.java`), newControllerSource(controller, pkg, { fields: t("the designer writes this part"), initialize: t("Runs once the window is loaded.") }));
+      await api.createFile(fxmlPath, newFxmlSource(pkg ? `${pkg}.${controller}` : controller));
+      await afterCreate(dir);
+      await openDesigner(fxmlPath);
+    },
+  });
+}
+
 export async function newJavaFile(dir: string, name: string, kind: Parameters<typeof javaSkeleton>[0]) {
   const path = join(dir, `${name}.java`);
   await api.createFile(path, javaSkeleton(kind, name, packageFor(dir)));

@@ -72,6 +72,8 @@ Mit der Tastatur: `Tab` führt ins Diagramm, die Pfeiltasten gehen von Klasse zu
 
 Um festzulegen, was ein Button tut, klick ihn doppelt an: Eine Methode wie `okButton_ActionPerformed` wird für dich geschrieben, die du ausfüllst. Der Designer schreibt nur den Code zwischen den Kommentaren `// GUI-BEGIN` und `// GUI-END`; der Rest der Klasse gehört dir, und was du im Code änderst, zeigt sich im Designer.
 
+**Datei → Neues JavaFX-Fenster** legt stattdessen ein JavaFX-Fenster an: eine `.fxml`-Datei, die der Designer im Aussehen von JavaFX zeichnet, und ihre Controller-Klasse. Der Designer schreibt das FXML und die `@FXML`-Felder des Controllers; ein Event-Handler wie `okButton_Action` kommt in den Controller, damit du ihn ausfüllst. Eine `.fxml`-Datei öffnet sich als Text mit **Design** darüber.
+
 ## Struktogramme
 
 Ein Struktogramm (Nassi-Shneiderman-Diagramm) zeigt, wie eine Methode arbeitet: Folgen, Verzweigungen, Schleifen und Mehrfachauswahlen als ineinander liegende Kästen.

@@ -72,6 +72,8 @@ Con el teclado: `Tab` entra en el diagrama, las flechas van de clase en clase, `
 
 Para decir qué hace un botón, haz doble clic en él: se escribe un método como `okButton_ActionPerformed` para que lo rellenes. El diseñador solo escribe el código entre los comentarios `// GUI-BEGIN` y `// GUI-END`; el resto de la clase es tuyo, y lo que cambies en el código se ve en el diseñador.
 
+**Archivo → Nueva ventana JavaFX** crea en su lugar una ventana JavaFX: un archivo `.fxml` que el diseñador dibuja con el aspecto de JavaFX, y su clase controladora. El diseñador escribe el FXML y los campos `@FXML` del controlador; un manejador de eventos como `okButton_Action` va en el controlador para que lo rellenes. Un archivo `.fxml` se abre como texto con **Diseño** encima.
+
 ## Diagramas de Nassi-Shneiderman
 
 Un diagrama de Nassi-Shneiderman muestra cómo funciona un método: secuencias, decisiones, bucles y selecciones como cajas anidadas.

@@ -59,6 +59,7 @@ function entryMenu(entry: Entry): MenuItem[] {
     { label: t("New file…"), icon: FilePlus, onSelect: () => A.newFile(dir) },
     { label: t("New Java class…"), icon: Code, onSelect: () => openDialog({ kind: "newJavaFile", dir }) },
     { label: t("New Swing window…"), icon: AppWindow, onSelect: () => A.newSwingWindow(dir) },
+    { label: t("New JavaFX window…"), icon: AppWindow, onSelect: () => A.newFxWindow(dir) },
     { label: t("New Nassi–Shneiderman diagram…"), icon: Rows3, onSelect: () => void import("../nsd/open").then((m) => m.newNsd(dir)) },
     { label: t("New folder…"), icon: FolderPlus, onSelect: () => A.newFolder(dir) },
     { type: "separator" },
