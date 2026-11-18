@@ -2,6 +2,10 @@
 
 What changed in each version of Logiq Studio. The release workflow publishes a version's section as its release notes, and installed copies show it when they offer the update.
 
+## 1.8.0
+
+- **Components inside panels** in the GUI designer: drop or draw a component onto a panel and it goes inside it, panels inside panels too. Moving a panel takes what is inside along; drag a component onto another panel or out into the window, or choose **Placed in** on the right, to put it somewhere else. Deleting, copying and duplicating a panel include its contents, and the code adds each component to its panel.
+
 ## 1.7.0
 
 - **Your own snippets**: Settings → Snippets lets you write snippets yourself: the language, the words that call one, a description and the code, with `${name}` for a field to fill in and `${}` where the cursor ends up. Edit → Save selection as snippet starts one from the code you selected. They expand with `Ctrl+Space` or `Tab` like the built-in ones, come first when both use a word, and go along when you export your settings.
