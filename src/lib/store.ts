@@ -83,7 +83,7 @@ export type Dialog =
       onSecondary?: () => Promise<void> | void;
       onCancel?: () => void;
     }
-  | { kind: "palette"; mode: "commands" | "files" | "line" }
+  | { kind: "palette"; mode: "commands" | "files" | "line" | "snippets" }
   | { kind: "classWizard"; dir: string }
   | {
       kind: "pickClasses";

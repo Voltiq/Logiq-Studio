@@ -28,7 +28,8 @@ import { lintGutter, linter, lintKeymap, type Diagnostic as CmDiagnostic } from 
 import { compilerSawText } from "../lib/javaCheck";
 import { inlineProblems } from "./inlineProblems";
 import { graphiqHighlight, graphiqTheme } from "./theme";
-import { languageFor } from "./languages";
+import { kotlinLanguage, languageFor } from "./languages";
+import { fileLanguage, snippetSupport } from "./snippets";
 import { javaCompletions } from "./javaComplete";
 import { gitGutter } from "./gitGutter";
 import { conflictMarkers } from "./conflicts";
@@ -60,7 +61,7 @@ export const compartments = {
 
 function languageExtension(path: string): Extension {
   const lang = languageFor(path);
-  const ext: Extension[] = [lang.support(path), lspExtension(path)];
+  const ext: Extension[] = [lang.support(path), lspExtension(path), fileLanguage.of(lang.id)];
   const server = hasServer(path);
   const here = () => currentPath(path);
   ext.push(Prec.high(keymap.of([{ key: "Mod-.", run: (v) => (void quickFix(v, here()), true) }])));
@@ -68,9 +69,11 @@ function languageExtension(path: string): Extension {
   // Rename and find usages through a plug-in's language server (Java has its own keys below).
   if (server && lang.id !== "java") ext.push(Prec.high(keymap.of([{ key: "Mod-Shift-r", run: (v: EditorView) => (void refactor(v, here()), true) }])));
   if (lang.id === "java") {
+    // One source for the editor's life: completion keeps a source's answer only while it is the same function.
+    const javaSource = javaCompletions(here);
     ext.push(
       // With the Java language server its completion, F12, F2 and Shift+F12 take over.
-      server ? [] : EditorState.languageData.of(() => [{ autocomplete: javaCompletions(here) }]),
+      server ? [] : EditorState.languageData.of(() => [{ autocomplete: javaSource }]),
       Prec.high(
         keymap.of([
           ...(server
@@ -215,6 +218,8 @@ export function createState(path: string, text: string, s: Settings, onUpdate: E
       indentOnInput(),
       bracketMatching(),
       compartments.brackets.of(s.autoCloseBrackets ? closeBrackets() : []),
+      // Before completion, so Ctrl+Space writes out a whole snippet name at once.
+      snippetSupport(kotlinLanguage),
       autocompletion({ icons: true, activateOnTypingDelay: 60 }),
       rectangularSelection(),
       crosshairCursor(),

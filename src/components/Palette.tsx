@@ -11,6 +11,8 @@ import { Shortcut } from "./ui/Feedback";
 import { cx } from "../lib/utils";
 import { t } from "../lib/i18n";
 import { fuzzy } from "../lib/fuzzy";
+import { activeView } from "../editor/docs";
+import { SNIPPETS, insertSnippet, snippetSetAt } from "../editor/snippets";
 
 export { fuzzy };
 
@@ -30,7 +32,7 @@ interface Item {
 export function Palette() {
   const d = useStore((s) => s.dialog);
   const root = useStore((s) => s.root);
-  const initial = d?.kind === "palette" ? (d.mode === "commands" ? ">" : d.mode === "line" ? ":" : "") : "";
+  const initial = d?.kind === "palette" ? (d.mode === "commands" ? ">" : d.mode === "line" ? ":" : d.mode === "snippets" ? "#" : "") : "";
   const [query, setQuery] = useState(initial);
   const [files, setFiles] = useState<string[]>([]);
   const [active, setActive] = useState(0);
@@ -42,13 +44,24 @@ export function Palette() {
     if (root) api.listFiles(root).then(setFiles).catch(() => setFiles([]));
   }, [root]);
 
-  const mode = query.startsWith(">") ? "commands" : query.startsWith(":") ? "line" : "files";
+  const mode = query.startsWith(">") ? "commands" : query.startsWith(":") ? "line" : query.startsWith("#") ? "snippets" : "files";
   const q = mode === "files" ? query.trim() : query.slice(1).trim();
 
   const items: Item[] = useMemo(() => {
     if (mode === "line") {
       const n = parseInt(q, 10);
       return [{ key: "line", label: n ? t("Go to line {0}", n) : t("Type a line number"), run: () => n && goTo(n) }];
+    }
+    if (mode === "snippets") {
+      // The snippets of the language at the cursor, written there when chosen.
+      const view = activeView();
+      const set = view && snippetSetAt(view.state, view.state.selection.main.head);
+      if (!view || !set) return [];
+      return SNIPPETS[set]
+        .map((sn) => ({ sn, score: fuzzy(q, `${sn.prefixes.join(" ")} ${t(sn.d)}`) }))
+        .filter((x) => x.score !== null)
+        .sort((a, b) => (q ? b.score! - a.score! : 0))
+        .map(({ sn }) => ({ key: sn.prefixes[0], label: sn.prefixes.join(", "), detail: t(sn.d), run: () => insertSnippet(view, sn) }));
     }
     if (mode === "commands") {
       return COMMANDS.filter((c) => !c.enabled || c.enabled())
@@ -116,7 +129,7 @@ export function Palette() {
           />
         </label>
         <div ref={list} className="palette-list" role="listbox">
-          {items.length === 0 && <p className="palette-empty">{mode === "files" && !files.length ? t("Loading files…") : t("Nothing matches.")}</p>}
+          {items.length === 0 && <p className="palette-empty">{mode === "files" && !files.length ? t("Loading files…") : mode === "snippets" && !q ? t("This language has no snippets.") : t("Nothing matches.")}</p>}
           {items.map((item, i) => (
             <div
               key={item.key}

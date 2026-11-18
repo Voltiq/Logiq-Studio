@@ -145,10 +145,14 @@ export const graphiqTheme = EditorView.theme({
     boxShadow: "var(--sh-3), var(--inset-hi)",
     overflow: "hidden",
   },
-  ".cm-tooltip-autocomplete > ul": { fontFamily: "var(--font-code)", fontSize: "12px", maxHeight: "18em", padding: "4px" },
+  // The list clips itself, so the preview next to it (a child of the tooltip) isn't cut off.
+  ".cm-tooltip.cm-tooltip-autocomplete": { overflow: "visible" },
+  ".cm-tooltip-autocomplete > ul": { fontFamily: "var(--font-code)", fontSize: "12px", maxHeight: "18em", padding: "4px", borderRadius: "11px" },
   ".cm-tooltip-autocomplete > ul > li": { padding: "3px 8px !important", borderRadius: "7px", lineHeight: "1.5" },
   ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--accent-soft)", color: "var(--text)" },
   ".cm-completionIcon": { opacity: 0.75, width: "1.2em", paddingRight: "0.6em" },
+  ".cm-completionIcon-snippet:after": { content: "'⇥'" },
+  ".cm-snippetPreview": { margin: 0, fontFamily: "var(--font-code)", fontSize: "11.5px", lineHeight: 1.5, whiteSpace: "pre", tabSize: 4, color: "var(--text-subtle)", overflow: "hidden" },
   ".cm-completionDetail": { color: "var(--text-subtlest)", fontStyle: "normal", marginLeft: "0.8em" },
   ".cm-completionMatchedText": { textDecoration: "none", color: "var(--accent-text)", fontWeight: 600 },
   ".cm-completionInfo": {

@@ -52,7 +52,7 @@ export interface Language {
 /** The tables of each SQL file's database, for completion (filled by the SQL plug-in). */
 export const sqlSchemas = new Map<string, SQLNamespace>();
 
-const kotlinLanguage = StreamLanguage.define(kotlin);
+export const kotlinLanguage = StreamLanguage.define(kotlin);
 
 const LANGS: Record<LanguageId, Language> = {
   java: { id: "java", name: "Java", color: "var(--accent-orange)", badge: "J", support: () => java(), comment: "//" },

@@ -37,6 +37,8 @@ L'éditeur colore le code, ferme les parenthèses, indente et souligne les erreu
 
 Pour Java, **Paramètres → Java** peut installer une fois le serveur de langage Java ; la complétion connaît alors tous les types et les erreurs apparaissent sans compiler. C et C++ utilisent clangd, Python utilise Pyright ou pylsp, lorsqu'ils sont installés.
 
+Les **extraits** écrivent des morceaux de code entiers à partir d'un mot court : tapez `sysout` puis `Ctrl+Espace` ou `Tab` pour `System.out.println();`, `fori` pour une boucle de comptage, `main` pour la méthode main, ou `!` dans un fichier HTML pour le squelette de la page (là, `Tab` appartient à Emmet, utilisez donc `Ctrl+Espace`). `Tab` passe ensuite au champ suivant à remplir. Chaque langage a les siens ; **Édition → Insérer un extrait…** liste ceux du fichier.
+
 ## Exécuter des programmes
 
 `F5` exécute ce qui est ouvert. Ce que cela signifie dépend du fichier :

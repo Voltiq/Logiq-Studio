@@ -37,6 +37,8 @@ Der Editor färbt den Code ein, schließt Klammern, rückt ein und unterstreicht
 
 Für Java kann **Einstellungen → Java** einmalig den Java Language Server installieren; dann kennt die Vervollständigung jeden Typ, und Fehler erscheinen ohne Übersetzen. C und C++ nutzen clangd, Python nutzt Pyright oder pylsp, wenn sie installiert sind.
 
+**Snippets** schreiben ganze Code-Stücke aus einem kurzen Wort: Tippe `sysout` und drücke `Strg+Leertaste` oder `Tab` für `System.out.println();`, `fori` für eine Zählschleife, `main` für die main-Methode oder `!` in einer HTML-Datei für das Seitengerüst (dort gehört `Tab` zu Emmet, nimm also `Strg+Leertaste`). `Tab` springt danach zum nächsten Feld zum Ausfüllen. Jede Sprache hat ihre eigenen; **Bearbeiten → Snippet einfügen…** listet die der Datei auf.
+
 ## Programme ausführen
 
 `F5` führt aus, was offen ist. Was das bedeutet, hängt von der Datei ab:

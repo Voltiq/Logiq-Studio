@@ -37,6 +37,8 @@ El editor colorea el código, cierra los paréntesis, sangra y subraya los error
 
 Para Java, **Ajustes → Java** puede instalar una vez el servidor de lenguaje de Java; entonces el autocompletado conoce todos los tipos y los errores aparecen sin compilar. C y C++ usan clangd, y Python usa Pyright o pylsp, cuando están instalados.
 
+Los **fragmentos** escriben trozos enteros de código a partir de una palabra corta: escribe `sysout` y pulsa `Ctrl+Espacio` o `Tab` para `System.out.println();`, `fori` para un bucle contador, `main` para el método main, o `!` en un archivo HTML para el esqueleto de la página (allí `Tab` es de Emmet, así que usa `Ctrl+Espacio`). Después `Tab` pasa al siguiente campo por rellenar. Cada lenguaje tiene los suyos; **Editar → Insertar fragmento…** muestra los del archivo.
+
 ## Ejecutar programas
 
 `F5` ejecuta lo que está abierto. Qué significa eso depende del archivo:

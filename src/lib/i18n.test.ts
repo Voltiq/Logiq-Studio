@@ -22,6 +22,7 @@ function interfaceStrings(): Set<string> {
     if (f.endsWith("commands.ts")) for (const m of src.matchAll(/label: "([^"]+)", category: "(\w+)"/g)) keys.add(m[1]).add(m[2]);
     if (f.endsWith("templates.ts")) for (const m of src.matchAll(/(?:title|description): "([^"]+)"/g)) keys.add(m[1]);
     if (/python[\\/]index\.ts$/.test(f) || f.endsWith("LanguageSettings.tsx") || /gui[\\/]model\.ts$/.test(f)) for (const m of src.matchAll(/label: "([^"]+)"/g)) keys.add(m[1]);
+    if (/editor[\\/]snippets\.ts$/.test(f)) for (const m of src.matchAll(/\bs\(\s*"[^"]*",\s*"([^"]+)"/g)) keys.add(m[1]);
     if (/gui[\\/]GuiDesigner\.tsx$/.test(f)) for (const m of src.matchAll(/^\s+J\w+: "([^"]+)",$/gm)) keys.add(m[1]);
   }
   // Ids built with t() in the shared components and names of languages are not text.

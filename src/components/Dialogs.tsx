@@ -300,6 +300,7 @@ function ShortcutsDialog() {
     ["Add cursor", "Ctrl+Alt+Down"],
     ["Fold / unfold", "Ctrl+Shift+["],
     ["Show completions", "Ctrl+Space"],
+    ["Write out a snippet (sout, fori, !)", "Tab"],
   ];
   return (
     <Modal title={t("Keyboard shortcuts")} width="medium" onClose={closeDialog}>
