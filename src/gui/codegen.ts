@@ -7,6 +7,7 @@
  * and statements the designer doesn't know (`okButton.setMnemonic(…)`) are
  * kept with their component.
  */
+import { codeOrder, childrenOf, parentOf } from "./tree";
 import { componentInfo, COMPONENTS, EVENT_INFO, handlerName, type Align, type ComponentType, type EventKind, type GuiComponent, type GuiForm } from "./model";
 
 export interface ParsedForm {
@@ -201,7 +202,8 @@ function listenerLine(c: GuiComponent, e: EventKind): string {
   }
 }
 
-export function componentLines(c: GuiComponent, extras: string[] = []): string[] {
+/** A component's statements; `container` is what it is added to (cp, or its panel), `holds` whether it has components inside. */
+export function componentLines(c: GuiComponent, extras: string[] = [], container = "cp", holds = false): string[] {
   const n = c.name;
   const out: string[] = [`${outer(c)}.setBounds(${Math.round(c.x)}, ${Math.round(c.y)}, ${Math.round(c.w)}, ${Math.round(c.h)});`];
   const hasText = ["JButton", "JLabel", "JTextField", "JTextArea", "JCheckBox", "JRadioButton"].includes(c.type);
@@ -234,11 +236,12 @@ export function componentLines(c: GuiComponent, extras: string[] = []): string[]
     const args = [style, c.fontSize ? `${c.fontSize}f` : ""].filter(Boolean).join(", ");
     out.push(`${n}.setFont(${n}.getFont().deriveFont(${args}));`);
   }
+  if (c.type === "JPanel" && holds) out.push(`${n}.setLayout(null);`);
   if (c.type === "JPanel" && c.border) out.push(`${n}.setBorder(BorderFactory.createTitledBorder(${javaString(c.border)}));`);
   if (c.group) out.push(`${c.group}.add(${n});`);
   for (const e of c.events) out.push(listenerLine(c, e));
   out.push(...extras.map((x) => (x.endsWith(";") || x.endsWith("}") ? x : x + ";")));
-  out.push(`cp.add(${outer(c)});`);
+  out.push(`${container}.add(${outer(c)});`);
   return out;
 }
 
@@ -249,7 +252,7 @@ export function componentsCode(p: ParsedForm): string[] {
   out.push("Container cp = getContentPane();", "cp.setLayout(null);", `cp.setPreferredSize(new Dimension(${Math.round(f.width)}, ${Math.round(f.height)}));`);
   if (f.background) out.push(`cp.setBackground(${color(f.background)});`);
   out.push(...p.extra.map((x) => (x.endsWith(";") || x.endsWith("}") ? x : x + ";")));
-  for (const c of f.components) out.push("", ...componentLines(c, p.extras.get(c.name) ?? []));
+  for (const c of codeOrder(f)) out.push("", ...componentLines(c, p.extras.get(c.name) ?? [], parentOf(f, c) ?? "cp", childrenOf(f, c.name).length > 0));
   out.push("", "pack();");
   return out;
 }
@@ -319,6 +322,12 @@ export function parseForm(text: string): ParsedForm | null {
       const name = scrollToInner.get(m[1]) ?? m[1];
       if (byName.has(name) && !order.includes(name)) order.push(name);
     } else if ((m = /^(\w+)\.add\((\w+)\)$/.exec(s)) && groups.has(m[1]) && byName.has(m[2])) byName.get(m[2])!.group = m[1];
+    else if ((m = /^(\w+)\.add\((\w+)\)$/.exec(s)) && byName.get(m[1])?.type === "JPanel" && byName.has(scrollToInner.get(m[2]) ?? m[2])) {
+      // Added to a panel: it is inside it.
+      const name = scrollToInner.get(m[2]) ?? m[2];
+      byName.get(name)!.parent = m[1];
+      if (!order.includes(name)) order.push(name);
+    }
     else if ((m = /^(\w+)\.(\w+)\((.*)\)$/s.exec(s))) {
       const target = scrollToInner.get(m[1]) ?? m[1];
       const c = byName.get(target);
@@ -399,6 +408,9 @@ function applyCall(c: GuiComponent, onScrollPane: boolean, method: string, args:
       c[key] = v;
       return true;
     }
+    case "setLayout":
+      // A panel with components inside is written with no layout manager.
+      return c.type === "JPanel" && args === "null";
     case "setPaintTicks":
     case "setPaintLabels":
     case "setOpaque":

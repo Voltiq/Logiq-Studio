@@ -27,6 +27,8 @@ export type Align = "left" | "center" | "right";
 export interface GuiComponent {
   type: ComponentType;
   name: string;
+  /** The panel it is in (added to); none: the window's content pane. x and y are relative to it. */
+  parent?: string;
   x: number;
   y: number;
   w: number;

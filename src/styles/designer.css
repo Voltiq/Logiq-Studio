@@ -121,3 +121,9 @@
 /* The way back from the code */
 .crumb-design { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 2px 8px; border: 0; border-radius: 6px; background: var(--accent-soft); color: var(--accent-text); font: inherit; font-size: 11.5px; font-weight: var(--font-weight-semibold); cursor: pointer; }
 .crumb-design:hover { background: color-mix(in srgb, var(--accent) 26%, transparent); }
+
+/* Components inside panels */
+.gd-children { position: absolute; inset: 0; overflow: hidden; }
+.gd-comp.is-container > .gd-children > .gd-comp { pointer-events: auto; }
+.gd-comp.is-lifted { z-index: 3; opacity: 0.92; filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.18)); }
+.gd-drop-target { position: absolute; outline: 2px solid var(--accent); outline-offset: -1px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 7%, transparent); pointer-events: none; z-index: 2; }

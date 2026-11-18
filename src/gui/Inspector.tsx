@@ -79,6 +79,9 @@ export interface InspectorProps {
   onGoToHandler: (method: string) => void;
   onAlign: (kind: AlignKind) => void;
   onDelete: () => void;
+  /** The panels the selected component can be put into. */
+  containers: string[];
+  onContainer: (name: string, parent: string | null) => void;
 }
 
 export function Inspector(p: InspectorProps) {
@@ -157,6 +160,20 @@ export function Inspector(p: InspectorProps) {
       {has("border") && <Field label={t("Title of the border")} value={c.border ?? ""} placeholder={t("(no border)")} onCommit={(v) => set({ border: v })} />}
 
       <div className="gi-section">{t("Position and size")}</div>
+      {(p.containers.length > 0 || c.parent) && (
+        <label className="gi-field">
+          <span className="gi-label">{t("Placed in")}</span>
+          <select className="gi-input" value={c.parent ?? ""} onChange={(e) => p.onContainer(c.name, e.target.value || null)}>
+            <option value="">{t("The window")}</option>
+            {[...new Set([...(c.parent ? [c.parent] : []), ...p.containers])].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {c.parent && <p className="gi-note">{t("x and y count from the top left of {0}.", c.parent)}</p>}
       <div className="gi-row is-four">
         <Field label="x" type="number" value={String(c.x)} onCommit={(v) => set({ x: num(v, c.x) })} />
         <Field label="y" type="number" value={String(c.y)} onCommit={(v) => set({ y: num(v, c.y) })} />

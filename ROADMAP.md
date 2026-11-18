@@ -444,7 +444,7 @@ UML class diagram draws itself from your Java code while you type, like in the R
 
 ### Still open, moved on
 - [ ] JavaFX windows (FXML) → later
-- [ ] Containers with their own layout (components inside a panel, layout managers) → later
+- [ ] Containers with their own layout (components inside a panel, layout managers) → 1.8
 
 ## v1.0 — Release (2026-11-17)
 
@@ -522,3 +522,16 @@ UML class diagram draws itself from your Java code while you type, like in the R
 - The update check needs the GitHub repository `Voltiq/Logiq-Studio` and its `TAURI_SIGNING_PRIVATE_KEY`
   secret; until the first release is published, the check finds nothing
 - Tried in the browser stand-in and with native tests, and the installer was built; not yet installed and run
+
+## 1.8 — Containers in the GUI designer (in progress)
+
+### Components inside panels
+- [x] A component dropped or drawn onto a **panel** goes inside it (`panel1.add(…)`, the panel without a layout
+      manager, `setBounds` relative to it); panels inside panels too; Swing's clipping and painting order shown
+- [x] Moving a panel takes what is inside it along; dragging a component onto another panel (highlighted while
+      dragging) or out into the window moves it there, keeping its place; **Placed in** in the inspector does the
+      same, pulling it inside the panel's area
+- [x] Deleting, copying and duplicating a panel include what is inside it; aligning and nudging work across panels;
+      Tab goes through the components in the code's order
+- [x] Read back from the code, also by hand (a loop of panels is cut); tested with the real javac
+- [ ] Layout managers for panels and the window (FlowLayout, GridLayout, BorderLayout), drawn as Swing lays out

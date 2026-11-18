@@ -1474,4 +1474,9 @@ export const es: Record<string, string> = {
   "Write the code it puts in.": "Escribe el código que inserta.",
   "A field's name can't be only digits: write ${count} instead of ${10}.": "El nombre de un campo no puede ser solo dígitos: escribe ${count} en lugar de ${10}.",
   "Save selection as snippet…": "Guardar selección como fragmento…",
+  // Components inside panels
+  "{0} {1}, {2} components inside": "{0} {1}, {2} componentes dentro",
+  "Placed in": "Colocado en",
+  "The window": "La ventana",
+  "x and y count from the top left of {0}.": "x e y se cuentan desde la esquina superior izquierda de {0}.",
 };

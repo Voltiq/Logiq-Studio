@@ -68,7 +68,7 @@ With the keyboard: `Tab` moves into the diagram, the arrow keys go from class to
 
 ## Designing windows
 
-**File → New Swing window** creates a window class and opens it in the GUI designer. Drag buttons, labels and text fields from the left into the window, move and resize them (they snap to each other), and set their properties on the right.
+**File → New Swing window** creates a window class and opens it in the GUI designer. Drag buttons, labels and text fields from the left into the window, move and resize them (they snap to each other), and set their properties on the right. Components dropped onto a **panel** go inside it and move with it; drag one out, or choose **Placed in** on the right, to put it somewhere else.
 
 To say what a button does, double-click it: a method like `okButton_ActionPerformed` is written for you to fill in. The designer writes only the code between the `// GUI-BEGIN` and `// GUI-END` comments; the rest of the class is yours, and what you change in the code shows in the designer.
 

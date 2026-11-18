@@ -68,7 +68,7 @@ Mit der Tastatur: `Tab` führt ins Diagramm, die Pfeiltasten gehen von Klasse zu
 
 ## Fenster entwerfen
 
-**Datei → Neues Swing-Fenster…** legt eine Fensterklasse an und öffnet sie im GUI-Designer. Zieh Buttons, Labels und Textfelder von links ins Fenster, verschiebe sie und ändere ihre Größe (sie rasten aneinander ein) und stelle rechts ihre Eigenschaften ein.
+**Datei → Neues Swing-Fenster…** legt eine Fensterklasse an und öffnet sie im GUI-Designer. Zieh Buttons, Labels und Textfelder von links ins Fenster, verschiebe sie und ändere ihre Größe (sie rasten aneinander ein) und stelle rechts ihre Eigenschaften ein. Komponenten, die du auf ein **Panel** ziehst, liegen darin und wandern mit ihm; zieh eine heraus oder wähle rechts **Liegt in**, um sie woanders hinzulegen.
 
 Um festzulegen, was ein Button tut, klick ihn doppelt an: Eine Methode wie `okButton_ActionPerformed` wird für dich geschrieben, die du ausfüllst. Der Designer schreibt nur den Code zwischen den Kommentaren `// GUI-BEGIN` und `// GUI-END`; der Rest der Klasse gehört dir, und was du im Code änderst, zeigt sich im Designer.
 
