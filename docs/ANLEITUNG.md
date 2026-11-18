@@ -60,6 +60,7 @@ Um einen Fehler zu finden, setze mit `F9` einen Haltepunkt und starte den Debugg
 - **Neue Klasse** legt eine Klasse mit einem Assistenten an; die Werkzeuge für Vererbung und Assoziation zeichnen Verbindungen, die in den Code geschrieben werden.
 - **Aggregation und Komposition**: Klicke mit der rechten Maustaste auf eine Assoziation und wähle, ob sie eine Aggregation (ein Teil, das auch allein bestehen kann, leere Raute) oder eine Komposition (ein Teil, das seinem Ganzen gehört, gefüllte Raute) ist. Die Wahl gilt für das ganze Projekt und erscheint in jedem Diagramm und im Export als PlantUML und Mermaid.
 - **Exportieren** speichert das Diagramm als SVG, PNG, PlantUML oder Mermaid.
+- **Rückgängig**: `Strg+Z` nimmt zurück, was du im Diagramm getan hast (Kästen verschieben, Notizen, Linien, Klassen ausblenden, und den Code, den es geschrieben hat: Elemente, Beziehungen, neue Klassen, Aggregationen); `Strg+Y` stellt es wieder her.
 
 Mit der Tastatur: `Tab` führt ins Diagramm, die Pfeiltasten gehen von Klasse zu Klasse, `Enter` öffnet den Code, und die Menütaste öffnet das Menü der Klasse.
 

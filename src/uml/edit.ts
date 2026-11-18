@@ -11,6 +11,7 @@ import { minimalChange } from "../editor/format";
 import { dirname, join } from "../lib/paths";
 import { t } from "../lib/i18n";
 import { javaIndex } from "./javaIndex";
+import { record } from "./history";
 import { parseJava, baseName } from "./javaParser";
 import type { JField, JMethod, JType } from "./model";
 import { addField, associationType, removeMember, renderClass, setSupertypes, type ClassSpec } from "./codegen";
@@ -43,6 +44,7 @@ export async function editType(qualifiedName: string, change: (text: string, typ
     if (!type) throw new Error(t("The class was not found"));
     const out = change(text, type);
     if (out === text) return true;
+    record({ files: [{ path, before: text, after: out }] });
     if (getDoc(path)) changeDoc(path, [minimalChange(text, out)]);
     else {
       await api.writeText(path, out);
@@ -61,6 +63,7 @@ export async function createClass(dir: string, spec: ClassSpec, open = true): Pr
     if (await api.exists(path)) throw new Error(t("“{0}” already exists here.", `${spec.name}.java`));
     const text = renderClass(spec, indentUnit());
     await api.createFile(path, text);
+    record({ files: [{ path, before: null, after: text }] });
     javaIndex.set(path, text);
     await loadDir(dir);
     if (open) await openFile(path, undefined, 0);

@@ -60,6 +60,7 @@ Pour trouver une erreur, placez un point d'arrêt avec `F9` et lancez le débogu
 - **Nouvelle classe** crée une classe à l'aide d'un assistant ; les outils d'héritage et d'association dessinent des liens qui sont écrits dans le code.
 - **Agrégation et composition** : faites un clic droit sur une association et choisissez s'il s'agit d'une agrégation (une partie qui peut exister seule, losange vide) ou d'une composition (une partie qui appartient à son tout, losange plein). Le choix vaut pour tout le projet et apparaît dans chaque diagramme et dans l'export PlantUML et Mermaid.
 - **Exporter** enregistre le diagramme en SVG, PNG, PlantUML ou Mermaid.
+- **Annuler** : `Ctrl+Z` annule ce que vous avez fait dans le diagramme (déplacer des boîtes, notes, lignes, masquer des classes, et le code qu'il a écrit : membres, liens, nouvelles classes, agrégations) ; `Ctrl+Y` le rétablit.
 
 Au clavier : `Tab` entre dans le diagramme, les flèches vont de classe en classe, `Entrée` ouvre le code et la touche Menu ouvre le menu de la classe.
 

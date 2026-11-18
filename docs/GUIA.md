@@ -60,6 +60,7 @@ Para encontrar un error, pon un punto de interrupción con `F9` e inicia el depu
 - **Nueva clase** crea una clase con un asistente; las herramientas de herencia y asociación dibujan enlaces que se escriben en el código.
 - **Agregación y composición**: haz clic derecho en una asociación y elige si es una agregación (una parte que puede existir por sí sola, rombo vacío) o una composición (una parte que pertenece a su todo, rombo relleno). La elección se guarda para el proyecto y aparece en cada diagrama y en la exportación a PlantUML y Mermaid.
 - **Exportar** guarda el diagrama como SVG, PNG, PlantUML o Mermaid.
+- **Deshacer**: `Ctrl+Z` deshace lo que hiciste en el diagrama (mover cajas, notas, líneas, ocultar clases y el código que escribió: miembros, relaciones, clases nuevas, agregaciones); `Ctrl+Y` lo rehace.
 
 Con el teclado: `Tab` entra en el diagrama, las flechas van de clase en clase, `Intro` abre el código y la tecla de menú abre el menú de la clase.
 

@@ -64,6 +64,7 @@ import * as A from "./actions";
 import { activeIdOf, activeTab, get, openDialog, openMenu, set } from "./store";
 import { t } from "./i18n";
 import { PLUGINS } from "../languages";
+import { undoTarget as umlUndo } from "../uml/history";
 
 export interface Command {
   id: string;
@@ -81,6 +82,8 @@ export interface Command {
 const hasFolder = () => !!get().root;
 const inRepo = () => !!G.useGit.getState().repo;
 const hasEditor = () => !!activeView() && activeTab()?.kind === "file";
+/** The class diagram is the tab in front (Ctrl+Z and Ctrl+Y act on its changes). */
+const inUml = () => activeTab()?.kind === "uml" && !!umlUndo();
 const inDesigner = () => activeTab()?.kind === "gui" && !!activeTab()?.path;
 const paused = () => D.useDebug.getState().status === "paused";
 const hasJava = () => hasEditor() && /\.java$/i.test(shownPath() ?? "");
@@ -158,17 +161,29 @@ export const COMMANDS: Command[] = [
     label: "Undo",
     category: "Edit",
     shortcut: "Ctrl+Z",
-    enabled: () => hasEditor() || inDesigner(),
-    run: () => (inDesigner() ? void import("@codemirror/commands").then((m) => A.runOnDoc(activeTab()!.path!, m.undo)) : editor((v) => import("@codemirror/commands").then((m) => m.undo(v)))()),
+    enabled: () => hasEditor() || inDesigner() || inUml(),
+    run: () =>
+      inUml()
+        ? umlUndo()?.undo()
+        : inDesigner()
+          ? void import("@codemirror/commands").then((m) => A.runOnDoc(activeTab()!.path!, m.undo))
+          : editor((v) => import("@codemirror/commands").then((m) => m.undo(v)))(),
   },
   {
     id: "edit.redo",
     label: "Redo",
     category: "Edit",
     shortcut: "Ctrl+Y",
-    enabled: () => hasEditor() || inDesigner(),
-    run: () => (inDesigner() ? void import("@codemirror/commands").then((m) => A.runOnDoc(activeTab()!.path!, m.redo)) : editor((v) => import("@codemirror/commands").then((m) => m.redo(v)))()),
+    enabled: () => hasEditor() || inDesigner() || inUml(),
+    run: () =>
+      inUml()
+        ? umlUndo()?.redo()
+        : inDesigner()
+          ? void import("@codemirror/commands").then((m) => A.runOnDoc(activeTab()!.path!, m.redo))
+          : editor((v) => import("@codemirror/commands").then((m) => m.redo(v)))(),
   },
+  // Redo in the class diagram the other common way (the editor has its own).
+  { id: "uml.redo", label: "Redo", category: "UML", shortcut: "Ctrl+Shift+Z", enabled: () => inUml(), run: () => umlUndo()?.redo() },
   { id: "edit.find", label: "Find and replace", category: "Edit", icon: Search, shortcut: "Ctrl+F", enabled: hasEditor, run: editor((v) => openSearchPanel(v)) },
   { id: "edit.findInFiles", label: "Find in files", category: "Edit", shortcut: "Ctrl+Shift+F", enabled: hasFolder, run: () => set({ sidebar: "search" }) },
   { id: "edit.gotoLine", label: "Go to line…", category: "Edit", shortcut: "Ctrl+G", enabled: hasEditor, run: () => openDialog({ kind: "palette", mode: "line" }) },
@@ -320,7 +335,7 @@ export function shortcutOf(e: KeyboardEvent): string {
 /** Shortcuts the editor itself must not swallow. */
 const GLOBAL = new Set(COMMANDS.filter((c) => c.shortcut && !c.editorKey).map((c) => c.shortcut!));
 // Left to CodeMirror while an editor has focus.
-const EDITOR_OWNED = new Set(["Ctrl+Z", "Ctrl+Y", "Ctrl+F", "Ctrl+/"]);
+const EDITOR_OWNED = new Set(["Ctrl+Z", "Ctrl+Y", "Ctrl+Shift+Z", "Ctrl+F", "Ctrl+/"]);
 
 /**
  * In a terminal the shell gets the keys (Ctrl+R, Ctrl+B, Ctrl+W…); only these,

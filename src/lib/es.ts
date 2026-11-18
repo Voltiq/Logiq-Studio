@@ -1287,4 +1287,7 @@ export const es: Record<string, string> = {
   "composition": "composición",
   "Aggregation: {0} has {1} as a part": "Agregación: {0} tiene a {1} como parte",
   "Composition: {0} owns {1}": "Composición: {0} posee a {1}",
+  // Undo in the class diagram
+  "The code was changed since": "El código se ha cambiado desde entonces",
+  "{0} isn't as the diagram left it. Undo the change in its editor instead.": "{0} ya no está como lo dejó el diagrama. Deshaz el cambio en su editor.",
 };

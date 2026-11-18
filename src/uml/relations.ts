@@ -6,6 +6,7 @@
 import { create } from "zustand";
 import { api } from "../lib/api";
 import { join } from "../lib/paths";
+import { record } from "./history";
 
 export type Whole = "aggregation" | "composition";
 
@@ -38,10 +39,18 @@ export async function loadRelations(root: string) {
 /** Makes an association an aggregation or a composition, or a plain association again (null). */
 export function setWhole(from: string, to: string, whole: Whole | null) {
   const { root, wholes } = useRelations.getState();
-  if (!root) return;
+  if (!root || (wholes[relationKey(from, to)] ?? null) === whole) return;
   const next = { ...wholes };
   if (whole) next[relationKey(from, to)] = whole;
   else delete next[relationKey(from, to)];
+  record({ wholes: { before: wholes, after: next } });
+  setWholes(next);
+}
+
+/** Puts back every choice at once (undo and redo). */
+export function setWholes(next: Record<string, Whole>) {
+  const { root } = useRelations.getState();
+  if (!root) return;
   useRelations.setState({ wholes: next });
   void api.writeText(fileOf(root), JSON.stringify({ version: 1, wholes: next }, null, 2) + "\n").catch(() => {});
 }

@@ -60,6 +60,7 @@ To find a mistake, set a breakpoint with `F9` and start the debugger with `F6`: 
 - **New class** creates a class with a wizard; the inheritance and association tools draw links that are written into the code.
 - **Aggregation and composition**: right-click an association and choose whether it is an aggregation (a part that can exist on its own, hollow diamond) or a composition (a part owned by its whole, filled diamond). The choice is kept for the project and shows in every diagram and in the PlantUML and Mermaid export.
 - **Export** saves the diagram as SVG, PNG, PlantUML or Mermaid.
+- **Undo**: `Ctrl+Z` takes back what you did in the diagram (moving boxes, notes, lines, hiding classes, and the code it wrote: members, links, new classes, aggregations); `Ctrl+Y` does it again.
 
 With the keyboard: `Tab` moves into the diagram, the arrow keys go from class to class, `Enter` opens the code, and the menu key opens the class's menu.
 

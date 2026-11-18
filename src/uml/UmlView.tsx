@@ -13,6 +13,7 @@ import {
   StickyNote,
   Trash2,
   Undo2,
+  Redo2,
   FilePlus2,
   ListChecks,
   Triangle,
@@ -43,7 +44,8 @@ import { CULL_ABOVE, lineInView, visibleNodes } from "./visible";
 import { exportPng, exportSvgString } from "./exportDiagram";
 import { simpleType } from "./javaParser";
 import { toMermaid, toPlantUml } from "./exportText";
-import { loadRelations, relationKey, setWhole, useRelations } from "./relations";
+import { loadRelations, relationKey, setWhole, setWholes, useRelations } from "./relations";
+import { applyFiles, setRecorder, setUndoTarget, type UmlChange } from "./history";
 import { addInheritance, askAssociation, deleteClass, deleteMember, newClassDir, removeAssociation, removeInheritance } from "./edit";
 import { BenchPanel } from "./BenchPanel";
 import { createTestFor, runTests } from "../lib/tools";
@@ -391,7 +393,7 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
       .readText(layoutPath(root, diagramPath))
       .then((f) => {
         const data = JSON.parse(f.text) as Layout;
-        setLayout({
+        const loaded: Layout = {
           ...EMPTY_LAYOUT,
           positions: data.positions ?? {},
           hidden: data.hidden ?? [],
@@ -399,9 +401,15 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
           bends: data.bends ?? {},
           labels: data.labels ?? {},
           ...(Array.isArray(data.classes) ? { classes: data.classes } : {}),
-        });
+        };
+        committed.current = loaded;
+        setLayout(loaded);
       })
-      .catch(() => setLayout(diagramPath ? { ...EMPTY_LAYOUT, classes: [] } : EMPTY_LAYOUT));
+      .catch(() => {
+        const fresh = diagramPath ? { ...EMPTY_LAYOUT, classes: [] } : EMPTY_LAYOUT;
+        committed.current = fresh;
+        setLayout(fresh);
+      });
   }, [root, diagramPath]);
 
   // The project's .uml files, for the diagram picker.
@@ -414,8 +422,35 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
   }, [root]);
   useEffect(() => loadDiagramFiles(), [loadDiagramFiles, diagramPath, visible]);
 
+  // ----- Undo and redo ------------------------------------------------------------------------
+  /** The layout as last saved: what a change (a whole drag, say) is taken back to. */
+  const committed = useRef<Layout | null>(null);
+  type Step = { layout?: { before: Layout; after: Layout }; change?: UmlChange; at: number };
+  const steps = useRef<{ back: Step[]; forward: Step[] }>({ back: [], forward: [] });
+  const [, setStepCount] = useState(0);
+  const pushStep = useCallback((s: Omit<Step, "at">) => {
+    const h = steps.current;
+    const last = h.back[h.back.length - 1];
+    const now = Date.now();
+    // Code changes made by one action (a new association and its kind) are one step.
+    if (s.change && last?.change && !last.layout && !s.layout && now - last.at < 800) {
+      last.change = {
+        files: [...(last.change.files ?? []), ...(s.change.files ?? [])],
+        wholes: s.change.wholes ? { before: last.change.wholes?.before ?? s.change.wholes.before, after: s.change.wholes.after } : last.change.wholes,
+      };
+      last.at = now;
+    } else {
+      h.back.push({ ...s, at: now });
+      if (h.back.length > 200) h.back.shift();
+    }
+    h.forward = [];
+    setStepCount((n) => n + 1);
+  }, []);
+
   const persist = useCallback(
-    (next: Layout) => {
+    (next: Layout, asStep = true) => {
+      if (asStep && committed.current && committed.current !== next) pushStep({ layout: { before: committed.current, after: next } });
+      committed.current = next;
       setLayout(next);
       if (!root) return;
       window.clearTimeout(saveTimer.current);
@@ -424,8 +459,42 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
         api.writeText(target, JSON.stringify(next, null, 2) + "\n").catch(() => {});
       }, 500);
     },
-    [root, diagramPath],
+    [root, diagramPath, pushStep],
   );
+
+  const takeStep = useCallback(
+    async (undo: boolean) => {
+      const h = steps.current;
+      const step = (undo ? h.back : h.forward).pop();
+      if (!step) return;
+      if (step.change?.files?.length && !(await applyFiles(step.change.files, undo))) {
+        // The code went its own way since: the step stays where it was.
+        (undo ? h.back : h.forward).push(step);
+        return;
+      }
+      if (step.change?.wholes) setWholes(undo ? step.change.wholes.before : step.change.wholes.after);
+      if (step.layout) persist(undo ? step.layout.before : step.layout.after, false);
+      (undo ? h.forward : h.back).push(step);
+      setStepCount((n) => n + 1);
+    },
+    [persist],
+  );
+
+  // The diagram in view takes the changes made through it, and Ctrl+Z / Ctrl+Y.
+  useEffect(() => {
+    if (!visible) return;
+    const stopRecording = setRecorder((change) => pushStep({ change }));
+    const stopUndo = setUndoTarget({ undo: () => void takeStep(true), redo: () => void takeStep(false) });
+    return () => {
+      stopRecording();
+      stopUndo();
+    };
+  }, [visible, pushStep, takeStep]);
+  // Another diagram, another history.
+  useEffect(() => {
+    steps.current = { back: [], forward: [] };
+    setStepCount((n) => n + 1);
+  }, [root, diagramPath]);
 
   const allTypes = useMemo(() => everyType(), [version]);
   const folders = useMemo(() => {
@@ -467,7 +536,8 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
       // Forget classes that no longer exist; keep those only filtered out.
       const next = Object.fromEntries(Object.entries(layout.positions).filter(([id]) => known.has(id)));
       for (const n of missing) next[n.id] = positions[n.id];
-      persist({ ...layout, positions: next });
+      // Placing new boxes isn't a step of its own: undoing the new class takes it away anyway.
+      persist({ ...layout, positions: next }, false);
     }
   }, [diagram, layout, positions, persist, known]);
 
@@ -1210,6 +1280,9 @@ export function UmlView({ tabId, visible }: { tabId: string; visible: boolean })
           ))}
         </div>
         <span className="spacer" />
+        <IconButton icon={Undo2} label={t("Undo")} shortcut="Ctrl+Z" spacing="compact" disabled={!steps.current.back.length} onClick={() => void takeStep(true)} />
+        <IconButton icon={Redo2} label={t("Redo")} shortcut="Ctrl+Y" spacing="compact" disabled={!steps.current.forward.length} onClick={() => void takeStep(false)} />
+        <span className="toolbar-divider" />
         <Button spacing="compact" iconBefore={Plus} onClick={() => openDialog({ kind: "classWizard", dir: newClassDir(scope === ALL ? null : scope) })}>
           {t("New class")}
         </Button>
